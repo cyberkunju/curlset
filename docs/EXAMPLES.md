@@ -2,6 +2,9 @@
 
 This document explains what the platform should do through concrete sample workflows. All names, IDs, labels and metadata below are illustrative. Any sample image used by tests must be generated locally or be clearly licensed for redistribution.
 
+
+> **Execution reference:** Use [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) for sequencing and [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md) for implementation tasks and verification gates. Examples here illustrate expected behavior; they do not replace tests or acceptance criteria.
+
 ## 1. Example A — Product damage classification
 
 ### User goal
