@@ -6,6 +6,9 @@
 **Deployment targets:** Local/self-hosted first, hosted service later  
 **Architecture style:** Modular monolith with asynchronous workers
 
+
+> **Implementation sequencing:** Use [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) for the roadmap and current status, and [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md) for task-level implementation steps, tests and exit gates. The design describes intended boundaries; inspect the actual repository before applying it.
+
 ## 1. Product concept
 
 The platform is a dataset engineering workbench. It helps a user define a training-data task, ingest raw assets, normalize records, propose annotations with configurable models, review/correct the annotations, run quality checks, publish an immutable dataset version and export a documented package.
