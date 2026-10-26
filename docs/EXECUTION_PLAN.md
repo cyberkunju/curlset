@@ -6,6 +6,10 @@
 
 This plan is both a roadmap and a working checklist. The coding agent must inspect the actual repository before each phase, preserve existing work, mark tasks with evidence, run the relevant tests and continue to the next feasible phase. A phase is not complete because files were created; it is complete when its acceptance gate passes.
 
+
+
+> **Detailed implementation instructions:** Read [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md) for phase-level work packages, dependencies, tests, exit gates, release gates and completion reports. Use it together with this roadmap.
+
 ## 1. How to use this plan
 
 Status values:
