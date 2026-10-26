@@ -2,6 +2,9 @@
 
 This log records material decisions. New decisions should include context, the chosen option, alternatives considered and consequences. Update existing entries only when the decision genuinely changes; retain the history of important reversals.
 
+
+> **Execution reference:** Implement decisions through [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) and [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md). If implementation evidence requires changing a decision, record the rationale here and update affected plans.
+
 ## ADR-001 — Dataset-first product scope
 
 **Status:** Accepted  
