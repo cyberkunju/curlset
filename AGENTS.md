@@ -1,6 +1,6 @@
 # AGENTS.md — Mandatory Development Contract
 
-This file is the highest-priority repository-specific instruction for AI coding agents. Read it before inspecting or modifying application code. Follow it together with docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md and docs/EXAMPLES.md.
+This file is the highest-priority repository-specific instruction for AI coding agents. Read it before inspecting or modifying application code. Follow it together with docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md, docs/PHASE_BY_PHASE_PLAN.md, docs/EXAMPLES.md and docs/DECISIONS.md.
 
 ## 1. Mission and autonomy
 
@@ -15,7 +15,7 @@ This is not permission to perform unsafe, destructive or externally consequentia
 At the beginning of every session:
 
 1. Read this file completely.
-2. Read docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md and docs/EXAMPLES.md.
+2. Read docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md, docs/PHASE_BY_PHASE_PLAN.md, docs/EXAMPLES.md and docs/DECISIONS.md.
 3. Inspect the repository tree, Git status, current branch, recent commits, package manifests, existing code, tests, CI and configuration.
 4. Preserve working user changes. Never overwrite unrelated work simply to match the plan.
 5. Compare the actual repository state with the phase checklist. Treat code and tests as evidence; do not trust stale progress notes alone.
@@ -28,7 +28,7 @@ Do not ask the user to repeat information already in the repository. Do not ask 
 
 For each phase:
 
-1. Read the phase goal, dependencies, tasks, acceptance criteria and exit gate in docs/EXECUTION_PLAN.md.
+1. Read the phase goal and high-level dependencies in docs/EXECUTION_PLAN.md, then read the matching detailed work packages, tests and exit gate in docs/PHASE_BY_PHASE_PLAN.md.
 2. Inspect existing implementation before creating new files or abstractions.
 3. Break work into small vertical slices that leave the repository runnable.
 4. Implement the simplest complete solution consistent with the design.
