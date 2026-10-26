@@ -5,6 +5,9 @@
 **Primary audience:** Individual developers and students  
 **Product model:** Open source, local/self-hosted and future hosted service
 
+
+> **Implementation mapping:** Requirements are implemented in dependency order using [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) and the detailed task-level [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md). Acceptance criteria in this file remain authoritative for observable product behavior.
+
 ## 1. Purpose
 
 The platform turns raw files and source data into structured, reviewed, validated, documented and versioned datasets suitable for machine-learning training, fine-tuning, evaluation and research.
