@@ -11,8 +11,10 @@ The platform is dataset-first: AI models assist with research, generation and an
 1. AGENTS.md — mandatory implementation and execution behavior.
 2. docs/DESIGN.md — architecture, system boundaries, data model and technical decisions.
 3. docs/REQUIREMENTS.md — functional requirements, user stories and acceptance criteria.
-4. docs/EXECUTION_PLAN.md — ordered phases, task breakdown, gates and definition of done.
-5. docs/EXAMPLES.md — end-to-end sample scenario, schemas, records and expected exports.
+4. docs/EXECUTION_PLAN.md — high-level roadmap and current phase status.
+5. docs/PHASE_BY_PHASE_PLAN.md — detailed work packages, dependencies, tests, acceptance gates and completion reports for all phases.
+6. docs/EXAMPLES.md — end-to-end sample scenario, schemas, records and expected exports.
+7. docs/DECISIONS.md — recorded architecture and implementation decisions.
 
 ## Product goals
 
@@ -48,4 +50,4 @@ This repository begins with the product contract and execution plan. The coding 
 
 ## Documentation
 
-See docs/EXECUTION_PLAN.md for phase status, dependencies and exit criteria.
+Use docs/EXECUTION_PLAN.md for the roadmap and phase status, and docs/PHASE_BY_PHASE_PLAN.md for the detailed implementation tasks, tests and exit gates. Start at Phase 0 and do not mark phases complete without implementation evidence.
