@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { checkHealth, fetchProjects } from './api';
+import { checkHealth, fetchProjects, fetchDatasetDetail } from './api';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DatasetDetail } from './components/DatasetDetail';
-import { Header } from './components/Header';
+import { Header, BreadcrumbItem } from './components/Header';
 import { LandingPage } from './components/LandingPage';
 import { ProjectDetail } from './components/ProjectDetail';
 import { ProjectList } from './components/ProjectList';
@@ -10,6 +10,7 @@ import { Sidebar } from './components/Sidebar';
 import { SystemHealthView } from './components/SystemHealthView';
 import { GovernanceView } from './components/GovernanceView';
 import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
+import { CommandPalette } from './components/ui/CommandPalette';
 import { Project } from './types';
 
 type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance';
@@ -18,6 +19,7 @@ export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
+  const [currentDatasetName, setCurrentDatasetName] = useState<string | null>(null);
   const [direction, setDirection] = useState<1 | -1>(1);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -25,7 +27,41 @@ export const App: React.FC = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState<any>(null);
+
+  // Responsive sidebar collapse state (default collapsed on tablet 768-1023px)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768 && window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Global window resize listener for tablet rail
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Global Cmd+K / Ctrl+K keyboard shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -86,6 +122,24 @@ export const App: React.FC = () => {
     loadHealth();
   }, [includeArchived]);
 
+  // Resolve dataset metadata when selectedDatasetId changes
+  useEffect(() => {
+    if (selectedDatasetId) {
+      fetchDatasetDetail(selectedDatasetId)
+        .then((res) => {
+          if (res?.dataset) {
+            setCurrentDatasetName(res.dataset.name);
+            if (!selectedProjectId && res.dataset.project_id) {
+              setSelectedProjectId(res.dataset.project_id);
+            }
+          }
+        })
+        .catch(() => setCurrentDatasetName(null));
+    } else {
+      setCurrentDatasetName(null);
+    }
+  }, [selectedDatasetId, selectedProjectId]);
+
   const handleSelectProject = (projectId: string) => {
     setDirection(1);
     setSelectedProjectId(projectId);
@@ -120,8 +174,8 @@ export const App: React.FC = () => {
 
   const currentProject = projects.find((p) => p.id === selectedProjectId);
 
-  // Compute breadcrumbs
-  const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [
+  // Compute rich breadcrumbs based on resolved application data
+  const breadcrumbs: BreadcrumbItem[] = [
     {
       label: 'Home',
       onClick: () => handleNavigate('landing'),
@@ -142,7 +196,7 @@ export const App: React.FC = () => {
     if (currentProject) {
       breadcrumbs.push({ label: currentProject.name });
     } else if (selectedProjectId) {
-      breadcrumbs.push({ label: selectedProjectId });
+      breadcrumbs.push({ label: `Project ${selectedProjectId.slice(0, 8)}` });
     }
   } else if (currentView === 'dataset_detail') {
     breadcrumbs.push({
@@ -158,10 +212,10 @@ export const App: React.FC = () => {
         },
       });
     }
-    breadcrumbs.push({ label: 'Dataset Overview' });
+    breadcrumbs.push({
+      label: currentDatasetName || 'Dataset Overview',
+    });
   }
-
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
     <div className="app-container">
@@ -171,13 +225,14 @@ export const App: React.FC = () => {
         systemHealth={systemHealth}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       <div className="main-wrapper">
         <Header
           breadcrumbs={breadcrumbs}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
 
@@ -191,6 +246,8 @@ export const App: React.FC = () => {
                 onOpenProjects={() => handleNavigate('projects')}
                 onOpenHealth={() => handleNavigate('health')}
                 onOpenGovernance={() => handleNavigate('governance')}
+                onOpenCreateProject={() => setIsCreateModalOpen(true)}
+                projectCount={projects.length}
               />
             )}
 
@@ -235,6 +292,17 @@ export const App: React.FC = () => {
         </main>
       </div>
 
+      {/* Global Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        projects={projects}
+        onNavigate={handleNavigate}
+        onSelectProject={handleSelectProject}
+        onOpenCreateProject={() => setIsCreateModalOpen(true)}
+      />
+
+      {/* Create Project Dialog */}
       <CreateProjectModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

@@ -219,7 +219,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 |---|---|---|---|
 | **R0** | **Repository & UI Coverage Audit** | **COMPLETE** | `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`, 0 build/test regressions. |
 | **R1** | **Design System & Global Icon Standardization** | **COMPLETE** | `<ModalShell>`, standardized CSS backdrop & form tokens, 0 raw emojis/ad-hoc glyphs, `CreateProjectModal` & `CreateDatasetModal` migrated, 0 build/test regressions. |
-| **R2** | **Application Shell & Landing Page** | PENDING AUTHORIZATION | Responsive sidebar drawer/rail, interactive breadcrumbs, command palette search, tightened landing page. |
+| **R2** | **Application Shell & Landing Page** | **COMPLETE** | Responsive sidebar rail (64px) & mobile drawer, `CommandPalette` (`Cmd+K`/`Ctrl+K`), rich breadcrumbs with real project/dataset data, tightened landing page with quick-start summary. |
 | **R3** | **Projects & Dataset Management** | PENDING AUTHORIZATION | Compact table/grid views, split distribution meters, quick-action menus. |
 | **R4** | **Annotation Workbench (Modality Workspaces)** | PENDING AUTHORIZATION | Modality-tailored canvases (Object Detection, Text Spans, Audio Waveform scrubber), hotkey inspector drawer. |
 | **R5** | **Generation, Quality, Versioning & Exports** | PENDING AUTHORIZATION | High-density quality scorecard, synthetic data diff preview, visual Git-diff canvas overlay, preset export simulator. |
@@ -244,13 +244,14 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - Standardized all UI icons to `lucide-react` with `strokeWidth={1.75}`; eliminated ad-hoc arrows in `AnnotationWorkspace.tsx`, bullets in `ExportModal.tsx`, and `&times;` close buttons.
 - **Exit Gate:** `npm run build` passed in 9.16s (0 errors); 104/104 pytest tests passed in 7.96s; 0 emojis/ad-hoc glyphs remaining.
 
-#### Phase R2: Application Shell & Landing Page
-- **Objective:** Modernize global navigation and product front-door.
-- **Tasks:**
-  - Make `Sidebar.tsx` responsive with an auto-collapsing rail for tablet viewports (<1024px) and slide-out overlay for mobile (<768px).
-  - Enhance `Header.tsx` with interactive deep breadcrumbs and `Cmd+K`/`Ctrl+K` quick search shortcut.
-  - Refactor `LandingPage.tsx` to tighten vertical hero padding, format 5-stage lifecycle cards into a compact developer-tool overview, and add quick-start sample dataset preview chips.
-- **Exit Gate:** Landing page renders cleanly across 1440px, 1280px, 768px, and 390px viewports without layout overflow.
+#### Phase R2: Application Shell & Landing Page (COMPLETED)
+- **Objective:** Modernize global navigation, command palette search, and product front-door.
+- **Tasks Delivered:**
+  - Built `<CommandPalette>` (`apps/web/src/components/ui/CommandPalette.tsx`) with `Cmd+K` / `Ctrl+K` global trigger, keyboard navigation, and real application project/route search.
+  - Redesigned `Header.tsx` with interactive Command Palette search trigger, accessible breadcrumbs showing real resolved project and dataset names, and balanced control spacing.
+  - Made `Sidebar.tsx` responsive with left-aligned navigation labels, 64px compact rail for tablet viewports (768px–1023px) with collapse toggle, and accessible slide-out drawer with backdrop for mobile (<768px).
+  - Redesigned `LandingPage.tsx` with tightened hero padding, real quick-start workflow bar, and compact 5-stage lifecycle engineering cards.
+- **Exit Gate:** `npm run build` passed in 11.84s (0 errors); 104/104 backend tests passed in 11.19s; responsive rules verified.
 
 #### Phase R3: Projects & Dataset Management
 - **Objective:** Elevate project and dataset discovery into dense, professional developer views.

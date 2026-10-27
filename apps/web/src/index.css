@@ -242,15 +242,70 @@ body {
   background-color: var(--emerald);
 }
 
-/* Mobile Sidebar Drawer */
-@media (max-width: 768px) {
+/* Responsive Sidebar: Collapsed Rail & Mobile Drawer */
+.sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar.collapsed .brand-subtitle,
+.sidebar.collapsed .brand-title {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 1.25rem 0.5rem;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 0.75rem 0.35rem;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 0.85rem 0.5rem;
+  justify-content: center;
+}
+
+/* Tablet (768px - 1023px): Compact Rail */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sidebar {
+    width: 64px;
+  }
+  .sidebar .brand-subtitle,
+  .sidebar .brand-title {
+    display: none;
+  }
+  .sidebar .sidebar-header {
+    padding: 1.25rem 0.5rem;
+    justify-content: center;
+  }
+  .sidebar .sidebar-nav {
+    padding: 0.75rem 0.35rem;
+  }
+  .sidebar .sidebar-footer {
+    padding: 0.85rem 0.5rem;
+    justify-content: center;
+  }
+  .command-palette-trigger {
+    width: 170px !important;
+  }
+}
+
+/* Mobile (below 768px): Accessible Slide-Out Drawer */
+@media (max-width: 767px) {
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
+    width: 260px !important;
     transform: translateX(-100%);
     z-index: 50;
     box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar .brand-subtitle,
+  .sidebar .brand-title {
+    display: block !important;
   }
 
   .sidebar.mobile-open {
@@ -260,7 +315,8 @@ body {
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
     z-index: 40;
     animation: fadeIn 0.15s ease;
   }
@@ -276,6 +332,21 @@ body {
 
   .top-header {
     padding: 0 1rem !important;
+  }
+
+  .command-palette-trigger {
+    width: 34px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  .command-palette-trigger span,
+  .command-palette-trigger kbd {
+    display: none !important;
+  }
+
+  .command-palette-trigger svg {
+    margin: 0 !important;
   }
 }
 

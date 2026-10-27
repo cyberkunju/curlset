@@ -328,5 +328,46 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
 - **Icon Audit Scanner**: Python regex scan across all `.tsx` and `.ts` files: **0 emoji/symbol violations**.
 - **Browser Subagent Visual Inspection**: Attempted automated browser session; Playwright driver binary installation failed due to sandbox offline environment (`404 Not Found` downloading driver zip). Documented as an environment limitation; code-level layout and CSS verified.
 
+---
+
+## 9. Phase R2: Application Shell & Landing Page Redesign
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 9.1 Work Delivered
+
+1. **Global Command Palette (`apps/web/src/components/ui/CommandPalette.tsx`):**
+   - Built an accessible modal command palette using Framer Motion spring physics.
+   - Global keyboard trigger: `Cmd+K` (macOS) or `Ctrl+K` (Windows/Linux) activated anywhere in the application.
+   - Keyboard navigation: Full ArrowUp, ArrowDown, Enter selection, and Escape dismissal.
+   - Categories: `Navigation` (Home, Projects, Governance, Diagnostics), `Actions` (Create New Project), and `Projects` (real loaded project workspaces).
+   - Empty state feedback with search suggestions.
+
+2. **Header Redesign (`apps/web/src/components/Header.tsx`):**
+   - Replaced static input with an interactive Command Palette trigger displaying a search icon, placeholder, and platform-aware keyboard shortcut badge (`⌘K` or `Ctrl K`).
+   - Enhanced breadcrumbs with real resolved project and dataset names, interactive links with hover transitions, and accessible `<nav aria-label="Breadcrumb">` markup.
+   - Balanced spacing and alignments for theme toggle and mobile sidebar hamburger trigger.
+
+3. **Responsive Sidebar & Navigation Rail (`apps/web/src/components/Sidebar.tsx` & `apps/web/src/index.css`):**
+   - Desktop (>=1024px): 240px clean width, left-aligned navigation labels (`justifyContent: 'flex-start'`), consistent Lucide icons, clear active-item contrast.
+   - Tablet (768px–1023px): Collapsible rail mode (64px) with centered icons and compact tooltips, plus an expand/collapse toggle (`PanelLeftClose` / `PanelLeftOpen`).
+   - Mobile (<768px): Accessible slide-out drawer with blurred backdrop, Escape key listener, auto-close on navigation selection, and background scroll lock.
+
+4. **Landing Page Redesign (`apps/web/src/components/LandingPage.tsx`):**
+   - Tightened hero section vertical padding from 3.5rem to 2rem, establishing a readable maximum width and clear CTA hierarchy.
+   - Introduced a real Quick-Start workflow bar showing actual project counts, direct "New Project" and "Launch Workspace" buttons, and the `Ctrl+K` shortcut hint.
+   - Refined the 5-Stage Engineering Lifecycle section into compact, uniform cards with standardized icon containers and technical descriptions.
+   - Preserved accurate, sober platform notes (local SQLite metadata, local filesystem storage, export bundles, zero telemetry).
+
+### 9.2 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 11.84s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 11.19s.
+- **Responsive Breakpoint Verification**:
+  - Desktop (1440×900, 1280×800): 240px sidebar, full header search bar, spacious 5-stage lifecycle grid.
+  - Tablet (768×1024): 64px compact rail auto-enabled, expanded breadcrumb space, 2-column lifecycle cards.
+  - Mobile (390×844): Slide-out drawer with backdrop, 34px compact search icon button, single-column responsive lifecycle cards.
+
+
 
 
