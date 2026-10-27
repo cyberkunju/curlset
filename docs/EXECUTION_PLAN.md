@@ -46,31 +46,32 @@ Prioritize correctness and data portability over the number of models or modalit
 
 ## 3. Phase 0 — Repository reconnaissance and project baseline
 
-**Status: NOT STARTED**
+**Status: DONE**
 
 ### Goals
 Understand what already exists, align it with the product contract, and create a reproducible development environment without destroying user work.
 
 ### Tasks
-- [ ] Read all product documents.
-- [ ] Inspect tree, current branch, git status, recent commits and ignored files.
-- [ ] Identify existing frontend/backend frameworks, package managers, migrations, tests and CI.
-- [ ] Identify incomplete implementations, duplicate modules and existing architectural decisions.
-- [ ] Choose existing healthy conventions rather than rebuilding them.
-- [ ] Create docs/DECISIONS.md and record consequential choices.
-- [ ] Create/update .gitignore and .env.example without secrets.
-- [ ] Establish lint, format, type-check, test and build commands.
-- [ ] Add a small synthetic fixture and a clean-start smoke test strategy.
-- [ ] Update this plan with actual repo facts.
+- [x] Read all product documents.
+- [x] Inspect tree, current branch, git status, recent commits and ignored files.
+- [x] Identify existing frontend/backend frameworks, package managers, migrations, tests and CI.
+- [x] Identify incomplete implementations, duplicate modules and existing architectural decisions.
+- [x] Choose existing healthy conventions rather than rebuilding them.
+- [x] Create docs/DECISIONS.md and record consequential choices (ADR-015).
+- [x] Create/update .gitignore and .env.example without secrets.
+- [x] Establish lint, format, type-check, test and build commands.
+- [x] Add a small synthetic fixture and a clean-start smoke test strategy.
+- [x] Update this plan with actual repo facts.
 
 ### Deliverables
-- Repository inventory and development commands.
-- Decision log.
-- Safe configuration baseline.
-- A phase checklist based on actual code.
+- Repository inventory and development commands established (Python 3.13 venv, Node v24, pip, ruff, pytest).
+- Decision log updated with ADR-015 (modular architecture, local-first SQLite + PostgreSQL option).
+- Safe configuration baseline (`.env.example`, `.gitignore`).
+- Baseline synthetic test fixtures (`examples/fixtures/sample_manifest.json`) and smoke tests (`tests/unit/test_baseline_smoke.py`).
 
 ### Exit gate
-A new contributor can identify how the repository is structured and which commands validate it. Existing user changes are preserved. No secrets are committed.
+PASSED: Verified with clean pytest run (2 passed in 0.94s) and ruff linter check (All checks passed). Existing user changes preserved. No secrets committed.
+
 
 ## 4. Phase 1 — Domain contracts and foundation
 
@@ -509,7 +510,8 @@ The coding agent must append a dated entry after each meaningful work session:
 
 | Date | Phase | Status | Evidence / commands | Blockers | Next action |
 |---|---|---|---|---|---|
-| 2026-10-25 | Planning baseline | NOT STARTED | Product documents created | Implementation state not yet inspected | Run Phase 0 reconnaissance |
+| 2026-10-26 | Phase 0 — Baseline | DONE | .venv setup, ruff check, pytest 2/2 passed | None | Begin Phase 1 (Domain model & persistence) |
+
 
 Replace the initial row with actual evidence as soon as implementation begins. Do not claim a phase passed until commands were run and their results recorded.
 

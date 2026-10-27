@@ -148,6 +148,7 @@ This log records material decisions. New decisions should include context, the c
 
 **Consequences:** Research and generation workflows must record source evidence and intended-use scope; export reports unresolved rights status.
 
+
 ## ADR-014 — No premature platform complexity
 
 **Status:** Accepted  
@@ -158,3 +159,16 @@ This log records material decisions. New decisions should include context, the c
 **Alternatives:** Build production SaaS infrastructure before the core workflow is proven.
 
 **Consequences:** Keep seams for future expansion without implementing speculative infrastructure prematurely.
+
+## ADR-015 — Local runtime baseline and modular package structure
+
+**Status:** Accepted  
+**Decision:** Standardize on Python 3.13 for backend services (`FastAPI`, `Pydantic v2`, `SQLAlchemy 2.0`) with support for SQLite for zero-setup local-first operation and PostgreSQL for production deployments. Frontend uses React + TypeScript with Vite in `apps/web`. Backend domain modules are organized into decoupled packages (`dataset_core`, `provider_gateway`, `dataset_io`, `validation`, `documentation`).
+
+**Context:** The platform must run 100% offline out-of-the-box with zero mandatory external services (like cloud databases or paid APIs) while remaining fully compatible with Docker Compose PostgreSQL and MinIO for production.
+
+**Alternatives:** Single monolith file; microservices; pure PostgreSQL dependency requiring Docker running on user machine at all times.
+
+**Consequences:** Developers and students can immediately clone, run unit tests, and annotate datasets offline without needing Docker or running database daemons. When Docker Compose is used, it connects to PostgreSQL and MinIO seamlessly.
+
+

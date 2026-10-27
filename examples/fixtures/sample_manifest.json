@@ -1,0 +1,19 @@
+{
+  "fixture_version": "1.0",
+  "name": "baseline_synthetic_fixtures",
+  "description": "Deterministic, zero-credential synthetic test fixtures for AI Dataset Engineering Platform",
+  "samples": [
+    {
+      "id": "rec_synth_001",
+      "task": "image_classification",
+      "label": "normal",
+      "metadata": { "resolution": [64, 64] }
+    },
+    {
+      "id": "rec_synth_002",
+      "task": "text_classification",
+      "text": "The delivery arrived promptly and intact.",
+      "label": "positive"
+    }
+  ]
+}
