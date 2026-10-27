@@ -34,6 +34,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [confidence, setConfidence] = useState<number>(1.0);
   const [notes, setNotes] = useState<string>('');
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
+  const [transcriptText, setTranscriptText] = useState<string>('');
+  const [transcriptSegments, setTranscriptSegments] = useState<Array<{ start_time: number; end_time: number; speaker?: string; text: string }>>([]);
+  const [playbackRate, setPlaybackRate] = useState<number>(1.0);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -94,6 +98,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       } else {
         setBoxes([]);
       }
+
+      if (detail.annotation?.payload?.text && dataset.task_type === 'audio_transcription') {
+        setTranscriptText(detail.annotation.payload.text);
+        setTranscriptSegments(detail.annotation.payload.segments || []);
+      } else if (dataset.task_type === 'audio_transcription') {
+        setTranscriptText('');
+        setTranscriptSegments([]);
+      }
     } catch (err: any) {
       showToast(`Error: ${err.message}`);
     } finally {
@@ -113,7 +125,12 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const handleSaveAnnotation = async (customLabel?: string) => {
     if (!currentRecord) return;
     const labelToSave = customLabel || selectedLabel;
-    if (dataset.task_type !== 'object_detection' && !labelToSave) {
+    if (dataset.task_type === 'audio_transcription') {
+      if (!transcriptText.trim() && transcriptSegments.length === 0) {
+        showToast('Please enter transcript text or add segments.');
+        return;
+      }
+    } else if (dataset.task_type !== 'object_detection' && !labelToSave) {
       showToast('Please select or enter a label first.');
       return;
     }
@@ -121,7 +138,12 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     setSaving(true);
     try {
       const payload: Record<string, any> = {};
-      if (dataset.task_type === 'object_detection') {
+      if (dataset.task_type === 'audio_transcription') {
+        payload.text = transcriptText;
+        if (transcriptSegments.length > 0) {
+          payload.segments = transcriptSegments;
+        }
+      } else if (dataset.task_type === 'object_detection') {
         payload.boxes = boxes;
         if (boxes.length > 0) {
           payload.label = boxes[0].label;
@@ -517,6 +539,116 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                     selectedClass={selectedLabel || allowedClasses[0] || 'object'}
                     onChange={(newBoxes) => setBoxes(newBoxes)}
                   />
+                ) : dataset.task_type === 'audio_transcription' && activeAsset ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: '720px',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      padding: '2rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1.5rem',
+                      boxShadow: 'var(--shadow-lg)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '2rem' }}>🎙️</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                            {activeAsset.original_filename || 'Audio Recording'}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {activeAsset.dimensions?.duration_seconds ? `${activeAsset.dimensions.duration_seconds}s • ` : ''}
+                            {activeAsset.dimensions?.sample_rate_hz ? `${activeAsset.dimensions.sample_rate_hz} Hz • ` : ''}
+                            {activeAsset.dimensions?.channels ? `${activeAsset.dimensions.channels} ch • ` : ''}
+                            {(activeAsset.byte_size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Speed:</span>
+                        {[0.75, 1.0, 1.25, 1.5].map((rate) => (
+                          <button
+                            key={rate}
+                            type="button"
+                            onClick={() => {
+                              setPlaybackRate(rate);
+                              if (audioRef.current) audioRef.current.playbackRate = rate;
+                            }}
+                            style={{
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: 'var(--radius-sm)',
+                              background: playbackRate === rate ? 'var(--primary)' : 'rgba(30, 41, 59, 0.8)',
+                              color: 'var(--text-primary)',
+                              border: playbackRate === rate ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              fontWeight: playbackRate === rate ? 700 : 400,
+                            }}
+                          >
+                            {rate}x
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <audio
+                      ref={audioRef}
+                      controls
+                      src={`/api/v1/assets/${activeAsset.id}/raw`}
+                      style={{ width: '100%', borderRadius: 'var(--radius-sm)' }}
+                      onLoadedMetadata={(e) => {
+                        (e.target as HTMLAudioElement).playbackRate = playbackRate;
+                      }}
+                    />
+
+                    {/* Quick Cue Playback List */}
+                    {transcriptSegments.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                          Segment Cues ({transcriptSegments.length})
+                        </div>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {transcriptSegments.map((seg, sIdx) => (
+                            <div
+                              key={sIdx}
+                              onClick={() => {
+                                if (audioRef.current) {
+                                  audioRef.current.currentTime = seg.start_time;
+                                  audioRef.current.play();
+                                }
+                              }}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'rgba(30, 41, 59, 0.5)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.85rem',
+                              }}
+                              title="Click to seek and play"
+                            >
+                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
+                                  {seg.start_time.toFixed(2)}s - {seg.end_time.toFixed(2)}s
+                                </span>
+                                {seg.speaker && <strong style={{ color: 'var(--text-accent)' }}>{seg.speaker}:</strong>}
+                                <span>{seg.text}</span>
+                              </div>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>▶</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div
                     style={{
@@ -570,68 +702,186 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               Guidelines
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              {dataset.annotation_instructions || 'Select the most accurate label. Use hotkeys 1-9 for quick classification.'}
+              {dataset.annotation_instructions ||
+                (dataset.task_type === 'audio_transcription'
+                  ? 'Listen to the audio, transcribe speech accurately, and review cue timestamps.'
+                  : 'Select the most accurate label. Use hotkeys 1-9 for quick classification.')}
             </div>
           </div>
 
-          {/* Allowed Class Selection Buttons */}
-          <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
-              Class Labels ({allowedClasses.length})
-            </div>
-            {allowedClasses.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {allowedClasses.map((lbl, idx) => {
-                  const isSelected = selectedLabel === lbl;
-                  const shortcutKey = idx < 9 ? `${idx + 1}` : null;
-
-                  return (
-                    <button
-                      key={lbl}
-                      onClick={() => setSelectedLabel(lbl)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.6rem 0.85rem',
-                        borderRadius: 'var(--radius-sm)',
-                        background: isSelected ? 'var(--primary)' : 'rgba(30, 41, 59, 0.6)',
-                        border: isSelected ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        fontWeight: isSelected ? 700 : 500,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all var(--transition-fast)',
-                      }}
-                    >
-                      <span>{lbl}</span>
-                      {shortcutKey && (
-                        <kbd
-                          style={{
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            padding: '0.15rem 0.4rem',
-                            borderRadius: '3px',
-                            fontSize: '0.75rem',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                          }}
-                        >
-                          {shortcutKey}
-                        </kbd>
-                      )}
-                    </button>
-                  );
-                })}
+          {/* Audio Transcription Inputs vs Class Selection Buttons */}
+          {dataset.task_type === 'audio_transcription' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                  Verbatim Transcript
+                </div>
+                <textarea
+                  className="input"
+                  rows={4}
+                  placeholder="Enter full transcript of the audio..."
+                  value={transcriptText}
+                  onChange={(e) => setTranscriptText(e.target.value)}
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
               </div>
-            ) : (
-              <input
-                type="text"
-                className="input"
-                placeholder="Enter classification label..."
-                value={selectedLabel}
-                onChange={(e) => setSelectedLabel(e.target.value)}
-              />
-            )}
-          </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Timed Cues / Segments
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                    onClick={() => {
+                      const cur = audioRef.current?.currentTime || 0;
+                      setTranscriptSegments([
+                        ...transcriptSegments,
+                        { start_time: Math.max(0, Math.floor(cur)), end_time: Math.ceil(cur + 2), text: '', speaker: 'Speaker 1' },
+                      ]);
+                    }}
+                  >
+                    + Add Cue
+                  </button>
+                </div>
+                {transcriptSegments.map((seg, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.3rem',
+                      padding: '0.5rem',
+                      marginBottom: '0.4rem',
+                      background: 'rgba(30, 41, 59, 0.4)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="input"
+                        placeholder="Start"
+                        value={seg.start_time}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const next = [...transcriptSegments];
+                          next[idx] = { ...seg, start_time: val };
+                          setTranscriptSegments(next);
+                        }}
+                        style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                      />
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>to</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="input"
+                        placeholder="End"
+                        value={seg.end_time}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const next = [...transcriptSegments];
+                          next[idx] = { ...seg, end_time: val };
+                          setTranscriptSegments(next);
+                        }}
+                        style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTranscriptSegments(transcriptSegments.filter((_, i) => i !== idx));
+                        }}
+                        style={{
+                          marginLeft: 'auto',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--rose)',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Cue text..."
+                      value={seg.text}
+                      onChange={(e) => {
+                        const next = [...transcriptSegments];
+                        next[idx] = { ...seg, text: e.target.value };
+                        setTranscriptSegments(next);
+                      }}
+                      style={{ fontSize: '0.8rem', padding: '0.3rem 0.5rem' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
+                Class Labels ({allowedClasses.length})
+              </div>
+              {allowedClasses.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {allowedClasses.map((lbl, idx) => {
+                    const isSelected = selectedLabel === lbl;
+                    const shortcutKey = idx < 9 ? `${idx + 1}` : null;
+
+                    return (
+                      <button
+                        key={lbl}
+                        onClick={() => setSelectedLabel(lbl)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.6rem 0.85rem',
+                          borderRadius: 'var(--radius-sm)',
+                          background: isSelected ? 'var(--primary)' : 'rgba(30, 41, 59, 0.6)',
+                          border: isSelected ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
+                          color: 'var(--text-primary)',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all var(--transition-fast)',
+                        }}
+                      >
+                        <span>{lbl}</span>
+                        {shortcutKey && (
+                          <kbd
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.4)',
+                              padding: '0.15rem 0.4rem',
+                              borderRadius: '3px',
+                              fontSize: '0.75rem',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                            }}
+                          >
+                            {shortcutKey}
+                          </kbd>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Enter classification label..."
+                  value={selectedLabel}
+                  onChange={(e) => setSelectedLabel(e.target.value)}
+                />
+              )}
+            </div>
+          )}
 
           {/* Confidence Slider */}
           <div>
@@ -668,7 +918,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           {/* Save Action Button */}
           <button
             className="btn btn-primary"
-            disabled={saving || !selectedLabel || !currentRecord}
+            disabled={
+              saving ||
+              !currentRecord ||
+              (dataset.task_type === 'audio_transcription'
+                ? !transcriptText.trim() && transcriptSegments.length === 0
+                : dataset.task_type !== 'object_detection' && !selectedLabel)
+            }
             onClick={() => handleSaveAnnotation()}
             style={{ width: '100%', padding: '0.65rem', justifyContent: 'center' }}
           >

@@ -9,6 +9,8 @@ class TaskType(str, Enum):
     TEXT_CLASSIFICATION = "text_classification"
     OBJECT_DETECTION = "object_detection"
     PAIRED_IMAGE_TEXT = "paired_image_text"
+    AUDIO_TRANSCRIPTION = "audio_transcription"
+    DOCUMENT_OCR = "document_ocr"
 
 
 class AnnotationOrigin(str, Enum):
@@ -38,6 +40,8 @@ class AssetModality(str, Enum):
 
 class AssetRole(str, Enum):
     PRIMARY_IMAGE = "primary_image"
+    PRIMARY_AUDIO = "primary_audio"
+    AUDIO_RECORDING = "audio_recording"
     PAIRED_TEXT = "paired_text"
     SOURCE_DOCUMENT = "source_document"
     CROP = "crop"
@@ -75,6 +79,8 @@ class ExportFormat(str, Enum):
     JSONL = "jsonl"
     COCO = "coco"
     YOLO = "yolo"
+    WEBVTT = "webvtt"
+
 
 
 # Centralized Review State Machine

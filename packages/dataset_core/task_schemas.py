@@ -54,7 +54,27 @@ TASK_SCHEMAS: dict[str, TaskSchema] = {
             TaskSchemaField(name="boxes", type="list", required=True, description="List of bounding boxes with label and coordinates"),
         ],
     ),
+    TaskType.AUDIO_TRANSCRIPTION.value: TaskSchema(
+        task_type=TaskType.AUDIO_TRANSCRIPTION.value,
+        schema_version=1,
+        description="Acoustic transcription and temporal segment alignment schema",
+        fields=[
+            TaskSchemaField(name="text", type="string", required=True, description="Full audio transcription text"),
+            TaskSchemaField(name="segments", type="list", required=False, description="Timestamped speech segments with start and end times"),
+            TaskSchemaField(name="language", type="string", required=False, description="Spoken language code (e.g. en, es)"),
+        ],
+    ),
+    TaskType.DOCUMENT_OCR.value: TaskSchema(
+        task_type=TaskType.DOCUMENT_OCR.value,
+        schema_version=1,
+        description="Document text extraction and layout OCR schema",
+        fields=[
+            TaskSchemaField(name="text", type="string", required=True, description="Extracted document text"),
+            TaskSchemaField(name="words", type="list", required=False, description="Token-level text with page and bounding box"),
+        ],
+    ),
 }
+
 
 
 def get_task_schema(task_type: str | TaskType, schema_version: int = 1) -> TaskSchema:
@@ -141,3 +161,42 @@ def validate_annotation_payload(
                         f"Box coordinates at index {idx} cannot be negative (x={x}, y={y}).",
                         field="boxes",
                     )
+
+    elif key == TaskType.AUDIO_TRANSCRIPTION.value:
+        if "text" not in payload or not isinstance(payload["text"], str):
+            raise DomainValidationError("Audio transcription requires a non-empty 'text' string.", field="text")
+        if not payload["text"].strip():
+            raise DomainValidationError("Transcription text cannot be empty or whitespace.", field="text")
+
+        segments = payload.get("segments")
+        if segments is not None:
+            if not isinstance(segments, list):
+                raise DomainValidationError("Audio 'segments' must be a list of timestamped objects.", field="segments")
+            for idx, seg in enumerate(segments):
+                if not isinstance(seg, dict):
+                    raise DomainValidationError(f"Segment at index {idx} must be a dictionary.", field="segments")
+                start = seg.get("start_time")
+                end = seg.get("end_time")
+                if start is None or end is None:
+                    raise DomainValidationError(f"Segment at index {idx} must specify 'start_time' and 'end_time'.", field="segments")
+                if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+                    raise DomainValidationError(f"Segment timestamps at index {idx} must be numeric.", field="segments")
+                if start < 0 or end < 0:
+                    raise DomainValidationError(f"Segment timestamps at index {idx} cannot be negative.", field="segments")
+                if start > end:
+                    raise DomainValidationError(
+                        f"Segment at index {idx} has start_time ({start}) greater than end_time ({end}).",
+                        field="segments",
+                    )
+
+    elif key == TaskType.DOCUMENT_OCR.value:
+        if "text" not in payload or not isinstance(payload["text"], str):
+            raise DomainValidationError("Document OCR requires an extracted 'text' string.", field="text")
+        words = payload.get("words")
+        if words is not None:
+            if not isinstance(words, list):
+                raise DomainValidationError("OCR 'words' must be a list.", field="words")
+            for idx, w in enumerate(words):
+                if not isinstance(w, dict) or "text" not in w:
+                    raise DomainValidationError(f"Word at index {idx} must be an object with 'text'.", field="words")
+

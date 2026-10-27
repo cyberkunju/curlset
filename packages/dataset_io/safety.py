@@ -23,6 +23,14 @@ def detect_mime_from_magic_bytes(data: bytes, filename: str = "") -> str | None:
         return "image/png"
     if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
         return "image/webp"
+    if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WAVE":
+        return "audio/wav"
+    if len(data) >= 3 and (data.startswith(b"ID3") or (data[0] == 0xFF and (data[1] & 0xE0) == 0xE0)):
+        return "audio/mpeg"
+    if len(data) >= 4 and data.startswith(b"OggS"):
+        return "audio/ogg"
+    if len(data) >= 4 and data.startswith(b"%PDF"):
+        return "application/pdf"
     if len(data) >= 4 and data.startswith(b"PK\x03\x04"):
         return "application/zip"
 
@@ -62,6 +70,7 @@ def validate_file_safety(filename: str, data: bytes, max_bytes: int = 104857600)
 
     ext = os.path.splitext(filename.lower())[1]
     expected_image_exts = {".jpg", ".jpeg", ".png", ".webp"}
+    expected_audio_exts = {".wav", ".mp3", ".ogg"}
 
     if mime.startswith("image/") and ext not in expected_image_exts:
         raise DomainValidationError(
@@ -75,6 +84,18 @@ def validate_file_safety(filename: str, data: bytes, max_bytes: int = 104857600)
             field="extension",
         )
 
+    if mime.startswith("audio/") and ext not in expected_audio_exts:
+        raise DomainValidationError(
+            f"File '{filename}' has audio magic bytes but non-audio extension '{ext}'.",
+            field="extension",
+        )
+
+    if ext in expected_audio_exts and not mime.startswith("audio/"):
+        raise DomainValidationError(
+            f"File '{filename}' has audio extension '{ext}' but actual content is not valid audio (MIME spoofing detected).",
+            field="extension",
+        )
+
     if ext == ".zip" and mime != "application/zip":
         raise DomainValidationError(
             f"File '{filename}' has .zip extension but invalid ZIP header.",
@@ -84,6 +105,10 @@ def validate_file_safety(filename: str, data: bytes, max_bytes: int = 104857600)
     # Determine modality
     if mime.startswith("image/"):
         modality = "image"
+    elif mime.startswith("audio/"):
+        modality = "audio"
+    elif mime == "application/pdf":
+        modality = "document"
     elif mime.startswith("text/") or mime in {"application/json", "application/x-ndjson"}:
         modality = "text"
     elif mime == "application/zip":
@@ -92,6 +117,7 @@ def validate_file_safety(filename: str, data: bytes, max_bytes: int = 104857600)
         modality = "document"
 
     return mime, modality
+
 
 
 def sanitize_archive_entry_path(entry_path: str) -> str | None:

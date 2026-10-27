@@ -22,7 +22,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const [versions, setVersions] = useState<DatasetVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
-  const [format, setFormat] = useState<'csv' | 'jsonl' | 'coco' | 'yolo'>('csv');
+  const [format, setFormat] = useState<'csv' | 'jsonl' | 'coco' | 'yolo' | 'webvtt'>('csv');
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -239,8 +239,29 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       data.yaml and normalized label files (&lt;class&gt; &lt;x_c&gt; &lt;y_c&gt; &lt;w&gt; &lt;h&gt;).
                     </p>
                   </div>
+
+                  <div
+                    onClick={() => setFormat('webvtt')}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${format === 'webvtt' ? 'var(--rose)' : 'var(--border-subtle)'}`,
+                      background: format === 'webvtt' ? 'rgba(244, 63, 94, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🎙️ WebVTT Subtitles</span>
+                      {format === 'webvtt' && <span style={{ color: 'var(--rose)' }}>●</span>}
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                      W3C standard WebVTT subtitle and cue alignment files for speech/audio datasets.
+                    </p>
+                  </div>
                 </div>
               </div>
+
 
               {/* Package Composition Info */}
               <div style={{ padding: '0.75rem 1rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>

@@ -178,7 +178,7 @@ class IngestionService:
             cls._log_run_item(session, run.id, f"dup_{sha256[:12]}", RunStatus.COMPLETED, f"Duplicate of {existing_asset.id}")
             return
 
-        # Dimensions & Perceptual Hash for images
+        # Dimensions & Perceptual Hash for images and Audio metadata
         dimensions = None
         phash = None
         if modality == "image":
@@ -191,6 +191,22 @@ class IngestionService:
                 report.rejected_items.append(RejectedItem(filename=filename, reason=f"Corrupt image structure: {e}"))
                 cls._log_run_item(session, run.id, f"bad_{sha256[:12]}", RunStatus.FAILED, str(e))
                 return
+        elif modality == "audio":
+            try:
+                import wave
+                with wave.open(io.BytesIO(data), "rb") as wf:
+                    channels = wf.getnchannels()
+                    sample_rate = wf.getframerate()
+                    frames = wf.getnframes()
+                    duration_sec = round(frames / float(sample_rate), 3) if sample_rate > 0 else 0.0
+                    dimensions = {
+                        "channels": channels,
+                        "sample_rate": sample_rate,
+                        "sample_rate_hz": sample_rate,
+                        "duration_seconds": duration_sec,
+                    }
+            except (wave.Error, EOFError, ValueError, OSError):
+                dimensions = {"channels": 1, "sample_rate": 16000, "sample_rate_hz": 16000, "duration_seconds": None}
 
         # Store asset with opaque key
         ext = os.path.splitext(filename.lower())[1] or ".bin"
@@ -221,13 +237,21 @@ class IngestionService:
         )
 
         # Link Record to Asset
-        role = AssetRole.PRIMARY_IMAGE if modality == "image" else AssetRole.PAIRED_TEXT
+        if modality == "image":
+            role = AssetRole.PRIMARY_IMAGE
+        elif modality == "audio":
+            role = AssetRole.PRIMARY_AUDIO
+        elif modality == "document":
+            role = AssetRole.SOURCE_DOCUMENT
+        else:
+            role = AssetRole.PAIRED_TEXT
         RecordService.link_asset_to_record(
             session=session,
             record_id=record.id,
             asset_id=asset.id,
             role=role,
         )
+
 
         # Attach initial source provenance
         RecordService.attach_source_record(

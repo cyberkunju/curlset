@@ -68,7 +68,7 @@ class AssetContract(DomainBaseModel):
     sha256: str = Field(..., min_length=64, max_length=64)
     phash: str | None = None
     original_filename: str = ""
-    dimensions: dict[str, int] | None = None  # e.g. {"width": 640, "height": 480}
+    dimensions: dict[str, Any] | None = None  # e.g. {"width": 640, "height": 480, "duration_seconds": 2.5}
     parent_asset_id: str | None = None
     transformation_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)

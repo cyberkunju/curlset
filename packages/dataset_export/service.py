@@ -20,6 +20,7 @@ from packages.dataset_core.id_generator import generate_id
 from packages.dataset_export.coco_exporter import export_to_coco
 from packages.dataset_export.csv_exporter import export_to_csv
 from packages.dataset_export.jsonl_exporter import export_to_jsonl
+from packages.dataset_export.webvtt_exporter import export_to_webvtt_files
 from packages.dataset_export.yolo_exporter import export_to_yolo_files
 from packages.dataset_io.storage import get_storage_backend
 from packages.dataset_versioning.service import VersioningService
@@ -49,6 +50,7 @@ class ExportService:
             ExportFormat.JSONL.value,
             ExportFormat.COCO.value,
             ExportFormat.YOLO.value,
+            ExportFormat.WEBVTT.value,
         }
         if normalized_format not in supported_formats:
             raise DomainValidationError(
@@ -76,6 +78,11 @@ class ExportService:
                 yolo_files = export_to_yolo_files(manifest_data)
                 for rel_path, file_bytes in yolo_files.items():
                     zf.writestr(rel_path, file_bytes)
+            elif normalized_format == ExportFormat.WEBVTT.value:
+                vtt_files = export_to_webvtt_files(manifest_data)
+                for rel_path, file_bytes in vtt_files.items():
+                    zf.writestr(rel_path, file_bytes)
+
 
             # Add canonical version manifest
             zf.writestr(

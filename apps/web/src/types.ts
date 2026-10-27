@@ -2,7 +2,9 @@ export type TaskType =
   | 'image_classification'
   | 'text_classification'
   | 'object_detection'
-  | 'paired_image_text';
+  | 'paired_image_text'
+  | 'audio_transcription'
+  | 'document_ocr';
 
 export type ReviewStatus = 
   | 'proposed'
@@ -68,7 +70,14 @@ export interface RecordQueueItem {
     id: string;
     modality: string;
     mime_type: string;
-    dimensions?: { width: number; height: number };
+    dimensions?: {
+      width?: number;
+      height?: number;
+      duration_seconds?: number;
+      sample_rate_hz?: number;
+      channels?: number;
+      [key: string]: any;
+    };
     original_filename?: string;
   };
 }
@@ -117,9 +126,16 @@ export interface RecordDetail {
     modality: string;
     mime_type: string;
     byte_size: number;
-    original_filename: string;
-    dimensions?: { width: number; height: number };
-    created_at: string;
+    original_filename?: string;
+    dimensions?: {
+      width?: number;
+      height?: number;
+      duration_seconds?: number;
+      sample_rate_hz?: number;
+      channels?: number;
+      [key: string]: any;
+    };
+    created_at?: string;
   }>;
   annotation?: {
     id: string;

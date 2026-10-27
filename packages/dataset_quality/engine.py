@@ -77,13 +77,13 @@ class QualityEngine:
                 )
             )
 
-        # Tracking structures for duplicate and split leakage detection
         sha_to_splits: dict[str, set[str]] = {}
         sha_to_records: dict[str, list[str]] = {}
         unresolved_record_ids: list[str] = []
         schema_mismatch_ids: list[str] = []
         missing_asset_ids: list[str] = []
         empty_content_ids: list[str] = []
+        invalid_timestamp_ids: list[str] = []
 
         for r in records:
             split_counter[r.split] += 1
@@ -98,7 +98,7 @@ class QualityEngine:
                 if latest_ann.status != ReviewStatus.APPROVED.value:
                     unresolved_record_ids.append(r.id)
 
-                # Class distribution & vocabulary check
+                # Task-specific schema and payload audits
                 if dataset.task_type == TaskType.OBJECT_DETECTION.value:
                     boxes = latest_ann.payload.get("boxes")
                     if not isinstance(boxes, list) or len(boxes) == 0:
@@ -112,6 +112,39 @@ class QualityEngine:
                                 class_counter[box_lbl] += 1
                                 if allowed_classes is not None and box_lbl not in allowed_classes:
                                     schema_mismatch_ids.append(r.id)
+                elif dataset.task_type == TaskType.AUDIO_TRANSCRIPTION.value:
+                    text_content = latest_ann.payload.get("text")
+                    if not text_content or not isinstance(text_content, str) or not text_content.strip():
+                        schema_mismatch_ids.append(r.id)
+                    else:
+                        class_counter["transcribed"] += 1
+
+                    # Timestamp boundary checks
+                    segments = latest_ann.payload.get("segments")
+                    if segments and isinstance(segments, list):
+                        audio_duration = None
+                        for ra in r.record_assets:
+                            if ra.asset and ra.asset.dimensions and "duration_seconds" in ra.asset.dimensions:
+                                audio_duration = ra.asset.dimensions["duration_seconds"]
+                                break
+
+                        for seg in segments:
+                            if isinstance(seg, dict):
+                                s = seg.get("start_time")
+                                e = seg.get("end_time")
+                                if s is not None and e is not None:
+                                    if s > e or s < 0:
+                                        invalid_timestamp_ids.append(r.id)
+                                        break
+                                    if audio_duration and e > (audio_duration + 1.0):
+                                        invalid_timestamp_ids.append(r.id)
+                                        break
+                elif dataset.task_type == TaskType.DOCUMENT_OCR.value:
+                    doc_text = latest_ann.payload.get("text")
+                    if not doc_text or not isinstance(doc_text, str) or not doc_text.strip():
+                        schema_mismatch_ids.append(r.id)
+                    else:
+                        class_counter["ocr_extracted"] += 1
                 else:
                     lbl = latest_ann.payload.get("label")
                     if not lbl or not isinstance(lbl, str) or not lbl.strip():
@@ -120,6 +153,7 @@ class QualityEngine:
                         class_counter[lbl] += 1
                         if allowed_classes is not None and lbl not in allowed_classes:
                             schema_mismatch_ids.append(r.id)
+
 
             # Check text content emptiness
             if r.extra_metadata and ("text" in r.extra_metadata or "content" in r.extra_metadata):
@@ -197,6 +231,21 @@ class QualityEngine:
                     count=len(empty_content_ids),
                 )
             )
+
+        # 5b. Audio Timestamp Violation Finding
+        if invalid_timestamp_ids:
+            findings.append(
+                ValidationFinding(
+                    rule_id="RULE_AUDIO_TIMESTAMPS",
+                    severity=ValidationSeverity.BLOCKING,
+                    title="Invalid Audio Segment Timestamps",
+                    description=f"{len(invalid_timestamp_ids)} audio records contain inverted timestamps (start > end) or exceed audio track duration.",
+                    remediation="Adjust speech segment timestamps in the annotation workspace to match the audio track.",
+                    affected_record_ids=invalid_timestamp_ids[:50],
+                    count=len(invalid_timestamp_ids),
+                )
+            )
+
 
         # 6. Split Leakage Check (identical hash in train AND test/val)
         leakage_records: list[str] = []
