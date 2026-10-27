@@ -28,6 +28,7 @@ import { DatasetVersion, ExportArtifact, ExportFormatType, TokenSimulationRespon
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { CustomSelect } from './ui/CustomSelect';
 import { SpringButton } from './ui/SpringButton';
+import { ModalShell } from './ui/ModalShell';
 
 export interface ExportModalProps {
   datasetId: string;
@@ -262,33 +263,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       : 0;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
-      <div
-        className="modal-content"
-        style={{ maxWidth: '880px', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 id="export-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Package size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-              Training-Ready Dataset Exporter
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.15rem' }}>
-              Generate reproducible training bundles bound to immutable version snapshots with live token capacity simulation
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            aria-label="Close export dialog"
-            style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Training-Ready Dataset Exporter"
+      description="Generate reproducible training bundles bound to immutable version snapshots with live token capacity simulation"
+      icon={<Package size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
 
         {error && (
           <div
@@ -727,7 +709,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 };

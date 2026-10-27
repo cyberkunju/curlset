@@ -4,6 +4,7 @@ import { fetchProviders, triggerAIAnnotation } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 export interface AIAnnotationModalProps {
   datasetId: string;
@@ -202,35 +203,14 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
-      <div
-        className="modal-card"
-        style={{ maxWidth: '640px', width: '92vw', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <Bot size={22} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-            <div>
-              <h2 id="ai-modal-title" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                AI-Assisted Batch Annotation
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.15rem' }}>
-                Generate reviewable model proposals across dataset splits via backend provider gateway
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="AI-Assisted Batch Annotation"
+      description="Generate reviewable model proposals across dataset splits via backend provider gateway"
+      icon={<Bot size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="lg"
+    >
 
         {/* Platform Integrity Rule Notice */}
         <div
@@ -545,7 +525,6 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
             </div>
           </form>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 };

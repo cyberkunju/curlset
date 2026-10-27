@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { FlipHorizontal, FlipVertical, RotateCw, Sparkles, CheckCircle2, ShieldCheck, X } from 'lucide-react';
+import { FlipHorizontal, FlipVertical, RotateCw, Sparkles, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 interface AugmentationModalProps {
   datasetId: string;
@@ -22,8 +23,6 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleApply = async () => {
     setLoading(true);
@@ -50,38 +49,54 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
     }
   };
 
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: '640px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Sparkles size={20} strokeWidth={1.75} />
-              Geometry-Aware Deterministic Augmentation
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Simultaneously transforms image assets and spatial bounding boxes with origin tracking
-            </p>
-          </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.65rem' }}>
-            <X size={16} />
-          </button>
-        </div>
+  const handleClose = () => {
+    setError(null);
+    setResult(null);
+    onClose();
+  };
 
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Geometry-Aware Deterministic Augmentation"
+      description="Simultaneously transforms image assets and spatial bounding boxes with origin tracking"
+      icon={<Sparkles size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="lg"
+    >
+      <div>
         {error && (
-          <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid var(--rose)', borderRadius: 'var(--radius-md)', color: 'var(--rose)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid var(--rose)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--rose)',
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+            }}
+          >
             {error}
           </div>
         )}
 
         {result ? (
-          <div style={{ padding: '1.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+          <div
+            style={{
+              padding: '1.5rem',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: 'var(--radius-md)',
+              textAlign: 'center',
+            }}
+          >
             <CheckCircle2 size={40} style={{ color: 'var(--emerald)', margin: '0 auto 0.75rem' }} />
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Augmentation Run Completed</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
               Successfully generated <strong>{result.augmented_count}</strong> augmented samples with strictly transformed bounding boxes and assigned them to <code>{targetSplit}</code>.
             </p>
-            <SpringButton variant="primary" onClick={onClose}>
+            <SpringButton variant="primary" onClick={handleClose}>
               Done
             </SpringButton>
           </div>
@@ -92,7 +107,7 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                 Select Geometric Affine Transformation
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                 {[
                   { id: 'hflip', label: 'Horizontal Mirror Flip', desc: 'Flips image left-to-right; x becomes W - x - w', icon: FlipHorizontal },
                   { id: 'vflip', label: 'Vertical Mirror Flip', desc: 'Flips top-to-bottom; y becomes H - y - h', icon: FlipVertical },
@@ -104,14 +119,24 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
                   return (
                     <div
                       key={item.id}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={item.label}
                       onClick={() => setTransformType(item.id as any)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setTransformType(item.id as any);
+                        }
+                      }}
                       style={{
                         padding: '0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        border: `1px solid ${active ? '#FAFAFA' : 'var(--border-hairline)'}`,
+                        border: `1px solid ${active ? 'var(--accent-interactive)' : 'var(--border-hairline)'}`,
                         background: active ? 'var(--bg-elevated)' : 'var(--bg-surface)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
+                        outline: 'none',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -152,8 +177,8 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
               <PerceptualProgressBar active={loading} taskType="ingest" />
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <SpringButton variant="secondary" onClick={onClose} disabled={loading}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <SpringButton variant="secondary" onClick={handleClose} disabled={loading}>
                 Cancel
               </SpringButton>
               <SpringButton variant="primary" onClick={handleApply} disabled={loading}>
@@ -163,6 +188,6 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 };

@@ -47,35 +47,45 @@ export const SystemHealthView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [lastProbeTime, setLastProbeTime] = useState<Date | null>(null);
-  const [measuredLatencyMs, setMeasuredLatencyMs] = useState<number | null>(null);
+  const [healthLatencyMs, setHealthLatencyMs] = useState<number | null>(null);
+  const [readinessLatencyMs, setReadinessLatencyMs] = useState<number | null>(null);
+
+  const probeEndpoint = async <T,>(url: string): Promise<{ data: T | { status: string; error?: string }; latency: number }> => {
+    const start = performance.now();
+    try {
+      const res = await fetch(url);
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Expected JSON response but received ${contentType || 'non-JSON payload'}`);
+      }
+      const data = await res.json();
+      if (!res.ok && res.status !== 503) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const latency = Math.round(performance.now() - start);
+      return { data, latency };
+    } catch (err: any) {
+      const latency = Math.round(performance.now() - start);
+      return { data: { status: 'unreachable', error: err?.message || 'Probe request failed' }, latency };
+    }
+  };
 
   const checkStatus = useCallback(async () => {
     setLoading(true);
     setRefreshError(null);
     setProvidersError(null);
 
-    const startTime = performance.now();
     try {
-      // 1. Concurrently probe health and readiness
-      const [hRes, rRes] = await Promise.all([
-        fetch('/health')
-          .then((r) => {
-            if (!r.ok && r.status !== 503) throw new Error(`HTTP ${r.status}`);
-            return r.json();
-          })
-          .catch((err) => ({ status: 'unreachable', error: err.message })),
-        fetch('/readiness')
-          .then((r) => {
-            if (!r.ok && r.status !== 503) throw new Error(`HTTP ${r.status}`);
-            return r.json();
-          })
-          .catch((err) => ({ status: 'unreachable', error: err.message })),
+      // 1. Concurrently probe official API endpoints
+      const [hResult, rResult] = await Promise.all([
+        probeEndpoint<HealthData>('/api/v1/health'),
+        probeEndpoint<ReadinessData>('/api/v1/readiness'),
       ]);
 
-      const elapsed = Math.round(performance.now() - startTime);
-      setMeasuredLatencyMs(elapsed);
-      setHealth(hRes);
-      setReadiness(rRes);
+      setHealth(hResult.data as HealthData);
+      setHealthLatencyMs(hResult.latency);
+      setReadiness(rResult.data as ReadinessData);
+      setReadinessLatencyMs(rResult.latency);
       setLastProbeTime(new Date());
 
       // 2. Fetch AI Providers via existing gateway API
@@ -88,7 +98,8 @@ export const SystemHealthView: React.FC = () => {
       }
     } catch (err: any) {
       setRefreshError(err?.message || 'Diagnostics check failed');
-      setMeasuredLatencyMs(null);
+      setHealthLatencyMs(null);
+      setReadinessLatencyMs(null);
       setHealth({ status: 'unreachable', error: err?.message });
       setReadiness({ status: 'unreachable', error: err?.message });
     } finally {
@@ -149,12 +160,12 @@ export const SystemHealthView: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {measuredLatencyMs !== null && (
+          {healthLatencyMs !== null && readinessLatencyMs !== null && (
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.35rem',
+                gap: '0.5rem',
                 fontSize: '0.8rem',
                 color: 'var(--text-secondary)',
                 background: 'var(--bg-elevated)',
@@ -163,10 +174,12 @@ export const SystemHealthView: React.FC = () => {
                 border: '1px solid var(--border-hairline)',
                 fontFamily: 'var(--font-mono)',
               }}
-              title="Measured client-to-backend probe round-trip duration"
+              title="Measured client-to-backend request latency for health and readiness probes"
             >
               <Zap size={13} style={{ color: 'var(--accent-interactive)' }} />
-              <span>Latency: {measuredLatencyMs} ms</span>
+              <span>Health: {healthLatencyMs} ms</span>
+              <span style={{ color: 'var(--border-hairline)' }}>|</span>
+              <span>Readiness: {readinessLatencyMs} ms</span>
             </div>
           )}
 
@@ -256,6 +269,12 @@ export const SystemHealthView: React.FC = () => {
                   {health?.environment || 'N/A'}
                 </span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-hairline)', paddingBottom: '0.35rem' }}>
+                <span>Request Latency:</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                  {healthLatencyMs !== null ? `${healthLatencyMs} ms` : 'N/A'}
+                </span>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Service Uptime:</span>
                 <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
@@ -316,8 +335,14 @@ export const SystemHealthView: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-hairline)', paddingBottom: '0.35rem' }}>
                 <span>Storage Backend Driver:</span>
                 <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                  {health?.storage_backend || 'local'}
+                  {health?.storage_backend || 'Not reported'}
                 </code>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-hairline)', paddingBottom: '0.35rem' }}>
+                <span>Probe Latency:</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                  {readinessLatencyMs !== null ? `${readinessLatencyMs} ms` : 'N/A'}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>File Write/Read Probe:</span>
@@ -361,18 +386,20 @@ export const SystemHealthView: React.FC = () => {
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Operating Policy</h3>
               </div>
               <span className="badge badge-blue">
-                {health?.privacy_mode || 'local_only'}
+                {health?.privacy_mode || 'Not reported'}
               </span>
             </div>
 
             <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
               {health?.privacy_mode === 'local_only'
                 ? 'System operates in local privacy mode. Inference runs using mock or local providers without automatic external network dispatch.'
-                : 'External inference is permitted upon explicit user configuration and valid provider credentials.'}
+                : health?.privacy_mode
+                ? `System operates in ${health.privacy_mode} mode.`
+                : 'Privacy mode not reported by active health endpoint.'}
             </p>
 
             <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', background: 'var(--bg-elevated)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
-              Outbound Telemetry: <strong>Disabled</strong>
+              Outbound Telemetry: <strong>Not exposed by this endpoint</strong>
             </div>
           </div>
 
@@ -408,7 +435,7 @@ export const SystemHealthView: React.FC = () => {
               <Cpu size={17} style={{ color: 'var(--accent-interactive)' }} /> Registered AI Model Providers
             </div>
             <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-              Live registration status from <code style={{ fontFamily: 'var(--font-mono)' }}>/api/v1/providers</code>
+              Registration status from <code style={{ fontFamily: 'var(--font-mono)' }}>/api/v1/providers</code> (Registration and configuration reflect gateway registration, not a live connectivity test).
             </div>
           </div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -474,8 +501,8 @@ export const SystemHealthView: React.FC = () => {
                       </div>
                     </td>
                     <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right' }}>
-                      <span className="badge badge-emerald" style={{ fontSize: '0.725rem' }}>
-                        Active
+                      <span className="badge badge-blue" style={{ fontSize: '0.725rem' }}>
+                        Registered
                       </span>
                     </td>
                   </tr>

@@ -4,6 +4,7 @@ import { triggerSyntheticGeneration, fetchSyntheticLineage } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 export interface SyntheticGenerationModalProps {
   datasetId: string;
@@ -168,35 +169,15 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
   const synthPct = totalRecords > 0 ? (synthRecords / totalRecords) * 100 : 0;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="synth-modal-title">
-      <div
-        className="modal-card"
-        style={{ maxWidth: '840px', width: '94vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <Sparkles size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-            <div>
-              <h2 id="synth-modal-title" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                Synthetic Data Generation & Lineage
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.15rem' }}>
-                Augment minority classes with versioned prompt templates, deduplication, and mandatory review routing
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Synthetic Data Generation & Lineage"
+      description="Augment minority classes with versioned prompt templates, deduplication, and mandatory review routing"
+      icon={<Sparkles size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1rem' }}>
 
         {/* Regulatory & Provenance Notice */}
         <div
@@ -547,6 +528,6 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
           )}
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

@@ -7,7 +7,8 @@ import {
   Lock,
   FileText,
   FileCode,
-  X,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   compareVersions,
@@ -18,6 +19,7 @@ import {
 } from '../api';
 import { DatasetVersion, VersionDiff } from '../types';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 interface VersionSnapshotsModalProps {
   datasetId: string;
@@ -51,6 +53,23 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
   const [diffResult, setDiffResult] = useState<VersionDiff | null>(null);
   const [comparing, setComparing] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  const handleCopyHash = async (hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedHash(hash);
+      setCopyFeedback('Manifest SHA-256 copied to clipboard');
+      setTimeout(() => {
+        setCopiedHash(null);
+        setCopyFeedback(null);
+      }, 2200);
+    } catch {
+      setCopyFeedback('Failed to copy to clipboard (permission unavailable)');
+      setTimeout(() => setCopyFeedback(null), 3000);
+    }
+  };
 
   const loadVersions = async () => {
     setLoading(true);
@@ -134,25 +153,21 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: '960px', maxHeight: '92vh', overflowY: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <GitBranch size={20} className="text-blue-500" /> Immutable Dataset Versions & Provenance
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Phase 7 cryptographic snapshot manifests, automated dataset cards, and semantic version diffs
-            </p>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Immutable Dataset Versions & Provenance"
+      description="Cryptographic snapshot manifests, automated dataset cards, and semantic version diffs"
+      icon={<GitBranch size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
+      <div>
+        {copyFeedback && (
+          <div style={{ padding: '0.45rem 0.75rem', marginBottom: '1rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', border: '1px solid var(--emerald)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Check size={13} /> {copyFeedback}
           </div>
-          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
-            <X size={18} />
-          </button>
-        </div>
+        )}
 
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
@@ -255,13 +270,23 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                           <Lock size={11} /> Immutable
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', gap: '0.85rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         <span>Published: {new Date(ver.created_at).toLocaleString()}</span>
-                        <span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                           Manifest SHA-256:{' '}
                           <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                             {ver.manifest_hash.slice(0, 16)}...
                           </code>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => handleCopyHash(ver.manifest_hash)}
+                            title="Copy full SHA-256 manifest hash"
+                            style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                          >
+                            {copiedHash === ver.manifest_hash ? <Check size={11} style={{ color: 'var(--emerald)' }} /> : <Copy size={11} />}
+                            {copiedHash === ver.manifest_hash ? 'Copied' : 'Copy Hash'}
+                          </button>
                         </span>
                       </div>
                     </div>
@@ -449,6 +474,6 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 };

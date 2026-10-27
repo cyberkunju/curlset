@@ -125,8 +125,14 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
+  const isDateRangeInvalid = Boolean(auditStartDate && auditEndDate && auditStartDate > auditEndDate);
+
   // Filter audit logs client-side over loaded data
   const filteredAuditLogs = useMemo(() => {
+    if (auditStartDate && auditEndDate && auditStartDate > auditEndDate) {
+      return [];
+    }
+
     return auditLogs.filter((log) => {
       // 1. Keyword search
       if (auditSearchQuery.trim()) {
@@ -142,8 +148,17 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
       }
 
       // 2. Date filters
-      if (log.created_at) {
+      const hasDateFilter = Boolean(auditStartDate || auditEndDate);
+      if (hasDateFilter) {
+        if (!log.created_at) {
+          // Exclude records with missing timestamps when a date filter is active
+          return false;
+        }
         const logDate = new Date(log.created_at);
+        if (isNaN(logDate.getTime())) {
+          // Exclude records with invalid timestamps when a date filter is active
+          return false;
+        }
         if (auditStartDate) {
           const start = new Date(auditStartDate);
           start.setHours(0, 0, 0, 0);
@@ -600,6 +615,12 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                 </button>
               )}
             </div>
+
+            {isDateRangeInvalid && (
+              <div style={{ padding: '0.45rem 0.65rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--rose)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-sm)', fontSize: '0.775rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <AlertCircle size={13} /> Start date must be before or equal to end date.
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.775rem', color: 'var(--text-secondary)', padding: '0 0.15rem' }}>
               <span>Filtering over {auditLogs.length} most recent server-logged events</span>

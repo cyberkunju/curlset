@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Brain,
   Target,
@@ -7,7 +7,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Sparkles,
-  X,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   fetchActiveLearningQueue,
@@ -21,6 +21,7 @@ import {
   CoverageGap,
 } from '../types';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 interface EvaluationModalProps {
   datasetId: string;
@@ -36,6 +37,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   onOpenSynthesize,
 }) => {
   const [activeTab, setActiveTab] = useState<'queue' | 'evaluation' | 'clusters'>('queue');
+  const [queueSort, setQueueSort] = useState<'rank' | 'confidence_asc' | 'confidence_desc'>('rank');
 
   // Active Learning state
   const [strategy, setStrategy] = useState<string>('least_confidence');
@@ -104,39 +106,36 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     }
   }, [isOpen, activeTab, strategy, queueSplit]);
 
-  if (!isOpen) return null;
+  const sortedQueueItems = useMemo(() => {
+    const items = [...queueItems];
+    if (queueSort === 'confidence_asc') {
+      items.sort((a, b) => {
+        const ca = typeof a.confidence === 'number' ? a.confidence : (a.priority_metadata?.confidence ?? Infinity);
+        const cb = typeof b.confidence === 'number' ? b.confidence : (b.priority_metadata?.confidence ?? Infinity);
+        return ca - cb;
+      });
+    } else if (queueSort === 'confidence_desc') {
+      items.sort((a, b) => {
+        const ca = typeof a.confidence === 'number' ? a.confidence : (a.priority_metadata?.confidence ?? -1);
+        const cb = typeof b.confidence === 'number' ? b.confidence : (b.priority_metadata?.confidence ?? -1);
+        return cb - ca;
+      });
+    } else {
+      items.sort((a, b) => a.rank - b.rank);
+    }
+    return items;
+  }, [queueItems, queueSort]);
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card" style={{ maxWidth: '960px', width: '92vw', maxHeight: '90vh' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Brain size={20} className="text-blue-500" /> Active Learning & Baseline Evaluation
-            </h2>
-            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Explainable review queue prioritization, gold-standard confusion metrics, and 2D semantic cluster exploration.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: '1.25rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0.25rem',
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Active Learning & Baseline Evaluation"
+      description="Explainable review queue prioritization, gold-standard confusion metrics, and 2D semantic cluster exploration."
+      icon={<Brain size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
+      <div>
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
           <button
@@ -165,8 +164,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         {/* Tab 1: Active Learning Queue */}
         {activeTab === 'queue' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px' }}>
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                   Prioritization Strategy
                 </label>
@@ -184,7 +183,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 />
               </div>
 
-              <div style={{ width: '160px' }}>
+              <div style={{ width: '140px' }}>
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                   Split
                 </label>
@@ -202,6 +201,23 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 />
               </div>
 
+              <div style={{ width: '160px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                  Sort Order
+                </label>
+                <CustomSelect
+                  value={queueSort}
+                  onChange={(val) => setQueueSort(val as any)}
+                  options={[
+                    { value: 'rank', label: 'Priority Rank (1-N)' },
+                    { value: 'confidence_asc', label: 'Confidence (Low to High)' },
+                    { value: 'confidence_desc', label: 'Confidence (High to Low)' },
+                  ]}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select queue sort order"
+                />
+              </div>
+
               <div style={{ alignSelf: 'flex-end' }}>
                 <button className="btn btn-secondary" onClick={loadQueue} disabled={loadingQueue} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <RefreshCw size={14} className={loadingQueue ? 'animate-spin' : ''} /> {loadingQueue ? 'Refreshing...' : 'Refresh'}
@@ -215,7 +231,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                   Calculating active-learning priority weights...
                 </div>
-              ) : queueItems.length === 0 ? (
+              ) : sortedQueueItems.length === 0 ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                   No records match current active-learning criteria.
                 </div>
@@ -232,7 +248,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {queueItems.map((item) => (
+                    {sortedQueueItems.map((item) => (
                       <tr key={item.record_id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <td style={{ padding: '0.6rem 0.8rem', fontWeight: 700 }}>#{item.rank}</td>
                         <td style={{ padding: '0.6rem 0.8rem', fontFamily: 'var(--font-mono)' }}>
@@ -245,8 +261,10 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                           {item.label ? <span className="badge badge-blue">{item.label}</span> : '—'}
                         </td>
                         <td style={{ padding: '0.6rem 0.8rem' }}>
-                          {item.confidence !== undefined && item.confidence !== null
-                            ? `${(item.confidence * 100).toFixed(0)}%`
+                          {typeof item.confidence === 'number'
+                            ? `${(item.confidence * 100).toFixed(1)}%`
+                            : item.priority_metadata?.confidence !== undefined && item.priority_metadata?.confidence !== null
+                            ? `${(item.priority_metadata.confidence * 100).toFixed(1)}%`
                             : <span style={{ color: 'var(--text-muted)' }}>unspecified</span>}
                         </td>
                         <td style={{ padding: '0.6rem 0.8rem', color: 'var(--amber)' }}>
@@ -499,6 +517,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 };

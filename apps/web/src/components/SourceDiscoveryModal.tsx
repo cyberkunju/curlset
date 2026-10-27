@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Globe,
   Scale,
   BookOpen,
   ShieldCheck,
   FileText,
-  X,
 } from 'lucide-react';
 import {
   searchCandidateSources,
@@ -16,6 +15,7 @@ import {
 } from '../api';
 import { DiscoveredSource, SourceProvenanceSummary } from '../types';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 
 interface SourceDiscoveryModalProps {
   datasetId: string;
@@ -32,6 +32,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'url' | 'provenance'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
+  const [licenseFilter, setLicenseFilter] = useState<string>('all');
   const [candidates, setCandidates] = useState<DiscoveredSource[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [urlInput, setUrlInput] = useState('');
@@ -49,6 +50,11 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
   const [reviewNotes, setReviewNotes] = useState<string>('');
   const [reviewAttribution, setReviewAttribution] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const filteredCandidates = useMemo(() => {
+    if (!licenseFilter || licenseFilter === 'all') return candidates;
+    return candidates.filter((c) => c.license_status === licenseFilter);
+  }, [candidates, licenseFilter]);
 
   useEffect(() => {
     if (isOpen) {
@@ -165,24 +171,15 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card" style={{ maxWidth: '960px', width: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Globe size={22} className="text-blue-500" />
-            <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Source Discovery & Provenance Rights Review</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Discover public datasets, inspect URLs with SSRF safeguards, and record auditable rights clearances.
-              </p>
-            </div>
-          </div>
-          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
-            <X size={18} />
-          </button>
-        </div>
-
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Source Discovery & Provenance Rights Review"
+      description="Discover public datasets, inspect URLs with SSRF safeguards, and record auditable rights clearances."
+      icon={<Globe size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1rem' }}>
         {/* Legal Disclaimer Alert */}
         <div style={{
           padding: '0.75rem 1rem',
@@ -192,7 +189,6 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
           color: 'var(--amber)',
           fontSize: '0.8rem',
           lineHeight: '1.4',
-          marginBottom: '1rem',
           display: 'flex',
           gap: '0.5rem',
           alignItems: 'flex-start',
@@ -208,7 +204,6 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
           <div style={{
             padding: '0.75rem 1rem',
             borderRadius: 'var(--radius-sm)',
-            marginBottom: '1rem',
             background: feedbackMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
             border: `1px solid ${feedbackMsg.type === 'success' ? 'var(--emerald)' : 'var(--rose)'}`,
             color: feedbackMsg.type === 'success' ? 'var(--emerald)' : 'var(--rose)',
@@ -219,7 +214,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
         )}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
           <button
             className={`btn ${activeTab === 'catalog' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -250,7 +245,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
         <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
           {activeTab === 'catalog' && (
             <div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                 <input
                   type="text"
                   className="input-text"
@@ -258,20 +253,38 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: '220px' }}
                 />
+                <div style={{ width: '180px' }}>
+                  <CustomSelect
+                    value={licenseFilter}
+                    onChange={setLicenseFilter}
+                    options={[
+                      { value: 'all', label: 'All Licenses' },
+                      { value: 'approved_for_intended_use', label: 'Approved' },
+                      { value: 'review_required', label: 'Review Required' },
+                      { value: 'unknown', label: 'Unknown' },
+                      { value: 'restricted', label: 'Restricted' },
+                      { value: 'rejected', label: 'Rejected' },
+                    ]}
+                  />
+                </div>
                 <button className="btn btn-primary" onClick={handleSearch} disabled={isSearching}>
                   {isSearching ? 'Searching...' : 'Search Catalogs'}
                 </button>
               </div>
 
-              {candidates.length === 0 ? (
+              {filteredCandidates.length === 0 ? (
                 <div className="empty-state" style={{ padding: '2rem' }}>
-                  <p className="empty-desc">No matching candidate sources found.</p>
+                  <p className="empty-desc">
+                    {candidates.length > 0 && licenseFilter !== 'all'
+                      ? `No candidate sources match license filter "${licenseFilter}".`
+                      : 'No matching candidate sources found.'}
+                  </p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {candidates.map((cand) => (
+                  {filteredCandidates.map((cand) => (
                     <div
                       key={cand.source_id}
                       className="card"
@@ -546,6 +559,6 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

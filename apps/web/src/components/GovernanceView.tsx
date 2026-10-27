@@ -146,8 +146,14 @@ export const GovernanceView: React.FC = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
+  const isDateRangeInvalid = Boolean(auditStartDate && auditEndDate && auditStartDate > auditEndDate);
+
   // Filter audit logs client-side over loaded data
   const filteredAuditLogs = useMemo(() => {
+    if (auditStartDate && auditEndDate && auditStartDate > auditEndDate) {
+      return [];
+    }
+
     return auditLogs.filter((log) => {
       // 1. Keyword search
       if (auditSearchQuery.trim()) {
@@ -163,8 +169,17 @@ export const GovernanceView: React.FC = () => {
       }
 
       // 2. Date filters
-      if (log.created_at) {
+      const hasDateFilter = Boolean(auditStartDate || auditEndDate);
+      if (hasDateFilter) {
+        if (!log.created_at) {
+          // Exclude records with missing timestamps when a date filter is active
+          return false;
+        }
         const logDate = new Date(log.created_at);
+        if (isNaN(logDate.getTime())) {
+          // Exclude records with invalid timestamps when a date filter is active
+          return false;
+        }
         if (auditStartDate) {
           const start = new Date(auditStartDate);
           start.setHours(0, 0, 0, 0);
@@ -721,6 +736,12 @@ export const GovernanceView: React.FC = () => {
                     </button>
                   )}
                 </div>
+
+                {isDateRangeInvalid && (
+                  <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--rose)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <AlertCircle size={14} /> Start date must be before or equal to end date.
+                  </div>
+                )}
 
                 {/* Scope Notice & Record Count */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 0.25rem' }}>

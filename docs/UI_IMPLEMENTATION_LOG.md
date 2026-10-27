@@ -1134,6 +1134,72 @@ Prior to R6, secondary views and dialogs suffered from design-system inconsisten
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Interactive browser subagent tools remain unavailable in this environment; visual layout, accessibility landmarks, and event handlers were strictly verified via component source inspection and the production TypeScript compiler.
 
+---
+
+## 25. Phase R7: Remaining UI Gaps, Modal Consistency & Functional QA (October 27, 2026)
+
+**Base Commit Inspected:** `bbd6737917febe3c87bc9f882460b1536e7bbe69`  
+**Quality Gates Passed:** `npm run test` (`test:coordinates` 19/19 passed, `test:integrity` 4/4 suites passed), `npm run build` (0 TypeScript errors in 5.80s), `pytest tests/ -q` (150 passed), `ruff check .` (0 lint errors).
+
+### 25.1 Problem Statement & Audit
+Prior to R7, several subtle edge-case behaviors and remaining modal implementations required remediation:
+1. **System Health Probe Routing**: In `apps/web/src/components/SystemHealthView.tsx` and `apps/web/src/api.ts`, `/health` and `/readiness` paths were called directly. In the Nginx reverse proxy configuration (`apps/web/nginx.conf`), only `/api/` was forwarded to the backend; unproxied routes resolved to `/index.html` (the SPA fallback), returning a 200 OK with HTML string and falsely registering success if parsed loosely. Furthermore, probe latencies were reported as a single shared timer, privacy mode defaulted to an unverified `local_only`, and gateway providers were hardcoded as `Active`.
+2. **Fabricated Progress Bar Percentages**: `apps/web/src/components/ui/PerceptualProgressBar.tsx` simulated randomized tick intervals up to 92% when no backend percentage was provided, and jumped to 100% "Completed" on deactivation even if an error occurred.
+3. **Audit Log Timestamp Validation**: Records with missing or invalid timestamps were previously not handled explicitly when date filters were active. Inverted start/end date ranges lacked clear user warning banners.
+4. **Cluster Map Controls**: `ClusterMapModal.tsx` lacked bounded zoom controls, accessible non-mouse data-desert selection, and distinct error states when cluster computation failed.
+5. **Modal Standardization Gaps**: Several primary workflows (`ImportModal.tsx`, `SourceDiscoveryModal.tsx`, `AIAnnotationModal.tsx`, `SyntheticGenerationModal.tsx`, `QualityDashboardModal.tsx`, `AugmentationModal.tsx`, `VersionSnapshotsModal.tsx`, `VersionDiffModal.tsx`, `ExportModal.tsx`, and `EvaluationModal.tsx`) still used bespoke backdrop and card markup rather than the shared Phase R1 `ModalShell`.
+
+### 25.2 Architectural Changes & Deliverables Completed
+
+1. **System Health Correctness (`SystemHealthView.tsx` & `api.ts`):**
+   - **Proxied Endpoints**: Updated health checks to probe `/api/v1/health` and `/api/v1/readiness` through the standard reverse proxy.
+   - **Strict JSON Parsing**: Verified JSON structure; if HTML or non-JSON is received, treated strictly as probe failure.
+   - **Independent Latency Probing**: Measured high-resolution client-side latency (`performance.now()`) independently for the health probe (`healthLatencyMs`) and readiness probe (`readinessLatencyMs`).
+   - **Truthful Status Disclosures**: Displays `"Not reported"` if privacy mode or storage driver is missing; displays `"Not exposed by this endpoint"` for telemetry; labels model gateway providers truthfully as `"Registered"` with explicit disclaimer that registration does not constitute live connectivity.
+
+2. **Truthful Progress Component (`PerceptualProgressBar.tsx`):**
+   - **Indeterminate Mode**: Renders a smooth neutral sliding indeterminate indicator and stage text when `backendPercent == null`, completely removing simulated percentage counters.
+   - **Real Percentage**: Displays numeric percentage strictly when an authoritative `backendPercent` number is supplied.
+   - **Explicit Completion**: Displays completion only when `completed={true}` is explicitly passed. Error states render an alert icon and error message without fabricated completion.
+
+3. **Audit Filtering Integrity (`GovernanceView.tsx` & `ProjectSettingsModal.tsx`):**
+   - **Missing/Invalid Timestamp Handling**: When date filters are active, records with null, undefined, or unparseable `created_at` timestamps are strictly excluded.
+   - **Date Range Order Validation**: Implemented `isDateRangeInvalid` validation. If `startDate > endDate`, renders an explicit warning banner: *"Invalid Date Range: Start date cannot be after end date."*
+
+4. **Cluster Map Usability (`ClusterMapModal.tsx`):**
+   - **Bounded Zoom**: Added zoom in (`+`), zoom out (`-`), and reset controls bounded between `1.0x` and `2.5x` with SVG viewbox transformation.
+   - **Accessible Data-Desert Selector**: Added an accessible `<select>` dropdown in the sidebar to inspect coverage blind spots without requiring mouse hover/clicks on small SVG circles.
+   - **Failure Distinction**: Differentiated cluster fetch network/server errors with an explicit retry button from an empty dataset state.
+
+5. **Modal Shell Standardization (All 14 Primary Modals):**
+   - Standardized all 14 primary modal workflows on `ModalShell`:
+     - `ImportModal.tsx` (`size="lg"`, dropzone + URL SSRF guards)
+     - `SourceDiscoveryModal.tsx` (`size="xl"`, added catalog `licenseFilter` dropdown with options for `approved`, `review_required`, `unknown`, `restricted`, `rejected`)
+     - `AIAnnotationModal.tsx` (`size="lg"`, compatible provider capability filtering, task schema preview)
+     - `SyntheticGenerationModal.tsx` (`size="xl"`, target class validation, generation lineage)
+     - `QualityDashboardModal.tsx` (`size="xl"`, structural & split leakage checks, class distribution)
+     - `AugmentationModal.tsx` (`size="lg"`, responsive slider auto-fit grid, live SVG transformation)
+     - `VersionSnapshotsModal.tsx` (`size="xl"`, full manifest SHA-256 copy button with clipboard feedback)
+     - `VersionDiffModal.tsx` (`size="xl"`, spatial comparison, coordinate calibration, IoU validity checks)
+     - `ExportModal.tsx` (`size="xl"`, 9 export presets, token context simulation)
+     - `EvaluationModal.tsx` (`size="xl"`, uncertainty queue sort selector, null-safe metric handling)
+
+6. **Automated Unit & Contract Tests (`apps/web/tests/ui_integrity.test.ts`):**
+   - Added automated tests verifying:
+     - Health & readiness endpoint proxy routing (`/api/v1/health` and `/api/v1/readiness`).
+     - Audit log timestamp filtering & date-range validation (invalid date exclusion and inverted date detection).
+     - Catalog discovery license-status filtering.
+     - Truthful progress bar invariants (indeterminate state when percent is null, genuine completion flag handling).
+
+### 25.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (19/19 contract tests).
+- **UI Integrity Tests**: `npm run test:integrity` in `apps/web`: **PASSED** (4/4 test suites).
+- **Combined Web Tests**: `npm run test` in `apps/web`: **PASSED**.
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.80s).
+- **Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 6.69s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+
+
 
 
 

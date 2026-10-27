@@ -15,6 +15,7 @@ import { fetchValidationSummary, runDatasetValidation } from '../api';
 import { QualityReport, ValidationFinding } from '../types';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
+import { ModalShell } from './ui/ModalShell';
 
 export interface QualityDashboardModalProps {
   datasetId: string;
@@ -122,33 +123,14 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
   const totalOriginRecords = originEntries.reduce((sum, [, count]) => sum + count, 0);
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="quality-modal-title">
-      <div
-        className="modal-content"
-        style={{ maxWidth: '920px', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 id="quality-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ShieldCheck size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-              Dataset Quality & Publication Audit
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.2rem' }}>
-              Automated structural integrity checks, split leakage verification, and distribution balance
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            aria-label="Close quality dashboard"
-            style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Dataset Quality & Publication Audit"
+      description="Automated structural integrity checks, split leakage verification, and distribution balance"
+      icon={<ShieldCheck size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
 
         {error && (
           <div
@@ -674,7 +656,6 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
             </div>
           </div>
         ) : null}
-      </div>
-    </div>
+    </ModalShell>
   );
 };

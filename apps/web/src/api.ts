@@ -21,7 +21,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export async function checkHealth() {
-  const res = await fetch('/health');
+  const res = await fetch(`${API_BASE}/health`);
   return handleResponse<any>(res);
 }
 

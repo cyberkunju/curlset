@@ -369,11 +369,18 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - Standardized Modals: Refactored `ProjectSettingsModal.tsx` and `ClusterMapModal.tsx` to use Phase R1 `ModalShell`, preserving full SVG cluster canvas projection, coverage gap targeting, and synthetic generation trigger; verified `CreateProjectModal.tsx` and expanded task-type coverage in `CreateDatasetModal.tsx` to all 6 domain task types.
 - **Exit Gate:** `npm run test:coordinates` passed (19/19); `npm run build` passed in 5.85s (0 errors); 150/150 pytest tests passed in 6.73s; `ruff check .` passed (0 lint errors); zero promotional puffery or fabricated metrics.
 
-#### Phase R7: Full Application Visual QA & Verification
-- **Objective:** Comprehensive visual, responsive, and functional regression testing across the entire platform.
-- **Tasks:**
-  - Test and verify all major workflows at 1440×900, 1280×800, 768×1024, and 390×844.
-  - Verify WCAG AAA contrast, keyboard focus indicators, and reduced-motion compliance.
-  - Run full test suite (`pytest tests/`, `npm run build`, `ruff check .`).
-  - Capture visual verification evidence and update `docs/EXECUTION_PLAN.md`.
-- **Exit Gate:** 100% passing tests, 0 lint errors, clean production build, and all screens verified against target blueprint.
+#### Phase R7: Remaining UI Gaps, Modal Consistency & Functional QA (COMPLETED)
+- **Objective:** Finish remaining confirmed UI gaps, standardize all 14 primary modal workflows on `ModalShell`, correct System Health routing and truthfully report diagnostics, ensure truthful progress states, and validate audit filtering edge cases.
+- **Tasks Delivered:**
+  - **System Health Correctness (`SystemHealthView.tsx` & `api.ts`)**: Probes proxied `/api/v1/health` and `/api/v1/readiness` (preventing SPA HTML fallback misinterpretations), parses JSON strictly, measures independent probe round-trip latencies, removes unverified privacy mode defaults (marking unexposed fields truthfully), and labels gateway providers as `Registered` with clear non-connectivity disclaimers.
+  - **Truthful Progress Component (`PerceptualProgressBar.tsx`)**: Displays indeterminate progress bar without fake percentages when no real backend percent is supplied; shows numeric percentage strictly when `backendPercent` is provided; signals completion only upon explicit `completed={true}` flag; gracefully reflects error states.
+  - **Audit & Governance Filtering Integrity (`GovernanceView.tsx` & `ProjectSettingsModal.tsx`)**: Explicitly excludes records with missing or invalid timestamps when date filters are active; validates start/end date order with clear alert banner if inverted; maintains visible 50-event loaded scope disclosure.
+  - **Cluster Map Usability (`ClusterMapModal.tsx`)**: Integrated bounded zoom controls (1.0x to 2.5x with reset); added accessible `<select>` dropdown for inspecting data-desert blind spots without requiring mouse hover; distinguished cluster fetch failure with retry button from empty datasets; responsive auto-fit grid.
+  - **Complete ModalShell Standardization**: Migrated all remaining primary modal workflows to `ModalShell`: `ImportModal.tsx`, `SourceDiscoveryModal.tsx` (with catalog license status filter), `AIAnnotationModal.tsx`, `SyntheticGenerationModal.tsx`, `QualityDashboardModal.tsx`, `AugmentationModal.tsx` (with responsive slider grid), `VersionSnapshotsModal.tsx` (with manifest SHA-256 copy feedback), `VersionDiffModal.tsx`, `ExportModal.tsx`, and `EvaluationModal.tsx` (with uncertainty sorting and null-safe metrics).
+  - **Automated Verification**: Added `apps/web/tests/ui_integrity.test.ts` verifying health routing, audit filtering with invalid timestamp exclusion, candidate license filtering, and truthful progress invariants.
+- **Exit Gate:** `npm run test` passed (`test:coordinates` 19/19 + `test:integrity` 4/4 suites); `npm run build` passed (0 errors in 5.80s); 150/150 pytest tests passed in 6.69s; `ruff check .` passed (0 lint errors).
+
+#### Phase R8: Release Readiness & Full Visual QA (PLANNED)
+- **Objective:** Final application-wide visual QA, cross-viewport browser verification, and release sign-off.
+- **Scope:** Cross-viewport testing (1440×900, 1280×800, 768×1024, 390×844) using browser subagents when available, recording final WebP sessions, and certifying complete platform release readiness.
+

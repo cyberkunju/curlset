@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+import { ModalShell } from './ui/ModalShell';
 import { fetchDatasetVersions } from '../api';
 import { DatasetVersion } from '../types';
 import {
@@ -731,33 +732,14 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="diff-modal-title">
-      <div
-        className="modal-content"
-        style={{ maxWidth: '960px', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 id="diff-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <GitCompare size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-              Dataset Version Diff & Spatial Comparison
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.15rem' }}>
-              Compare cryptographic manifests, split assignments, class deltas, and spatial bounding-box shifts
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Dataset Version Diff & Spatial Comparison"
+      description="Compare cryptographic manifests, split assignments, class deltas, and spatial bounding-box shifts"
+      icon={<GitCompare size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+    >
 
         {versions.length < 2 ? (
           <div style={{ padding: '2.5rem', textAlign: 'center', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)' }}>
@@ -1166,7 +1148,6 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
             ) : null}
           </div>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 };
