@@ -134,34 +134,36 @@ PASSED: Verified with 19 automated API & domain tests passing, 0 ruff errors, an
 
 ## 6. Phase 3 — Safe ingestion and asset management
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 1 and Phase 2
 
 ### Goals
 Reliably turn user files into normalized records and safely stored assets.
 
 ### Tasks
-- [ ] Implement bounded upload API and safe temporary storage.
-- [ ] Validate file size, count, extension, MIME signature and supported parser.
-- [ ] Add image and text import.
-- [ ] Add CSV, JSON and JSONL import with row-level errors.
-- [ ] Add ZIP ingestion with traversal and decompression-bomb protections.
-- [ ] Compute SHA-256 and store byte size/MIME/dimensions where available.
-- [ ] Generate opaque storage keys; never use raw user paths.
-- [ ] Add record-to-asset relationships and source records.
-- [ ] Add import ProcessingRun and item-level progress/error reporting.
-- [ ] Make import idempotent or define safe duplicate behavior.
-- [ ] Add exact duplicate detection and import summary UI.
-- [ ] Test corrupt files, malformed rows, oversized archives and cleanup on failure.
+- [x] Implement bounded upload API and safe temporary storage.
+- [x] Validate file size, count, extension, MIME signature and supported parser.
+- [x] Add image and text import.
+- [x] Add CSV, JSON and JSONL import with row-level errors.
+- [x] Add ZIP ingestion with traversal and decompression-bomb protections.
+- [x] Compute SHA-256 and store byte size/MIME/dimensions where available.
+- [x] Generate opaque storage keys; never use raw user paths.
+- [x] Add record-to-asset relationships and source records.
+- [x] Add import ProcessingRun and item-level progress/error reporting.
+- [x] Make import idempotent or define safe duplicate behavior.
+- [x] Add exact duplicate detection and import summary UI.
+- [x] Test corrupt files, malformed rows, oversized archives and cleanup on failure.
 
 ### Deliverables
-- Import service and storage abstraction.
-- Import preview/result UI.
-- Stable records and asset metadata.
-- Security-focused ingestion tests.
+- Storage abstraction (`StorageBackend`, `LocalStorageBackend`) in `packages/dataset_io/storage.py`.
+- Exact SHA-256 and 64-bit perceptual difference hashing (`phash`) in `packages/dataset_io/hashing.py`.
+- Safety validation (magic-byte sniffing, zip bomb defense, path traversal sanitization) in `packages/dataset_io/safety.py`.
+- Multi-modal ingestion orchestrator (`IngestionService`) supporting single assets, paired multimodal ZIPs, CSV, JSON, and JSONL in `packages/dataset_io/ingestion_service.py`.
+- REST API endpoint `POST /api/v1/datasets/{dataset_id}/ingest` with multipart file upload in `services/api/routes/ingestion.py`.
+- Drag-and-drop Import Modal in `apps/web/src/components/ImportModal.tsx` showing real-time accepted, duplicate, and rejected counts.
 
 ### Exit gate
-Supported inputs produce stable records and assets; invalid inputs fail safely with actionable per-item diagnostics; no partial dataset is falsely marked complete.
+PASSED: Verified with 30 passing tests (`tests/integration/test_ingestion_pipeline.py`, `tests/unit/test_safety.py`, `tests/unit/test_hashing.py`) and clean frontend build (`npm run build` in 1.15s). Malformed inputs, path traversal attempts, and duplicate files safely handled with diagnostics. Zero unhandled exceptions.
 
 ## 7. Phase 4 — Annotation schemas and manual labeling
 

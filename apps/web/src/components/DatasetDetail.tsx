@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchDatasetDetail } from '../api';
 import { DatasetDetailResponse } from '../types';
+import { ImportModal } from './ImportModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -11,6 +12,8 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [data, setData] = useState<DatasetDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+
 
   const loadData = async () => {
     setLoading(true);
@@ -143,7 +146,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           Step through the dataset engineering lifecycle from ingestion to versioned export:
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <button className="btn btn-primary" title="Proceed to Ingestion (Phase 3)">
+          <button className="btn btn-primary" onClick={() => setIsImportOpen(true)} title="Proceed to Ingestion (Phase 3)">
             <span>📥</span> Import Media & Data
           </button>
           <button className="btn btn-secondary" title="Open Annotation Workbench (Phase 4)">
@@ -160,6 +163,14 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           </button>
         </div>
       </div>
+
+      <ImportModal
+        datasetId={datasetId}
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImportComplete={() => loadData()}
+      />
     </div>
   );
 };
+

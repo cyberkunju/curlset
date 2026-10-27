@@ -21,9 +21,10 @@ from packages.dataset_core.exceptions import (
     ResourceNotFoundError,
 )
 from services.api.config import settings
-from services.api.routes import datasets, projects
+from services.api.routes import datasets, ingestion, projects
 
 START_TIME = time.time()
+
 
 
 
@@ -105,6 +106,8 @@ async def generic_domain_error_handler(request: Request, exc: DomainError):
 # Routers
 app.include_router(projects.router)
 app.include_router(datasets.router)
+app.include_router(ingestion.router)
+
 
 
 

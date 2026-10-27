@@ -49,6 +49,7 @@ dist/
 dist-ssr/
 *.local
 .vite/
+*.tsbuildinfo
 
 # Environment and secrets
 .env
