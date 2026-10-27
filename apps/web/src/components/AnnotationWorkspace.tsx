@@ -1007,6 +1007,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       segments={transcriptSegments}
                       assetId={activeAsset.id}
                       audioSrc={`/api/v1/assets/${activeAsset.id}/raw`}
+                      assetByteSize={activeAsset.byte_size}
+                      assetDuration={activeAsset.dimensions?.duration_seconds}
                       onSeek={(time) => {
                         if (audioRef.current) {
                           audioRef.current.currentTime = time;

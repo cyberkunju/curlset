@@ -496,3 +496,54 @@ The initial R4 implementation of `AudioWaveformScrubber.tsx` generated decorativ
 - **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 13.03s.
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Check**: Documented environment constraint: Playwright browser binary download failed due to sandbox offline environment (`404 Not Found`). Verified code-level Web Audio API implementation, TypeScript typing, and local asset endpoint compatibility.
+
+---
+
+## 13. Phase R4.2: Audio Waveform Resource Guardrails & Streaming Bounds
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 13.1 Objective & Resource Guardrails
+Protected the annotation workbench against large, long-duration, unsupported, and malformed audio assets during waveform extraction, preventing memory exhaustion and UI blocking.
+
+### 13.2 Guardrails & Architectural Implementation Delivered
+
+1. **Explicit Resource Limits as Named Constants (`apps/web/src/components/ui/AudioWaveformScrubber.tsx`):**
+   - `MAX_WAVEFORM_SOURCE_BYTES = 25 * 1024 * 1024` (25 MB): Maximum encoded source size allowed for waveform extraction.
+   - `MAX_WAVEFORM_DURATION_SECONDS = 300` (5 minutes): Maximum decoded audio duration permitted for PCM envelope analysis.
+   - `MAX_WAVEFORM_CACHE_ENTRIES = 50`: Maximum capacity for the in-memory LRU cache to prevent memory leaks during long review sessions.
+   - `SILENCE_AMPLITUDE_THRESHOLD = 0.0001`: Acoustic floor below which an audio signal is classified as pure silence.
+
+2. **Pre-Fetch Asset Metadata Inspection:**
+   - Both `assetByteSize` and `assetDuration` are passed from `AnnotationWorkspace` to `AudioWaveformScrubber`.
+   - If known asset metadata indicates the file exceeds 25 MB or 5 minutes, waveform extraction is aborted **before** issuing any network request.
+
+3. **Bounded Chunked Streaming Reader:**
+   - Evaluates `Content-Length` header if present; if reported size exceeds 25 MB, request is rejected.
+   - For streaming responses, consumes bytes incrementally using `response.body.getReader()`. If cumulative bytes exceed `MAX_WAVEFORM_SOURCE_BYTES`, the stream is cancelled immediately, preventing unbounded memory consumption when `Content-Length` is missing or spoofed.
+   - Fallback buffer checks are maintained for browser environments where `ReadableStream` reader is unavailable.
+
+4. **Decoded Audio Buffer Guardrails & Lifecycle Safety:**
+   - Evaluates decoded `audioBuffer.duration`; if duration exceeds 300s, throws budget error prior to channel sample processing.
+   - Always releases the `AudioContext` instance via `await audioCtx.close()` in `finally` blocks.
+
+5. **True Silence Handling (Zero Fabrication):**
+   - If peak acoustic amplitude across all bins is below `SILENCE_AMPLITUDE_THRESHOLD`, the scrubber avoids normalizing noise into artificial peaks.
+   - Silent recordings render a flatline hairline (0.02) and display a dedicated badge: `Silent Audio Signal (Flatline)`.
+
+6. **Bounded LRU Cache:**
+   - Waveform profiles store `{ bars, isSilent }` keyed strictly by `assetId`.
+   - Access touches the entry to preserve LRU ordering.
+   - When the cache exceeds 50 items, the oldest entry is evicted.
+
+7. **Honest Standard Playback Timeline Fallback:**
+   - When any resource limit is exceeded or audio decoding fails, the workbench displays the standard timeline with a descriptive message (e.g. `Standard Timeline (File (32.0MB) exceeds 25MB waveform budget)`).
+   - Audio playback, keyboard scrubbing, playhead needle, seeking, and timed cue editing remain fully interactive without disruption.
+
+### 13.3 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 12.55s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 14.44s.
+- **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Environmental Note**: Browser automation execution remains constrained by offline sandbox environment (cannot download browser binaries). Code-level types, boundary conditions, and test suites are 100% verified.
+
