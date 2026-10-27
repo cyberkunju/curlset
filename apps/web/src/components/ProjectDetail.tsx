@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, ShieldCheck, Archive } from 'lucide-react';
+import { Plus, ArrowLeft, ShieldCheck, Archive, Database, Layers } from 'lucide-react';
 import { archiveProject, fetchDatasets, fetchProject } from '../api';
 import { Dataset, Project } from '../types';
 import { CreateDatasetModal } from './CreateDatasetModal';
@@ -68,8 +68,10 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         return <span className="badge badge-amber">Object Detection</span>;
       case 'paired_image_text':
         return <span className="badge badge-emerald">Paired Image-Text</span>;
+      case 'audio_transcription':
+        return <span className="badge badge-cyan">Audio Transcription</span>;
       default:
-        return <span className="badge badge-indigo">{taskType}</span>;
+        return <span className="badge badge-neutral">{taskType.replace(/_/g, ' ')}</span>;
     }
   };
 
@@ -90,53 +92,61 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   if (error || !project) {
     return (
       <div className="empty-state">
-        <div className="empty-icon" style={{ color: 'var(--rose)' }}>⚠️</div>
         <h3 className="empty-title">Error Loading Project</h3>
         <p className="empty-desc">{error || 'Project not found'}</p>
-        <button className="btn btn-secondary" onClick={onBack}>Back to Projects</button>
+        <SpringButton variant="secondary" onClick={onBack}>
+          <ArrowLeft size={15} style={{ marginRight: '4px' }} />
+          <span>Back to Projects</span>
+        </SpringButton>
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem' }}>
+      {/* Project Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.4rem' }}>
+            <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+              {project.name}
+            </h1>
             {project.is_archived && <span className="badge badge-amber">Archived</span>}
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '720px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '680px', lineHeight: 1.5 }}>
             {project.description || 'No project description.'}
           </p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             <span>ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{project.id}</code></span>
             <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <SpringButton variant="secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quota Settings">
-            <ShieldCheck size={16} strokeWidth={1.75} style={{ marginRight: '4px' }} />
-            Governance & Quotas
+            <ShieldCheck size={15} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            <span>Governance & Quotas</span>
           </SpringButton>
           {!project.is_archived && (
             <SpringButton variant="secondary" onClick={handleArchive} title="Archive project">
-              <Archive size={16} strokeWidth={1.75} style={{ marginRight: '4px' }} />
-              Archive
+              <Archive size={15} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+              <span>Archive</span>
             </SpringButton>
           )}
           <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
-            <Plus size={16} strokeWidth={2} style={{ marginRight: '4px' }} />
-            New Dataset
+            <Plus size={15} strokeWidth={2.2} style={{ marginRight: '4px' }} />
+            <span>New Dataset</span>
           </SpringButton>
         </div>
       </div>
 
-      <div style={{ marginTop: '2.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
-          Datasets ({filteredDatasets.length})
-        </h2>
+      {/* Datasets Section */}
+      <div style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
+            Datasets ({filteredDatasets.length})
+          </h2>
+        </div>
 
         <TriStateView<Dataset[]>
           skeletonName="project-datasets-grid"
@@ -159,29 +169,29 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <div>
-                    <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px', marginBottom: '0.75rem' }} />
-                    <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div style={{ width: '30%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                    <div style={{ width: '25%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                  </div>
+                  <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                  <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
                 </div>
               ))}
             </div>
           }
           emptyState={
             <div className="empty-state">
-              <div className="empty-icon">📊</div>
-              <h3 className="empty-title">No datasets created yet</h3>
+              <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+                <Database size={36} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
+              </div>
+              <h3 className="empty-title">No datasets found</h3>
               <p className="empty-desc">
-                Add your first dataset under this project to start ingesting files and defining annotation schemas.
+                {searchQuery
+                  ? `No datasets match "${searchQuery}".`
+                  : 'This project currently has no datasets. Create your first dataset to start importing and labeling data.'}
               </p>
-              <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
-                <Plus size={16} strokeWidth={2} style={{ marginRight: '4px' }} />
-                Create Dataset
-              </SpringButton>
+              {!searchQuery && (
+                <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
+                  <Plus size={15} strokeWidth={2} style={{ marginRight: '4px' }} />
+                  <span>Create First Dataset</span>
+                </SpringButton>
+              )}
             </div>
           }
         >
@@ -189,14 +199,14 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
             <div className="cards-grid">
               {items.map((ds) => (
                 <div key={ds.id} className="card" onClick={() => onSelectDataset(ds.id)}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem' }}>
                     <h3 className="card-title">{ds.name}</h3>
                     {getTaskBadge(ds.task_type)}
                   </div>
-                  <p className="card-desc">{ds.description || 'No dataset description provided.'}</p>
+                  <p className="card-desc">{ds.description || 'No description provided.'}</p>
                   <div className="card-footer">
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>Schema v{ds.schema_version}</span>
-                    <span>{new Date(ds.created_at).toLocaleDateString()}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{ds.id}</span>
+                    <span className="badge badge-neutral">v{ds.schema_version}</span>
                   </div>
                 </div>
               ))}
@@ -212,10 +222,11 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         onCreated={(newDs) => {
           setIsModalOpen(false);
           setDatasets([newDs, ...datasets]);
+          onSelectDataset(newDs.id);
         }}
       />
 
-      {isSettingsOpen && project && (
+      {isSettingsOpen && (
         <ProjectSettingsModal
           project={project}
           onClose={() => setIsSettingsOpen(false)}
