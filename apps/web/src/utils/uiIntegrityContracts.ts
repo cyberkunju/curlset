@@ -30,6 +30,12 @@ export interface CandidateSource {
 export type ProbeType = 'health' | 'readiness' | 'auto';
 export type OverallSystemStatus = 'operational' | 'degraded' | 'unreachable';
 
+export interface HealthProbeOptions {
+  probeType?: ProbeType;
+  networkError?: string | null;
+  latencyMs?: number | null;
+}
+
 export interface HealthProbeResult {
   ok: boolean;
   healthy: boolean;
@@ -44,15 +50,14 @@ export interface HealthProbeResult {
 
 /**
  * Computes the overall system operational state based on health and readiness probe statuses.
- * Only returns 'operational' when core health is 'ok' and readiness is 'ready'.
+ * Accepts canonical successful health statuses ('ok', 'healthy') and readiness statuses ('ready', 'ok').
+ * Ensures both health and readiness independently satisfy their success conditions before displaying 'operational'.
+ * Degraded, unknown, and unreachable states remain strictly distinguishable.
  */
 export function computeOverallSystemStatus(
   healthStatus?: string | null,
   readinessStatus?: string | null
 ): OverallSystemStatus {
-  if (healthStatus === 'ok' && readinessStatus === 'ready') {
-    return 'operational';
-  }
   if (
     healthStatus === 'unreachable' ||
     readinessStatus === 'unreachable' ||
@@ -61,44 +66,60 @@ export function computeOverallSystemStatus(
   ) {
     return 'unreachable';
   }
+
+  const isHealthOperational = healthStatus === 'ok' || healthStatus === 'healthy';
+  const isReadinessOperational = readinessStatus === 'ready' || readinessStatus === 'ok';
+
+  if (isHealthOperational && isReadinessOperational) {
+    return 'operational';
+  }
+
   return 'degraded';
 }
 
 /**
  * Validates and parses health and readiness probe responses, guarding against
  * unproxied Nginx HTML SPA fallback responses and HTTP degradation.
- * Distinguishes health (status: 'ok') from readiness (status: 'ready').
+ * Distinguishes health (status: 'ok' | 'healthy') from readiness (status: 'ready' | 'ok').
  */
 export function parseHealthProbeResult(
   status: number | null,
   param2?: string | null,
   param3?: string | null,
-  networkErrorOrProbeType?: string | null,
-  latencyMs?: number | null,
-  probeType: ProbeType = 'auto'
+  optionsOrNetworkError?: HealthProbeOptions | string | null,
+  legacyLatencyMs?: number | null,
+  legacyProbeType?: ProbeType
 ): HealthProbeResult {
-  let actualProbeType: ProbeType = probeType;
-  let actualNetworkError: string | null = null;
+  let resolvedProbeType: ProbeType = 'auto';
+  let resolvedNetworkError: string | null = null;
+  let resolvedLatencyMs: number | null = null;
 
-  if (
-    networkErrorOrProbeType === 'health' ||
-    networkErrorOrProbeType === 'readiness' ||
-    networkErrorOrProbeType === 'auto'
+  if (optionsOrNetworkError && typeof optionsOrNetworkError === 'object') {
+    resolvedProbeType = optionsOrNetworkError.probeType ?? 'auto';
+    resolvedNetworkError = optionsOrNetworkError.networkError ?? null;
+    resolvedLatencyMs = optionsOrNetworkError.latencyMs ?? null;
+  } else if (
+    optionsOrNetworkError === 'health' ||
+    optionsOrNetworkError === 'readiness' ||
+    optionsOrNetworkError === 'auto'
   ) {
-    actualProbeType = networkErrorOrProbeType;
-  } else if (typeof networkErrorOrProbeType === 'string') {
-    actualNetworkError = networkErrorOrProbeType;
+    resolvedProbeType = optionsOrNetworkError;
+    resolvedLatencyMs = legacyLatencyMs ?? null;
+  } else {
+    resolvedNetworkError = typeof optionsOrNetworkError === 'string' ? optionsOrNetworkError : null;
+    resolvedLatencyMs = legacyLatencyMs ?? null;
+    resolvedProbeType = legacyProbeType ?? 'auto';
   }
 
-  if (actualNetworkError || status === null) {
+  if (resolvedNetworkError || status === null) {
     return {
       ok: false,
       healthy: false,
       status: null,
       httpStatus: null,
       statusText: 'network_failure',
-      latencyMs: latencyMs ?? null,
-      error: actualNetworkError || 'Network request failed',
+      latencyMs: resolvedLatencyMs ?? null,
+      error: resolvedNetworkError || 'Network request failed',
     };
   }
 
@@ -124,7 +145,7 @@ export function parseHealthProbeResult(
       status,
       httpStatus: status,
       statusText: 'route_fallback_error',
-      latencyMs: latencyMs ?? null,
+      latencyMs: resolvedLatencyMs ?? null,
       isHtmlFallback: true,
       error: 'Received HTML SPA fallback page instead of valid API JSON. Verify reverse proxy route.',
     };
@@ -148,7 +169,7 @@ export function parseHealthProbeResult(
       status,
       httpStatus: status,
       statusText: parsedStatusText,
-      latencyMs: latencyMs ?? null,
+      latencyMs: resolvedLatencyMs ?? null,
       error: errorMsg,
     };
   }
@@ -162,7 +183,7 @@ export function parseHealthProbeResult(
         status,
         httpStatus: status,
         statusText: 'malformed_payload',
-        latencyMs: latencyMs ?? null,
+        latencyMs: resolvedLatencyMs ?? null,
         error: 'JSON payload is not an object',
       };
     }
@@ -170,12 +191,12 @@ export function parseHealthProbeResult(
     let isHealthy = false;
     let errorMsg: string | undefined;
 
-    if (probeType === 'health') {
+    if (resolvedProbeType === 'health') {
       isHealthy = data.status === 'ok' || data.status === 'healthy';
       if (!isHealthy) {
         errorMsg = `Health check returned non-healthy status: '${data.status}'`;
       }
-    } else if (probeType === 'readiness') {
+    } else if (resolvedProbeType === 'readiness') {
       const hasDependencyFailures = data.database === 'failed' || data.storage === 'failed';
       isHealthy = (data.status === 'ready' || data.status === 'ok') && !hasDependencyFailures;
       if (hasDependencyFailures) {
@@ -200,7 +221,7 @@ export function parseHealthProbeResult(
       status,
       httpStatus: status,
       statusText: data.status || (isHealthy ? 'ok' : 'unknown'),
-      latencyMs: latencyMs ?? null,
+      latencyMs: resolvedLatencyMs ?? null,
       data,
       error: isHealthy ? undefined : (errorMsg || `Service reported non-healthy status: ${data.status}`),
     };
@@ -211,7 +232,7 @@ export function parseHealthProbeResult(
       status,
       httpStatus: status,
       statusText: 'malformed_json',
-      latencyMs: latencyMs ?? null,
+      latencyMs: resolvedLatencyMs ?? null,
       error: `Non-JSON response: ${err?.message || 'Parse error'}`,
     };
   }

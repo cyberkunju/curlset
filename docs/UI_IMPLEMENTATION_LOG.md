@@ -1204,7 +1204,7 @@ Prior to R7, several subtle edge-case behaviors and remaining modal implementati
 ## 26. Phase R8: Final Application QA, Accessibility, Defect Closure & Release Readiness (October 27, 2026)
 
 **Base Commit Inspected:** `ce2d95e7cdac63461f824d86b51411b11426c164`  
-**Quality Gates Passed:** `npm run test` (19/19 coordinate contract tests + 6/6 UI integrity production suites), `npm run build` (0 TypeScript errors, 0 warnings, main bundle 421.04 kB in 5.69s), `pytest tests/ -q` (150 passed), `ruff check .` (0 lint errors).
+**Quality Gates Passed:** `npm run test` (19/19 coordinate contract tests + 6/6 UI integrity production suites), `npm run build` (0 TypeScript errors, 0 warnings, main bundle 422.21 kB in 5.72s), `pytest tests/ -q` (150 passed), `ruff check .` (0 lint errors).
 
 ### 26.1 Problem Statement & Audit
 Phase R8 is the **final phase** of the UI redesign roadmap. While Phase R7 achieved comprehensive structural coverage, several critical quality and verification items remained:
@@ -1250,33 +1250,32 @@ Phase R8 is the **final phase** of the UI redesign roadmap. While Phase R7 achie
 
 5. **Code-Splitting & Bundle Optimization (`vite.config.ts`, `App.tsx`, `DatasetDetail.tsx`):**
    - Configured Rollup `manualChunks` in `vite.config.ts` for `vendor-react` (4.22 kB), `vendor-motion` (143.58 kB), and `vendor-icons` (53.84 kB).
-   - Applied `React.lazy` and `<Suspense>` in `App.tsx` for `SystemHealthView` (15.09 kB) and `GovernanceView` (21.94 kB).
+   - Applied `React.lazy` and `<Suspense>` in `App.tsx` for `SystemHealthView` (15.64 kB) and `GovernanceView` (21.94 kB).
    - Applied `React.lazy` and `<Suspense>` in `DatasetDetail.tsx` for all 11 modal workflows (`VersionDiffModal`, `ClusterMapModal`, `ExportModal`, `QualityDashboardModal`, `EvaluationModal`, etc.).
-   - **Bundle Impact**: Main bundle size dropped from **808.88 kB down to 421.04 kB** (gzip 112.70 kB) — a **48% reduction** that completely eliminated the Vite 500 kB chunk warning with zero build warnings.
+   - **Bundle Impact**: Main bundle size dropped from **808.88 kB down to 422.21 kB** (gzip 113.03 kB) — a **48% reduction** that completely eliminated the Vite 500 kB chunk warning with zero build warnings.
 
 ### 26.3 Verification Summary & Release Readiness Sign-Off
 - **TypeScript Coordinate Contract Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (19/19 contract tests).
 - **UI Integrity Production Tests**: `npm run test:integrity` in `apps/web`: **PASSED** (6/6 production test suites).
-- **Frontend Production Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, 0 warnings, main bundle 421.96 kB in 5.56s).
-- **Full Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 6.89s.
+- **Frontend Production Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, 0 warnings, main bundle 422.21 kB in 5.72s).
+- **Full Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 6.57s.
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Limitation**: Automated Playwright browser runner failed due to upstream driver CDN 404 in offline/sandboxed runner. Local responsive layout contracts, accessibility attributes, keyboard event handlers, and pure domain rules were 100% verified via automated tests, component contracts, and production type checking. Visual browser verification remains explicitly marked pending until external browser binary downloads or a live browser environment are available.
 
 ### 26.4 Phase R8 Final Verification Fixes (Readiness Parsing & SVG Transform)
-- **Defect 1: Readiness Status Parsing Correction:**
-  - **Issue**: `/api/v1/health` returns `status: "ok"`, while `/api/v1/readiness` returns `status: "ready"`, `database: "connected"`, `storage: "accessible"`. The earlier parser only recognized `ok` and `healthy`, converting successful readiness responses into `unreachable`.
-  - **Resolution**:
-    - Enhanced `parseHealthProbeResult` in `apps/web/src/utils/uiIntegrityContracts.ts` with explicit endpoint-aware probe types (`'health' | 'readiness' | 'auto'`).
-    - Added `computeOverallSystemStatus(healthStatus, readinessStatus)` to deterministically resolve system status as `'operational'`, `'degraded'`, or `'unreachable'`.
-    - Updated `SystemHealthView.tsx` to supply explicit probe types and display an overall system operational badge (`Operational` badge-emerald) when both health (`ok`) and readiness (`ready`) succeed.
-    - Updated `apps/web/tests/ui_integrity.test.ts` to test all real production scenarios: healthy `status: "ok"`, readiness `status: "ready"`, HTTP 503 `status: "degraded"`, HTTP 200 with unexpected status or failed dependency, malformed JSON, HTML SPA fallback, and network failure.
-- **Defect 2: Cluster Map SVG Transform Mathematical Correction:**
-  - **Issue**: `computeClusterTransform()` previously returned CSS-style translation text with `px` units (e.g. `translate(0px, 0px) scale(1)`), which was invalid SVG presentation attribute syntax on `<g transform="...">`.
-  - **Resolution**:
-    - Replaced with unitless SVG presentation attribute syntax: `translate(${tx}, ${ty}) scale(${safeZoom})`.
-    - Implemented mathematically correct zoom anchoring around center `(cx, cy) = (250, 250)` (`tx = pan.x + cx * (1 - safeZoom)`), ensuring the cluster projection scales uniformly around center and bounded pan offsets apply without coordinate distortion.
-    - Removed redundant `transformOrigin: '250px 250px'` CSS style on `<g>` in `apps/web/src/components/ClusterMapModal.tsx`.
-    - Added assertions in `apps/web/tests/ui_integrity.test.ts` verifying unitless SVG grammar, lack of `px` units, and the mathematical invariance of the center point `(250, 250)` under zoom.
+- **Readiness Status Parsing Correction**: Reconciled backend readiness responses (`status: "ready"`, `database: "connected"`, `storage: "accessible"`) with `parseHealthProbeResult`.
+- **Cluster Map SVG Transform Mathematical Correction**: Replaced CSS-style `translate(...px, ...px)` with standard unitless SVG syntax `translate(tx, ty) scale(safeZoom)` anchored at $(250, 250)$ to preserve projection center.
+
+### 26.5 Phase R8 Final Contract Consistency Fix
+- **Consistent Probe-Type Contract (`HealthProbeOptions`)**:
+  - Replaced ambiguous positional argument handling in `parseHealthProbeResult` with a unified `HealthProbeOptions` contract (`{ probeType?: ProbeType, networkError?: string | null, latencyMs?: number | null }`), while maintaining clean backward-compatibility.
+  - Eliminated variable shadowing so `resolvedProbeType` governs all validation branches consistently.
+- **Unified Accepted-Status Contract**:
+  - Canonical operational health statuses: `'ok'` and `'healthy'`.
+  - Canonical operational readiness statuses: `'ready'` and `'ok'`.
+  - Updated `computeOverallSystemStatus` so that both endpoints must independently satisfy their respective success condition for the system to report `Operational`.
+  - Fully distinguished `operational`, `degraded`, and `unreachable` states across both `SystemHealthView` and test suites.
+- **Regression Tests**: Expanded Test Suite 1 in `apps/web/tests/ui_integrity.test.ts` to test all accepted status combinations, failed dependency flags, unexpected statuses, degraded responses, malformed JSON, and network errors.
 
 
 

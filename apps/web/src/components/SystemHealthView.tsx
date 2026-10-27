@@ -60,7 +60,7 @@ export const SystemHealthView: React.FC = () => {
       const res = await fetch(url);
       const contentType = res.headers.get('content-type') || '';
       const text = await res.text();
-      const parsed = parseHealthProbeResult(res.status, contentType, text, null, null, probeType);
+      const parsed = parseHealthProbeResult(res.status, contentType, text, { probeType });
       const latency = Math.round(performance.now() - start);
       if (!parsed.ok) {
         const failureStatus = res.status === 503 || parsed.statusText === 'degraded' ? 'degraded' : 'unreachable';
@@ -130,6 +130,8 @@ export const SystemHealthView: React.FC = () => {
   const isSystemOperational = overallStatus === 'operational';
   const isSystemDegraded = overallStatus === 'degraded';
   const isSystemUnreachable = overallStatus === 'unreachable';
+  const isHealthOperational = health?.status === 'ok' || health?.status === 'healthy';
+  const isReadinessOperational = readiness?.status === 'ready' || readiness?.status === 'ok';
 
   return (
     <div className="system-health-view" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -283,7 +285,7 @@ export const SystemHealthView: React.FC = () => {
               </div>
               <span
                 className={`badge ${
-                  health?.status === 'ok' ? 'badge-emerald' : health?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
+                  isHealthOperational ? 'badge-emerald' : health?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
                 }`}
               >
                 {health?.status ? health.status.toUpperCase() : 'UNKNOWN'}
@@ -349,7 +351,7 @@ export const SystemHealthView: React.FC = () => {
               </div>
               <span
                 className={`badge ${
-                  readiness?.status === 'ready' ? 'badge-emerald' : readiness?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
+                  isReadinessOperational ? 'badge-emerald' : readiness?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
                 }`}
               >
                 {readiness?.status ? readiness.status.toUpperCase() : 'PROBING'}

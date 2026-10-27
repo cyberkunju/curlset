@@ -26,7 +26,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
 {
   console.log('Test 1: Health & Readiness Probe Parsing');
 
-  // 1.1: Healthy API response with status: "ok"
+  // 1.1: Healthy API response with status: "ok" (using typed options)
   const healthyJson = JSON.stringify({
     status: 'ok',
     service: 'dataset-platform-api',
@@ -38,15 +38,24 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     200,
     'application/json; charset=utf-8',
     healthyJson,
-    null,
-    14,
-    'health'
+    { probeType: 'health', latencyMs: 14 }
   );
   assert.equal(healthyResult.ok, true, '200 JSON with status:ok on /health must be healthy');
   assert.equal(healthyResult.healthy, true);
   assert.equal(healthyResult.statusText, 'ok');
   assert.equal(healthyResult.latencyMs, 14);
   assert.equal(healthyResult.httpStatus, 200);
+
+  // 1.1b: Health response with status: "healthy" (accepted health status)
+  const healthyAltResult = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'healthy' }),
+    { probeType: 'health', latencyMs: 10 }
+  );
+  assert.equal(healthyAltResult.ok, true);
+  assert.equal(healthyAltResult.healthy, true);
+  assert.equal(healthyAltResult.statusText, 'healthy');
 
   // 1.2: Successful readiness response with status: "ready", database connected, and storage accessible
   const readyJson = JSON.stringify({
@@ -58,9 +67,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     200,
     'application/json; charset=utf-8',
     readyJson,
-    null,
-    18,
-    'readiness'
+    { probeType: 'readiness', latencyMs: 18 }
   );
   assert.equal(readyResult.ok, true, 'readiness response with status:ready must be healthy');
   assert.equal(readyResult.healthy, true);
@@ -69,6 +76,16 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.equal(readyResult.latencyMs, 18);
   assert.equal(readyResult.data.database, 'connected');
   assert.equal(readyResult.data.storage, 'accessible');
+
+  // 1.2b: Readiness response with status: "ok" (standard alternate readiness driver)
+  const readyAltResult = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'ok', database: 'connected', storage: 'accessible' }),
+    'readiness'
+  );
+  assert.equal(readyAltResult.ok, true);
+  assert.equal(readyAltResult.healthy, true);
 
   // 1.3: HTTP 503 with status: "degraded"
   const degraded503Json = JSON.stringify({
@@ -80,9 +97,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     503,
     'application/json',
     degraded503Json,
-    null,
-    45,
-    'readiness'
+    { probeType: 'readiness', latencyMs: 45 }
   );
   assert.equal(degradedResult.ok, false, 'HTTP 503 must not be marked healthy');
   assert.equal(degradedResult.healthy, false);
@@ -91,44 +106,56 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.ok(degradedResult.error?.includes('503'));
 
   // 1.4: HTTP 200 with an unexpected or degraded status
-  // 1.4a: Unexpected status on /health (e.g., 'maintenance')
+  // 1.4a: Unexpected status on /health (e.g., 'maintenance' or 'ready' on health endpoint)
   const unexpectedHealth = parseHealthProbeResult(
     200,
     'application/json',
     JSON.stringify({ status: 'maintenance' }),
-    null,
-    10,
-    'health'
+    { probeType: 'health', latencyMs: 10 }
   );
   assert.equal(unexpectedHealth.ok, false, 'Unexpected status on health must fail');
   assert.equal(unexpectedHealth.healthy, false);
   assert.equal(unexpectedHealth.statusText, 'maintenance');
+
+  const readyOnHealthEndpoint = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'ready' }),
+    { probeType: 'health' }
+  );
+  assert.equal(readyOnHealthEndpoint.ok, false, 'status:ready on /health is unexpected');
 
   // 1.4b: HTTP 200 on /readiness with status: 'degraded'
   const degraded200 = parseHealthProbeResult(
     200,
     'application/json',
     JSON.stringify({ status: 'degraded', database: 'connected' }),
-    null,
-    12,
-    'readiness'
+    { probeType: 'readiness', latencyMs: 12 }
   );
   assert.equal(degraded200.ok, false, 'status: degraded on 200 must fail');
   assert.equal(degraded200.healthy, false);
   assert.equal(degraded200.statusText, 'degraded');
 
   // 1.4c: HTTP 200 on /readiness with failed database dependency flag
-  const failedDepReadiness = parseHealthProbeResult(
+  const failedDbReadiness = parseHealthProbeResult(
     200,
     'application/json',
     JSON.stringify({ status: 'ready', database: 'failed', storage: 'accessible' }),
-    null,
-    15,
-    'readiness'
+    { probeType: 'readiness', latencyMs: 15 }
   );
-  assert.equal(failedDepReadiness.ok, false, 'Readiness with database:failed must fail');
-  assert.equal(failedDepReadiness.healthy, false);
-  assert.ok(failedDepReadiness.error?.includes('dependency check failed'));
+  assert.equal(failedDbReadiness.ok, false, 'Readiness with database:failed must fail');
+  assert.equal(failedDbReadiness.healthy, false);
+  assert.ok(failedDbReadiness.error?.includes('dependency check failed'));
+
+  // 1.4d: HTTP 200 on /readiness with failed storage dependency flag
+  const failedStorageReadiness = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'ready', database: 'connected', storage: 'failed' }),
+    { probeType: 'readiness' }
+  );
+  assert.equal(failedStorageReadiness.ok, false, 'Readiness with storage:failed must fail');
+  assert.equal(failedStorageReadiness.healthy, false);
 
   // 1.5: Malformed JSON, HTML SPA fallback, and network failure
   // 1.5a: Malformed JSON
@@ -136,8 +163,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     200,
     'application/json',
     'Not Valid JSON{',
-    null,
-    18
+    { latencyMs: 18 }
   );
   assert.equal(malformedResult.ok, false);
   assert.equal(malformedResult.healthy, false);
@@ -150,8 +176,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     200,
     'text/html; charset=utf-8',
     spaFallbackHtml,
-    null,
-    22
+    { latencyMs: 22 }
   );
   assert.equal(htmlFallbackResult.ok, false);
   assert.equal(htmlFallbackResult.healthy, false);
@@ -164,8 +189,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     null,
     null,
     null,
-    'Connection refused at 127.0.0.1:8000',
-    null
+    { networkError: 'Connection refused at 127.0.0.1:8000' }
   );
   assert.equal(networkFailure.ok, false);
   assert.equal(networkFailure.healthy, false);
@@ -174,13 +198,30 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.equal(networkFailure.latencyMs, null);
   assert.equal(networkFailure.error, 'Connection refused at 127.0.0.1:8000');
 
-  // 1.6: Correct mapping from parser results to displayed health/readiness states
+  // 1.6: Correct mapping from parser results to displayed overall system states
+  // Operational combinations (all accepted successes)
   assert.equal(computeOverallSystemStatus('ok', 'ready'), 'operational', 'ok + ready must map to operational');
+  assert.equal(computeOverallSystemStatus('healthy', 'ready'), 'operational', 'healthy + ready must map to operational');
+  assert.equal(computeOverallSystemStatus('ok', 'ok'), 'operational', 'ok + ok must map to operational');
+  assert.equal(computeOverallSystemStatus('healthy', 'ok'), 'operational', 'healthy + ok must map to operational');
+
+  // Degraded combinations
   assert.equal(computeOverallSystemStatus('ok', 'degraded'), 'degraded', 'ok + degraded must map to degraded');
+  assert.equal(computeOverallSystemStatus('healthy', 'degraded'), 'degraded', 'healthy + degraded must map to degraded');
   assert.equal(computeOverallSystemStatus('degraded', 'ready'), 'degraded', 'degraded + ready must map to degraded');
+  assert.equal(computeOverallSystemStatus('degraded', 'ok'), 'degraded', 'degraded + ok must map to degraded');
+  assert.equal(computeOverallSystemStatus('degraded', 'degraded'), 'degraded', 'degraded + degraded must map to degraded');
+  assert.equal(computeOverallSystemStatus('ok', 'maintenance'), 'degraded', 'unexpected readiness status maps to degraded');
+  assert.equal(computeOverallSystemStatus('warning', 'ready'), 'degraded', 'warning health status maps to degraded');
+
+  // Unreachable combinations
   assert.equal(computeOverallSystemStatus('ok', 'unreachable'), 'unreachable', 'ok + unreachable must map to unreachable');
   assert.equal(computeOverallSystemStatus('unreachable', 'ready'), 'unreachable', 'unreachable + ready must map to unreachable');
+  assert.equal(computeOverallSystemStatus('unreachable', 'unreachable'), 'unreachable', 'unreachable + unreachable must map to unreachable');
+  assert.equal(computeOverallSystemStatus(null, 'ready'), 'unreachable', 'null health status must map to unreachable');
+  assert.equal(computeOverallSystemStatus('ok', null), 'unreachable', 'null readiness status must map to unreachable');
   assert.equal(computeOverallSystemStatus(null, null), 'unreachable', 'missing statuses must map to unreachable');
+  assert.equal(computeOverallSystemStatus('', 'ready'), 'unreachable', 'empty string status must map to unreachable');
 
   console.log('✓ Health & readiness endpoint handling verified across all production scenarios');
 }
