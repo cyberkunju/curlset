@@ -15,7 +15,7 @@ from packages.dataset_core.db.models import (
 )
 from packages.dataset_core.exceptions import ResourceNotFoundError
 from packages.dataset_core.id_generator import generate_id
-from packages.dataset_io.storage import get_storage_backend
+from packages.dataset_io.storage import StorageBackend, get_storage_backend
 from packages.dataset_quality.models import (
     QualityReport,
     ValidationFinding,
@@ -25,12 +25,17 @@ from packages.dataset_quality.models import (
 
 class QualityEngine:
     @classmethod
-    def validate_dataset(cls, session: Session, dataset_id: str) -> QualityReport:
+    def validate_dataset(
+        cls,
+        session: Session,
+        dataset_id: str,
+        storage: StorageBackend | None = None,
+    ) -> QualityReport:
         dataset = session.scalar(select(DatasetModel).where(DatasetModel.id == dataset_id))
         if not dataset:
             raise ResourceNotFoundError("Dataset", dataset_id)
 
-        backend = get_storage_backend()
+        backend = storage or get_storage_backend()
         records = session.scalars(
             select(DatasetRecordModel)
             .where(DatasetRecordModel.dataset_id == dataset_id)

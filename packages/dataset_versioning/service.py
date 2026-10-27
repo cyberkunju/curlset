@@ -21,7 +21,7 @@ from packages.dataset_core.exceptions import (
     ResourceNotFoundError,
 )
 from packages.dataset_core.id_generator import generate_id
-from packages.dataset_io.storage import get_storage_backend
+from packages.dataset_io.storage import StorageBackend, get_storage_backend
 from packages.dataset_quality.engine import QualityEngine
 from packages.dataset_versioning.doc_generator import generate_dataset_card_markdown
 from packages.dataset_versioning.manifest import (
@@ -44,6 +44,7 @@ class VersioningService:
         version_tag: str | None = None,
         created_by: str = "system",
         force: bool = False,
+        storage: StorageBackend | None = None,
     ) -> DatasetVersionModel:
         """
         Freeze current dataset state into an immutable, cryptographically verifiable version.
@@ -53,8 +54,10 @@ class VersioningService:
         if not dataset:
             raise ResourceNotFoundError("Dataset", dataset_id)
 
+        storage_backend = storage or get_storage_backend()
+
         # 1. Run Quality Validation Engine
-        report = QualityEngine.validate_dataset(session=session, dataset_id=dataset_id)
+        report = QualityEngine.validate_dataset(session=session, dataset_id=dataset_id, storage=storage_backend)
         if not report.is_publishable and not force:
             blocking_findings = [
                 f.model_dump() for f in report.findings if f.severity == "blocking"
@@ -193,9 +196,8 @@ class VersioningService:
         manifest_hash = compute_manifest_hash(manifest_bytes)
 
         # 5. Save manifest to storage
-        storage = get_storage_backend()
         manifest_storage_key = f"manifests/{dataset_id}/{version_id}_{manifest_hash[:12]}.json"
-        storage.write_bytes(manifest_storage_key, manifest_bytes)
+        storage_backend.write_bytes(manifest_storage_key, manifest_bytes)
 
         # 6. Generate dataset card documentation
         dataset_card = generate_dataset_card_markdown(

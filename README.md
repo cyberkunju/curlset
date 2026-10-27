@@ -48,6 +48,43 @@ The first complete vertical slice supports image classification and text classif
 
 This repository begins with the product contract and execution plan. The coding agent must inspect the repository, reconcile these documents with the current codebase, and execute the phases in order. It must update the execution log as work progresses and must not mark a feature complete without tests or documented evidence.
 
+## Quickstart & Local Deployment
+
+For complete details, see [docs/DEPLOYMENT.md](file:///c:/my%20files%20in%20athuls%20lap/my%20files%20in%20athuls%20lap/projects/AI-DATASET-ENGINEERING-PLATFORM--main/docs/DEPLOYMENT.md).
+
+### Option 1: Native Local Setup (Zero Containers, SQLite)
+```bash
+# 1. Setup Python virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Or .venv\Scripts\activate on Windows
+pip install -e .
+
+# 2. Seed realistic multimodal demo datasets ($0 external API cost)
+python scripts/seed_demo_dataset.py
+
+# 3. Start Backend API
+uvicorn services.api.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 4. Start Web UI (in another terminal)
+cd apps/web && npm install && npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173).
+
+### Option 2: Docker Compose (PostgreSQL 16 + Redis 7 + Nginx)
+```bash
+docker compose up --build -d
+```
+Access the application at [http://localhost:5173](http://localhost:5173).
+
+### Backup & Restore
+```bash
+# Create verified backup with SHA-256 manifest
+python scripts/backup_restore.py backup --output ./backups/backup_latest.tar.gz
+
+# Verify backup integrity
+python scripts/backup_restore.py verify --input ./backups/backup_latest.tar.gz
+```
+
 ## Documentation
 
-Use docs/EXECUTION_PLAN.md for the roadmap and phase status, and docs/PHASE_BY_PHASE_PLAN.md for the detailed implementation tasks, tests and exit gates. Start at Phase 0 and do not mark phases complete without implementation evidence.
+Use [docs/EXECUTION_PLAN.md](file:///c:/my%20files%20in%20athuls%20lap/my%20files%20in%20athuls%20lap/projects/AI-DATASET-ENGINEERING-PLATFORM--main/docs/EXECUTION_PLAN.md) for the roadmap and phase status, [docs/PHASE_BY_PHASE_PLAN.md](file:///c:/my%20files%20in%20athuls%20lap/my%20files%20in%20athuls%20lap/projects/AI-DATASET-ENGINEERING-PLATFORM--main/docs/PHASE_BY_PHASE_PLAN.md) for detailed implementation tasks and acceptance gates, and [docs/DEPLOYMENT.md](file:///c:/my%20files%20in%20athuls%20lap/my%20files%20in%20athuls%20lap/projects/AI-DATASET-ENGINEERING-PLATFORM--main/docs/DEPLOYMENT.md) for setup and operations.

@@ -91,3 +91,13 @@ def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency for injecting database session."""
     with get_db_session() as session:
         yield session
+
+
+def close_engine() -> None:
+    """Close and reset global engine and sessionmaker."""
+    global _engine, _session_factory
+    if _engine is not None:
+        _engine.dispose()
+        _engine = None
+    _session_factory = None
+

@@ -140,7 +140,7 @@ app.include_router(exports.router)
 
 # Health & Readiness Endpoints
 @app.get("/health", tags=["System"])
-
+@app.get("/api/v1/health", tags=["System"])
 def health_check() -> dict[str, Any]:
     return {
         "status": "ok",
@@ -154,6 +154,7 @@ def health_check() -> dict[str, Any]:
 
 
 @app.get("/readiness", tags=["System"])
+@app.get("/api/v1/readiness", tags=["System"])
 def readiness_check() -> dict[str, Any]:
     # 1. Database check
     db_ok = False

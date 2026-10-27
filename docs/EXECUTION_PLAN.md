@@ -357,29 +357,35 @@ PASSED: Verified with 48 passing automated tests in 3.55s, 0 ruff errors, and cl
 
 ## 13. Phase 10 — Local deployment and developer experience
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phases 1–8; can progress in parallel once app skeleton exists
 
 ### Goals
 Make setup approachable for students and contributors.
 
 ### Tasks
-- [ ] Finalize Docker Compose for web, API, worker, PostgreSQL, Redis and local storage.
-- [ ] Add health checks and wait-for-dependency behavior.
-- [ ] Document environment variables in .env.example.
-- [ ] Add migration/startup instructions and safe dev reset instructions.
-- [ ] Add sample dataset and a complete demo walkthrough.
-- [ ] Ensure no AI key is required for manual demo.
-- [ ] Add clean-environment smoke test.
-- [ ] Document backup/restore and local storage location.
-- [ ] Add troubleshooting for ports, Docker resources and provider setup.
-- [ ] Ensure .gitignore excludes secrets, databases, uploaded assets and build outputs.
+- [x] Finalize Docker Compose for web, API, worker, PostgreSQL, Redis and local storage.
+- [x] Add health checks and wait-for-dependency behavior.
+- [x] Document environment variables in .env.example.
+- [x] Add migration/startup instructions and safe dev reset instructions.
+- [x] Add sample dataset and a complete demo walkthrough.
+- [x] Ensure no AI key is required for manual demo.
+- [x] Add clean-environment smoke test.
+- [x] Document backup/restore and local storage location.
+- [x] Add troubleshooting for ports, Docker resources and provider setup.
+- [x] Ensure .gitignore excludes secrets, databases, uploaded assets and build outputs.
 
 ### Deliverables
-Repeatable local setup and contributor documentation.
+- Multi-container `docker-compose.yml` orchestrating `api`, `web`, `worker`, `postgres` (16-alpine), `redis` (7-alpine), and named volumes with healthchecks and dependency sequencing.
+- Backend `Dockerfile.api` and multi-stage Nginx-served frontend `Dockerfile.web` with reverse-proxy `apps/web/nginx.conf`.
+- Background worker daemon in `services/api/worker.py` handling asynchronous job processing and heartbeat monitoring.
+- Zero-cost multimodal dataset seeder in `scripts/seed_demo_dataset.py` generating text classification, synthetic image classification, and autonomous vehicle bounding box detection datasets with published immutable Version 1.0.0.
+- Safe backup and restore utility in `scripts/backup_restore.py` archiving database and media storage into `.tar.gz` with cryptographic SHA-256 integrity verification and safe dev reset.
+- Comprehensive deployment and developer documentation in `docs/DEPLOYMENT.md`.
+- Automated integration test suite in `tests/integration/test_deployment_and_seeding.py`.
 
 ### Exit gate
-A new developer can clone, configure and start the project using documented steps and complete the sample workflow without a paid provider.
+PASSED: Verified with 51 passing automated tests in 6.05s, 0 ruff errors, and clean frontend build (`npm run build` in 1.92s). Single-command startup works via both native local development (SQLite) and Docker Compose (PostgreSQL 16, Redis 7, Nginx); demo seeding runs 100% offline with zero external API credentials; backup/restore round-trip verifies checksum manifests and accurately restores metadata and assets.
 
 ## 14. Phase 11 — Public dataset discovery and source review
 
@@ -559,6 +565,7 @@ The coding agent must append a dated entry after each meaningful work session:
 | 2026-10-26 | Phase 7 — Versioning & Cards | DONE | Immutable manifests, README cards, diffing, 45/45 pytest passed | None | Begin Phase 8 (Export Adapters) |
 | 2026-10-26 | Phase 8 — Export Adapters | DONE | CSV & JSONL ZIP bundles, frozen manifests, 46/46 pytest passed | None | Begin Phase 9 (Object Detection) |
 | 2026-10-26 | Phase 9 — Object Detection | DONE | Canvas editor, COCO/YOLO exports, geometry checks, 48/48 pytest passed | None | Begin Phase 10 (Local Deployment & DX) |
+| 2026-10-26 | Phase 10 — Local Deployment | DONE | Docker Compose, seeder, backup/restore, 51/51 pytest passed, Vite build OK | None | Begin Phase 11 (Source Discovery & Rights Review) |
 
 
 
