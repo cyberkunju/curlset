@@ -14,7 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { fetchProviders } from '../api';
-import { parseHealthProbeResult } from '../utils/uiIntegrityContracts';
+import { parseHealthProbeResult, computeOverallSystemStatus } from '../utils/uiIntegrityContracts';
 
 interface HealthData {
   status?: string;
@@ -51,16 +51,20 @@ export const SystemHealthView: React.FC = () => {
   const [healthLatencyMs, setHealthLatencyMs] = useState<number | null>(null);
   const [readinessLatencyMs, setReadinessLatencyMs] = useState<number | null>(null);
 
-  const probeEndpoint = async <T,>(url: string): Promise<{ data: T | { status: string; error?: string }; latency: number }> => {
+  const probeEndpoint = async <T,>(
+    url: string,
+    probeType: 'health' | 'readiness' = url.includes('readiness') ? 'readiness' : 'health'
+  ): Promise<{ data: T | { status: string; error?: string }; latency: number }> => {
     const start = performance.now();
     try {
       const res = await fetch(url);
       const contentType = res.headers.get('content-type') || '';
       const text = await res.text();
-      const parsed = parseHealthProbeResult(res.status, contentType, text);
+      const parsed = parseHealthProbeResult(res.status, contentType, text, null, null, probeType);
       const latency = Math.round(performance.now() - start);
       if (!parsed.ok) {
-        return { data: { status: res.status === 503 ? 'degraded' : 'unreachable', error: parsed.error }, latency };
+        const failureStatus = res.status === 503 || parsed.statusText === 'degraded' ? 'degraded' : 'unreachable';
+        return { data: { status: failureStatus, error: parsed.error }, latency };
       }
       return { data: parsed.data as T, latency };
     } catch (err: any) {
@@ -77,8 +81,8 @@ export const SystemHealthView: React.FC = () => {
     try {
       // 1. Concurrently probe official API endpoints
       const [hResult, rResult] = await Promise.all([
-        probeEndpoint<HealthData>('/api/v1/health'),
-        probeEndpoint<ReadinessData>('/api/v1/readiness'),
+        probeEndpoint<HealthData>('/api/v1/health', 'health'),
+        probeEndpoint<ReadinessData>('/api/v1/readiness', 'readiness'),
       ]);
 
       setHealth(hResult.data as HealthData);
@@ -122,9 +126,10 @@ export const SystemHealthView: React.FC = () => {
     return `${s}s`;
   };
 
-  const isSystemOperational = health?.status === 'ok' && readiness?.status === 'ready';
-  const isSystemDegraded = health?.status === 'ok' && readiness?.status !== 'ready';
-  const isSystemUnreachable = health?.status === 'unreachable' || readiness?.status === 'unreachable';
+  const overallStatus = computeOverallSystemStatus(health?.status, readiness?.status);
+  const isSystemOperational = overallStatus === 'operational';
+  const isSystemDegraded = overallStatus === 'degraded';
+  const isSystemUnreachable = overallStatus === 'unreachable';
 
   return (
     <div className="system-health-view" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -159,6 +164,42 @@ export const SystemHealthView: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <span
+            data-testid="system-overall-status"
+            className={`badge ${
+              isSystemOperational
+                ? 'badge-emerald'
+                : isSystemDegraded
+                ? 'badge-amber'
+                : 'badge-rose'
+            }`}
+            style={{
+              fontSize: '0.825rem',
+              padding: '0.35rem 0.65rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: isSystemOperational
+                  ? 'var(--emerald)'
+                  : isSystemDegraded
+                  ? 'var(--amber)'
+                  : 'var(--rose)',
+              }}
+            />
+            {isSystemOperational
+              ? 'Operational'
+              : isSystemDegraded
+              ? 'Degraded'
+              : 'Unreachable'}
+          </span>
+
           {healthLatencyMs !== null && readinessLatencyMs !== null && (
             <div
               style={{
@@ -242,7 +283,7 @@ export const SystemHealthView: React.FC = () => {
               </div>
               <span
                 className={`badge ${
-                  health?.status === 'ok' ? 'badge-emerald' : isSystemUnreachable ? 'badge-rose' : 'badge-amber'
+                  health?.status === 'ok' ? 'badge-emerald' : health?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
                 }`}
               >
                 {health?.status ? health.status.toUpperCase() : 'UNKNOWN'}

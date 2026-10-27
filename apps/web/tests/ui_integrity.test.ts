@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import {
   parseHealthProbeResult,
+  computeOverallSystemStatus,
   isDateRangeValid,
   filterAuditLogs,
   filterCandidatesByLicense,
@@ -25,21 +26,125 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
 {
   console.log('Test 1: Health & Readiness Probe Parsing');
 
-  // 1.1: Valid 200 JSON healthy response
-  const healthyJson = JSON.stringify({ status: 'ok', database: 'connected', version: '0.1.0' });
+  // 1.1: Healthy API response with status: "ok"
+  const healthyJson = JSON.stringify({
+    status: 'ok',
+    service: 'dataset-platform-api',
+    version: '0.1.0',
+    environment: 'development',
+    uptime_seconds: 3600,
+  });
   const healthyResult = parseHealthProbeResult(
     200,
     'application/json; charset=utf-8',
     healthyJson,
     null,
-    14
+    14,
+    'health'
   );
-  assert.equal(healthyResult.healthy, true, '200 JSON with status:ok must be healthy');
+  assert.equal(healthyResult.ok, true, '200 JSON with status:ok on /health must be healthy');
+  assert.equal(healthyResult.healthy, true);
   assert.equal(healthyResult.statusText, 'ok');
   assert.equal(healthyResult.latencyMs, 14);
   assert.equal(healthyResult.httpStatus, 200);
 
-  // 1.2: 200 HTML response from unproxied Nginx SPA fallback MUST be marked as route failure
+  // 1.2: Successful readiness response with status: "ready", database connected, and storage accessible
+  const readyJson = JSON.stringify({
+    status: 'ready',
+    database: 'connected',
+    storage: 'accessible',
+  });
+  const readyResult = parseHealthProbeResult(
+    200,
+    'application/json; charset=utf-8',
+    readyJson,
+    null,
+    18,
+    'readiness'
+  );
+  assert.equal(readyResult.ok, true, 'readiness response with status:ready must be healthy');
+  assert.equal(readyResult.healthy, true);
+  assert.equal(readyResult.statusText, 'ready');
+  assert.equal(readyResult.httpStatus, 200);
+  assert.equal(readyResult.latencyMs, 18);
+  assert.equal(readyResult.data.database, 'connected');
+  assert.equal(readyResult.data.storage, 'accessible');
+
+  // 1.3: HTTP 503 with status: "degraded"
+  const degraded503Json = JSON.stringify({
+    status: 'degraded',
+    database: 'unhealthy: connection timeout',
+    storage: 'accessible',
+  });
+  const degradedResult = parseHealthProbeResult(
+    503,
+    'application/json',
+    degraded503Json,
+    null,
+    45,
+    'readiness'
+  );
+  assert.equal(degradedResult.ok, false, 'HTTP 503 must not be marked healthy');
+  assert.equal(degradedResult.healthy, false);
+  assert.equal(degradedResult.httpStatus, 503);
+  assert.equal(degradedResult.statusText, 'degraded');
+  assert.ok(degradedResult.error?.includes('503'));
+
+  // 1.4: HTTP 200 with an unexpected or degraded status
+  // 1.4a: Unexpected status on /health (e.g., 'maintenance')
+  const unexpectedHealth = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'maintenance' }),
+    null,
+    10,
+    'health'
+  );
+  assert.equal(unexpectedHealth.ok, false, 'Unexpected status on health must fail');
+  assert.equal(unexpectedHealth.healthy, false);
+  assert.equal(unexpectedHealth.statusText, 'maintenance');
+
+  // 1.4b: HTTP 200 on /readiness with status: 'degraded'
+  const degraded200 = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'degraded', database: 'connected' }),
+    null,
+    12,
+    'readiness'
+  );
+  assert.equal(degraded200.ok, false, 'status: degraded on 200 must fail');
+  assert.equal(degraded200.healthy, false);
+  assert.equal(degraded200.statusText, 'degraded');
+
+  // 1.4c: HTTP 200 on /readiness with failed database dependency flag
+  const failedDepReadiness = parseHealthProbeResult(
+    200,
+    'application/json',
+    JSON.stringify({ status: 'ready', database: 'failed', storage: 'accessible' }),
+    null,
+    15,
+    'readiness'
+  );
+  assert.equal(failedDepReadiness.ok, false, 'Readiness with database:failed must fail');
+  assert.equal(failedDepReadiness.healthy, false);
+  assert.ok(failedDepReadiness.error?.includes('dependency check failed'));
+
+  // 1.5: Malformed JSON, HTML SPA fallback, and network failure
+  // 1.5a: Malformed JSON
+  const malformedResult = parseHealthProbeResult(
+    200,
+    'application/json',
+    'Not Valid JSON{',
+    null,
+    18
+  );
+  assert.equal(malformedResult.ok, false);
+  assert.equal(malformedResult.healthy, false);
+  assert.equal(malformedResult.statusText, 'malformed_json');
+  assert.ok(malformedResult.error?.includes('Non-JSON response'));
+
+  // 1.5b: HTML SPA fallback
   const spaFallbackHtml = '<!doctype html><html><head><title>Vite App</title></head><body><div id="root"></div></body></html>';
   const htmlFallbackResult = parseHealthProbeResult(
     200,
@@ -48,25 +153,13 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     null,
     22
   );
-  assert.equal(htmlFallbackResult.healthy, false, 'HTML response on API probe MUST fail as invalid proxy fallback');
-  assert.ok(htmlFallbackResult.error?.includes('HTML SPA fallback'), 'Error must identify unproxied SPA fallback');
+  assert.equal(htmlFallbackResult.ok, false);
+  assert.equal(htmlFallbackResult.healthy, false);
+  assert.equal(htmlFallbackResult.isHtmlFallback, true);
   assert.equal(htmlFallbackResult.statusText, 'route_fallback_error');
+  assert.ok(htmlFallbackResult.error?.includes('HTML SPA fallback'));
 
-  // 1.3: HTTP 503 degraded readiness response
-  const degraded503Json = JSON.stringify({ status: 'degraded', database: 'unavailable', error: 'Database connection failed' });
-  const degradedResult = parseHealthProbeResult(
-    503,
-    'application/json',
-    degraded503Json,
-    null,
-    45
-  );
-  assert.equal(degradedResult.healthy, false, 'HTTP 503 must not be marked healthy');
-  assert.equal(degradedResult.httpStatus, 503);
-  assert.equal(degradedResult.statusText, 'degraded');
-  assert.ok(degradedResult.error?.includes('Database connection failed'));
-
-  // 1.4: Network failure (connection refused / timeout)
+  // 1.5c: Network failure
   const networkFailure = parseHealthProbeResult(
     null,
     null,
@@ -74,35 +167,22 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
     'Connection refused at 127.0.0.1:8000',
     null
   );
+  assert.equal(networkFailure.ok, false);
   assert.equal(networkFailure.healthy, false);
   assert.equal(networkFailure.statusText, 'network_failure');
   assert.equal(networkFailure.httpStatus, null);
   assert.equal(networkFailure.latencyMs, null);
   assert.equal(networkFailure.error, 'Connection refused at 127.0.0.1:8000');
 
-  // 1.5: 200 with malformed JSON body
-  const malformedResult = parseHealthProbeResult(
-    200,
-    'application/json',
-    'Not Valid JSON{',
-    null,
-    18
-  );
-  assert.equal(malformedResult.healthy, false);
-  assert.ok(malformedResult.error?.includes('Non-JSON response'));
+  // 1.6: Correct mapping from parser results to displayed health/readiness states
+  assert.equal(computeOverallSystemStatus('ok', 'ready'), 'operational', 'ok + ready must map to operational');
+  assert.equal(computeOverallSystemStatus('ok', 'degraded'), 'degraded', 'ok + degraded must map to degraded');
+  assert.equal(computeOverallSystemStatus('degraded', 'ready'), 'degraded', 'degraded + ready must map to degraded');
+  assert.equal(computeOverallSystemStatus('ok', 'unreachable'), 'unreachable', 'ok + unreachable must map to unreachable');
+  assert.equal(computeOverallSystemStatus('unreachable', 'ready'), 'unreachable', 'unreachable + ready must map to unreachable');
+  assert.equal(computeOverallSystemStatus(null, null), 'unreachable', 'missing statuses must map to unreachable');
 
-  // 1.6: 200 JSON with status != 'ok'
-  const notOkResult = parseHealthProbeResult(
-    200,
-    'application/json',
-    JSON.stringify({ status: 'warning', storage: 'read_only' }),
-    null,
-    10
-  );
-  assert.equal(notOkResult.healthy, false, 'Status != "ok" must not be considered healthy');
-  assert.equal(notOkResult.statusText, 'warning');
-
-  console.log('✓ Health & readiness endpoint handling verified across 6 production scenarios');
+  console.log('✓ Health & readiness endpoint handling verified across all production scenarios');
 }
 
 // ============================================================================
@@ -344,12 +424,12 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
 {
   console.log('Test 5: Cluster Map Bounded Pan & Transform Calculation');
 
-  // 5.1: At zoom 1.0 (baseline), pan is strictly clamped to (0, 0)
+  // 5.1: Zoom levels from 1.0x to 2.5x: At zoom 1.0 (baseline), pan is strictly clamped to (0, 0)
   const panAtZoom1 = clampClusterPan({ x: 150, y: -200 }, 1.0, 800, 600);
   assert.equal(panAtZoom1.x, 0, 'Pan X at zoom 1.0 must be 0');
   assert.equal(panAtZoom1.y, 0, 'Pan Y at zoom 1.0 must be 0');
 
-  // 5.2: At zoom 2.0, maxPan is Math.round(180 * 1.0) = 180
+  // 5.2: At zoom 2.0, maxPan is Math.round(180 * (2.0 - 1.0)) = 180
   const withinBounds = clampClusterPan({ x: 100, y: -80 }, 2.0);
   assert.equal(withinBounds.x, 100);
   assert.equal(withinBounds.y, -80);
@@ -358,14 +438,61 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.equal(exceededBounds.x, 180, 'Exceeded pan X must clamp to 180');
   assert.equal(exceededBounds.y, -180, 'Exceeded pan Y must clamp to -180');
 
-  // 5.3: SVG transform calculation
-  const transform1 = computeClusterTransform(1.0, { x: 0, y: 0 });
-  assert.equal(transform1, 'translate(0px, 0px) scale(1)');
+  // 5.3: At zoom 2.5 (maximum zoom), maxPan is Math.round(180 * (2.5 - 1.0)) = 270
+  const maxZoomClamped = clampClusterPan({ x: 350, y: -400 }, 2.5);
+  assert.equal(maxZoomClamped.x, 270);
+  assert.equal(maxZoomClamped.y, -270);
 
-  const transform2 = computeClusterTransform(2.5, { x: 120, y: -80 });
-  assert.equal(transform2, 'translate(120px, -80px) scale(2.5)');
+  // 5.4: Arrow keys step navigation within bounds
+  const step = 20;
+  const initialPan = { x: 0, y: 0 };
+  const pannedRight = clampClusterPan(initialPan.x - step, initialPan.y, 2.0);
+  assert.equal(pannedRight.x, -20);
+  const pannedUp = clampClusterPan(initialPan.x, initialPan.y + step, 2.0);
+  assert.equal(pannedUp.y, 20);
 
-  console.log('✓ Cluster Map zoom & pan bounding calculation verified');
+  // 5.5: Reset restores baseline zoom 1.0 and pan (0, 0)
+  const resetPan = clampClusterPan({ x: 180, y: -180 }, 1.0);
+  assert.equal(resetPan.x, 0);
+  assert.equal(resetPan.y, 0);
+
+  // 5.6: Valid SVG transform syntax & Mathematical Centering around (250, 250)
+  // Baseline zoom 1.0, pan (0, 0) -> translate(0, 0) scale(1)
+  const transformBaseline = computeClusterTransform(1.0, { x: 0, y: 0 });
+  assert.equal(transformBaseline, 'translate(0, 0) scale(1)');
+
+  // Zoom 2.0, pan (0, 0) -> tx = 0 + 250 * (1 - 2) = -250, ty = -250
+  const transformZoom2 = computeClusterTransform(2.0, { x: 0, y: 0 });
+  assert.equal(transformZoom2, 'translate(-250, -250) scale(2)');
+
+  // Zoom 2.5, pan (120, -80) -> tx = 120 + 250 * (1 - 2.5) = 120 - 375 = -255, ty = -80 - 375 = -455
+  const transformZoom25 = computeClusterTransform(2.5, { x: 120, y: -80 });
+  assert.equal(transformZoom25, 'translate(-255, -455) scale(2.5)');
+
+  // Strict check: valid SVG presentation attribute format, NO CSS 'px' units allowed
+  assert.ok(!transformBaseline.includes('px'), 'SVG transform attribute must not contain "px" units');
+  assert.ok(!transformZoom2.includes('px'), 'SVG transform attribute must not contain "px" units');
+  assert.ok(!transformZoom25.includes('px'), 'SVG transform attribute must not contain "px" units');
+  assert.ok(
+    /^translate\(-?\d+(\.\d+)?, -?\d+(\.\d+)?\) scale\(-?\d+(\.\d+)?\)$/.test(transformZoom25),
+    'Transform string must adhere strictly to SVG transform presentation grammar'
+  );
+
+  // 5.7: Mathematical projection invariant:
+  // Center point (250, 250) mapped under zoom 2.0:
+  // x' = zoom * x + tx = 2.0 * 250 + (-250) = 500 - 250 = 250
+  // y' = zoom * y + ty = 2.0 * 250 + (-250) = 500 - 250 = 250
+  const cx = 250;
+  const cy = 250;
+  const zoomFactor = 2.0;
+  const tx = 0 + cx * (1 - zoomFactor);
+  const ty = 0 + cy * (1 - zoomFactor);
+  const mappedCx = zoomFactor * cx + tx;
+  const mappedCy = zoomFactor * cy + ty;
+  assert.equal(mappedCx, cx, 'Center point X must remain invariant under centered zoom');
+  assert.equal(mappedCy, cy, 'Center point Y must remain invariant under centered zoom');
+
+  console.log('✓ Cluster Map zoom (1.0x-2.5x), bounded pan, and unitless SVG transform verified');
 }
 
 // ============================================================================

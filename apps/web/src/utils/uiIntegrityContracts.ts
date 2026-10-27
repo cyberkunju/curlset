@@ -27,6 +27,9 @@ export interface CandidateSource {
   [key: string]: any;
 }
 
+export type ProbeType = 'health' | 'readiness' | 'auto';
+export type OverallSystemStatus = 'operational' | 'degraded' | 'unreachable';
+
 export interface HealthProbeResult {
   ok: boolean;
   healthy: boolean;
@@ -40,17 +43,54 @@ export interface HealthProbeResult {
 }
 
 /**
+ * Computes the overall system operational state based on health and readiness probe statuses.
+ * Only returns 'operational' when core health is 'ok' and readiness is 'ready'.
+ */
+export function computeOverallSystemStatus(
+  healthStatus?: string | null,
+  readinessStatus?: string | null
+): OverallSystemStatus {
+  if (healthStatus === 'ok' && readinessStatus === 'ready') {
+    return 'operational';
+  }
+  if (
+    healthStatus === 'unreachable' ||
+    readinessStatus === 'unreachable' ||
+    !healthStatus ||
+    !readinessStatus
+  ) {
+    return 'unreachable';
+  }
+  return 'degraded';
+}
+
+/**
  * Validates and parses health and readiness probe responses, guarding against
  * unproxied Nginx HTML SPA fallback responses and HTTP degradation.
+ * Distinguishes health (status: 'ok') from readiness (status: 'ready').
  */
 export function parseHealthProbeResult(
   status: number | null,
   param2?: string | null,
   param3?: string | null,
-  networkError?: string | null,
-  latencyMs?: number | null
+  networkErrorOrProbeType?: string | null,
+  latencyMs?: number | null,
+  probeType: ProbeType = 'auto'
 ): HealthProbeResult {
-  if (networkError || status === null) {
+  let actualProbeType: ProbeType = probeType;
+  let actualNetworkError: string | null = null;
+
+  if (
+    networkErrorOrProbeType === 'health' ||
+    networkErrorOrProbeType === 'readiness' ||
+    networkErrorOrProbeType === 'auto'
+  ) {
+    actualProbeType = networkErrorOrProbeType;
+  } else if (typeof networkErrorOrProbeType === 'string') {
+    actualNetworkError = networkErrorOrProbeType;
+  }
+
+  if (actualNetworkError || status === null) {
     return {
       ok: false,
       healthy: false,
@@ -58,7 +98,7 @@ export function parseHealthProbeResult(
       httpStatus: null,
       statusText: 'network_failure',
       latencyMs: latencyMs ?? null,
-      error: networkError || 'Network request failed',
+      error: actualNetworkError || 'Network request failed',
     };
   }
 
@@ -126,16 +166,43 @@ export function parseHealthProbeResult(
         error: 'JSON payload is not an object',
       };
     }
-    const isHealthy = data.status === 'ok' || data.status === 'healthy';
+
+    let isHealthy = false;
+    let errorMsg: string | undefined;
+
+    if (probeType === 'health') {
+      isHealthy = data.status === 'ok' || data.status === 'healthy';
+      if (!isHealthy) {
+        errorMsg = `Health check returned non-healthy status: '${data.status}'`;
+      }
+    } else if (probeType === 'readiness') {
+      const hasDependencyFailures = data.database === 'failed' || data.storage === 'failed';
+      isHealthy = (data.status === 'ready' || data.status === 'ok') && !hasDependencyFailures;
+      if (hasDependencyFailures) {
+        errorMsg = `Readiness dependency check failed (database: ${data.database}, storage: ${data.storage})`;
+      } else if (!isHealthy) {
+        errorMsg = `Readiness check returned non-ready status: '${data.status}'`;
+      }
+    } else {
+      // 'auto' probe type
+      const hasDependencyFailures = data.database === 'failed' || data.storage === 'failed';
+      isHealthy = (data.status === 'ok' || data.status === 'ready' || data.status === 'healthy') && !hasDependencyFailures;
+      if (hasDependencyFailures) {
+        errorMsg = `Readiness dependency check failed (database: ${data.database}, storage: ${data.storage})`;
+      } else if (!isHealthy) {
+        errorMsg = `Service reported non-healthy status: '${data.status}'`;
+      }
+    }
+
     return {
       ok: isHealthy,
       healthy: isHealthy,
       status,
       httpStatus: status,
-      statusText: data.status || 'unknown',
+      statusText: data.status || (isHealthy ? 'ok' : 'unknown'),
       latencyMs: latencyMs ?? null,
       data,
-      error: isHealthy ? undefined : `Service reported non-healthy status: ${data.status}`,
+      error: isHealthy ? undefined : (errorMsg || `Service reported non-healthy status: ${data.status}`),
     };
   } catch (err: any) {
     return {
@@ -377,13 +444,21 @@ export function clampClusterPan(
 }
 
 /**
- * Computes SVG CSS transform style for cluster map.
+ * Computes SVG transform attribute string for cluster map projection.
+ * Anchors zoom at center (cx, cy) (default 250, 250 for 500x500 viewBox)
+ * so zooming remains centered, and applies user pan offset.
+ * Produces valid SVG presentation attribute syntax without CSS unit suffixes.
  */
 export const computeClusterTransform = (
   zoom: number,
-  pan: { x: number; y: number }
+  pan: { x: number; y: number },
+  cx: number = 250,
+  cy: number = 250
 ): string => {
-  return `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  const safeZoom = Number(zoom.toFixed(4));
+  const tx = Number((pan.x + cx * (1 - safeZoom)).toFixed(4));
+  const ty = Number((pan.y + cy * (1 - safeZoom)).toFixed(4));
+  return `translate(${tx}, ${ty}) scale(${safeZoom})`;
 };
 
 export interface RateLimitPolicy {

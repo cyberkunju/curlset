@@ -325,7 +325,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                 aria-label="2D SVD Semantic Cluster Map projection canvas"
                 role="img"
               >
-                <g transform={computeClusterTransform(zoom, pan)} style={{ transformOrigin: '250px 250px', transition: isDragging ? 'none' : 'transform 0.15s ease-out' }}>
+                <g transform={computeClusterTransform(zoom, pan)} style={{ transition: isDragging ? 'none' : 'transform 0.15s ease-out' }}>
                   {/* Center grid axes */}
                   <line x1="250" y1="10" x2="250" y2="490" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="4 4" />
                   <line x1="10" y1="250" x2="490" y2="250" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="4 4" />
