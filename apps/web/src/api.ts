@@ -98,3 +98,71 @@ export async function updateDataset(datasetId: string, data: {
   });
   return handleResponse<Dataset>(res);
 }
+
+export async function fetchDatasetQueue(
+  datasetId: string,
+  split?: string,
+  reviewStatus?: string,
+  limit = 50,
+  offset = 0
+): Promise<{ items: any[]; total: number; limit: number; offset: number }> {
+  const params = new URLSearchParams();
+  if (split) params.set('split', split);
+  if (reviewStatus) params.set('review_status', reviewStatus);
+  params.set('limit', limit.toString());
+  params.set('offset', offset.toString());
+
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/queue?${params.toString()}`);
+  return handleResponse(res);
+}
+
+export async function fetchRecordDetail(recordId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/records/${recordId}`);
+  return handleResponse(res);
+}
+
+export async function createAnnotation(
+  recordId: string,
+  payload: Record<string, any>,
+  origin = 'human',
+  status = 'pending_review',
+  actorId = 'default_user',
+  confidence?: number
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/records/${recordId}/annotations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload, origin, status, actor_id: actorId, confidence }),
+  });
+  return handleResponse(res);
+}
+
+export async function updateAnnotation(
+  annotationId: string,
+  payload: Record<string, any>,
+  changeReason?: string,
+  confidence?: number,
+  actorId = 'default_user'
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/annotations/${annotationId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload, change_reason: changeReason, confidence, actor_id: actorId }),
+  });
+  return handleResponse(res);
+}
+
+export async function transitionReviewStatus(
+  annotationId: string,
+  nextStatus: string,
+  reason?: string,
+  actorId = 'default_user'
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/annotations/${annotationId}/transition`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ next_status: nextStatus, reason, actor_id: actorId }),
+  });
+  return handleResponse(res);
+}
+

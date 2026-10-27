@@ -10,12 +10,10 @@ from sqlalchemy.orm import Session
 
 from packages.dataset_core.db.models import (
     AnnotationModel,
-    DatasetModel,
     DatasetRecordModel,
 )
 from packages.dataset_core.db.session import get_db
 from packages.dataset_core.domain_models import DatasetContract, DatasetRecordContract
-from packages.dataset_core.exceptions import ResourceNotFoundError
 from packages.dataset_core.services.dataset_service import DatasetService
 from packages.dataset_core.services.record_service import RecordService
 
@@ -88,12 +86,7 @@ def list_dataset_records(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_db),
-):
-    # Verify dataset exists
-    ds = session.scalar(select(DatasetModel).where(DatasetModel.id == dataset_id))
-    if not ds:
-        raise ResourceNotFoundError("Dataset", dataset_id)
-
+) -> list[DatasetRecordContract]:
     return RecordService.list_records(
         session=session,
         dataset_id=dataset_id,
@@ -101,3 +94,6 @@ def list_dataset_records(
         limit=limit,
         offset=offset,
     )
+
+
+

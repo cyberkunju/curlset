@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchDatasetDetail } from '../api';
 import { DatasetDetailResponse } from '../types';
+import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { ImportModal } from './ImportModal';
 
 interface DatasetDetailProps {
@@ -13,6 +14,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -53,7 +55,19 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   }
 
   const { dataset, stats } = data;
-  const labels = dataset.label_schema?.labels || [];
+  const labels = dataset.label_schema?.labels || dataset.label_schema?.classes || [];
+
+  if (isWorkspaceOpen) {
+    return (
+      <AnnotationWorkspace
+        dataset={dataset}
+        onBack={() => {
+          setIsWorkspaceOpen(false);
+          loadData();
+        }}
+      />
+    );
+  }
 
   return (
     <div>
@@ -149,7 +163,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-primary" onClick={() => setIsImportOpen(true)} title="Proceed to Ingestion (Phase 3)">
             <span>📥</span> Import Media & Data
           </button>
-          <button className="btn btn-secondary" title="Open Annotation Workbench (Phase 4)">
+          <button className="btn btn-secondary" onClick={() => setIsWorkspaceOpen(true)} title="Open Annotation Workbench (Phase 4)">
             <span>✏️</span> Annotation Workbench
           </button>
           <button className="btn btn-secondary" title="Run Quality Checks (Phase 6)">

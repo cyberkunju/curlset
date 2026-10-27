@@ -29,6 +29,7 @@ from packages.dataset_core.exceptions import (
     ResourceNotFoundError,
 )
 from packages.dataset_core.id_generator import generate_id
+from packages.dataset_core.task_schemas import validate_annotation_payload
 
 
 class AnnotationService:
@@ -49,6 +50,13 @@ class AnnotationService:
         record = session.scalar(select(DatasetRecordModel).where(DatasetRecordModel.id == record_id))
         if not record:
             raise ResourceNotFoundError("DatasetRecord", record_id)
+
+        # Validate against task schema and label constraints
+        validate_annotation_payload(
+            task_type=record.dataset.task_type,
+            payload=payload,
+            label_schema=record.dataset.label_schema,
+        )
 
         # Enforce that model-generated annotations cannot start as approved
         if origin == AnnotationOrigin.MODEL and status == ReviewStatus.APPROVED:
@@ -137,6 +145,14 @@ class AnnotationService:
         annotation = session.scalar(stmt)
         if not annotation:
             raise ResourceNotFoundError("Annotation", annotation_id)
+
+        # Validate task schema & label constraints
+        dataset = annotation.record.dataset
+        validate_annotation_payload(
+            task_type=dataset.task_type,
+            payload=payload,
+            label_schema=dataset.label_schema,
+        )
 
         # Count existing revisions
         count_stmt = select(AnnotationRevisionModel).where(AnnotationRevisionModel.annotation_id == annotation_id)

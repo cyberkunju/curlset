@@ -12,6 +12,7 @@ from packages.dataset_core.db.models import (
     DatasetModel,
     DatasetRecordModel,
     RecordAssetModel,
+    ReviewEventModel,
     SourceRecordModel,
 )
 from packages.dataset_core.domain_models import (
@@ -179,4 +180,147 @@ class RecordService:
         session.flush()
         session.refresh(merged)
         return SourceRecordContract.model_validate(merged)
+
+    @staticmethod
+    def get_record_detail(session: Session, record_id: str) -> dict[str, Any]:
+        stmt = select(DatasetRecordModel).where(DatasetRecordModel.id == record_id)
+        record = session.scalar(stmt)
+        if not record:
+            raise ResourceNotFoundError("DatasetRecord", record_id)
+
+        assets_data = []
+        for ra in record.record_assets:
+            a = ra.asset
+            assets_data.append({
+                "id": a.id,
+                "role": ra.role,
+                "position": ra.position,
+                "storage_key": a.storage_key,
+                "modality": a.modality,
+                "mime_type": a.mime_type,
+                "byte_size": a.byte_size,
+                "original_filename": a.original_filename,
+                "dimensions": a.dimensions,
+                "created_at": a.created_at.isoformat(),
+            })
+
+        annotation_data = None
+        revisions_data = []
+        review_events_data = []
+        if record.annotations:
+            latest_ann = max(record.annotations, key=lambda x: x.created_at)
+            annotation_data = {
+                "id": latest_ann.id,
+                "task_type": latest_ann.task_type,
+                "schema_version": latest_ann.schema_version,
+                "payload": latest_ann.payload,
+                "origin": latest_ann.origin,
+                "status": latest_ann.status,
+                "confidence": latest_ann.confidence,
+                "consensus_score": latest_ann.consensus_score,
+                "current_revision_id": latest_ann.current_revision_id,
+                "created_at": latest_ann.created_at.isoformat(),
+                "updated_at": latest_ann.updated_at.isoformat(),
+            }
+            for rev in sorted(latest_ann.revisions, key=lambda x: x.revision_number):
+                revisions_data.append({
+                    "id": rev.id,
+                    "revision_number": rev.revision_number,
+                    "payload": rev.payload,
+                    "origin": rev.origin,
+                    "actor_id": rev.actor_id,
+                    "change_reason": rev.change_reason,
+                    "confidence": rev.confidence,
+                    "created_at": rev.created_at.isoformat(),
+                })
+            events = session.scalars(
+                select(ReviewEventModel)
+                .where(ReviewEventModel.annotation_id == latest_ann.id)
+                .order_by(ReviewEventModel.created_at.asc())
+            ).all()
+            for ev in events:
+                review_events_data.append({
+                    "id": ev.id,
+                    "actor_id": ev.actor_id,
+                    "from_status": ev.from_status,
+                    "to_status": ev.to_status,
+                    "reason": ev.reason,
+                    "created_at": ev.created_at.isoformat(),
+                })
+
+        return {
+            "id": record.id,
+            "dataset_id": record.dataset_id,
+            "schema_version": record.schema_version,
+            "external_key": record.external_key,
+            "split": record.split,
+            "metadata": record.extra_metadata or {},
+            "created_at": record.created_at.isoformat(),
+            "updated_at": record.updated_at.isoformat(),
+            "assets": assets_data,
+            "annotation": annotation_data,
+            "revisions": revisions_data,
+            "review_events": review_events_data,
+        }
+
+    @staticmethod
+    def list_records_with_status(
+        session: Session,
+        dataset_id: str,
+        split: str | None = None,
+        review_status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], int]:
+        stmt = select(DatasetRecordModel).where(DatasetRecordModel.dataset_id == dataset_id)
+        if split:
+            stmt = stmt.where(DatasetRecordModel.split == split)
+
+        all_records = session.scalars(stmt.order_by(DatasetRecordModel.created_at.asc())).all()
+
+        filtered_items = []
+        for r in all_records:
+            latest_status = "unannotated"
+            latest_payload = None
+            annotation_id = None
+            if r.annotations:
+                latest_ann = max(r.annotations, key=lambda x: x.created_at)
+                latest_status = latest_ann.status
+                latest_payload = latest_ann.payload
+                annotation_id = latest_ann.id
+
+            if review_status:
+                if review_status == "unannotated" and latest_status != "unannotated":
+                    continue
+                if review_status != "unannotated" and latest_status != review_status:
+                    continue
+
+            # First primary asset for preview
+            primary_asset = None
+            if r.record_assets:
+                pa = r.record_assets[0].asset
+                primary_asset = {
+                    "id": pa.id,
+                    "modality": pa.modality,
+                    "mime_type": pa.mime_type,
+                    "dimensions": pa.dimensions,
+                    "original_filename": pa.original_filename,
+                }
+
+            filtered_items.append({
+                "id": r.id,
+                "dataset_id": r.dataset_id,
+                "external_key": r.external_key,
+                "split": r.split,
+                "metadata": r.extra_metadata or {},
+                "created_at": r.created_at.isoformat(),
+                "review_status": latest_status,
+                "annotation_id": annotation_id,
+                "annotation_payload": latest_payload,
+                "primary_asset": primary_asset,
+            })
+
+        total = len(filtered_items)
+        paged = filtered_items[offset : offset + limit]
+        return paged, total
 

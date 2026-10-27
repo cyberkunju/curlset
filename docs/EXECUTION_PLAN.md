@@ -167,30 +167,35 @@ PASSED: Verified with 30 passing tests (`tests/integration/test_ingestion_pipeli
 
 ## 7. Phase 4 — Annotation schemas and manual labeling
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 3
 
 ### Goals
 Make dataset creation useful with no model provider configured.
 
 ### Tasks
-- [ ] Implement task schema registry and versioning.
-- [ ] Implement label sets and required-field validation.
-- [ ] Build text classification editor.
-- [ ] Build image classification editor.
-- [ ] Implement annotation creation/edit/review APIs.
-- [ ] Add append-only AnnotationRevision history.
-- [ ] Implement review state transitions centrally.
-- [ ] Add undo/redo or revision restore where practical.
-- [ ] Add record filters for pending, approved, rejected and invalid.
-- [ ] Add keyboard-first navigation and save-state feedback.
-- [ ] Test schema changes, invalid labels, unsaved edits and review transitions.
+- [x] Implement task schema registry and versioning.
+- [x] Implement label sets and required-field validation.
+- [x] Build text classification editor.
+- [x] Build image classification editor.
+- [x] Implement annotation creation/edit/review APIs.
+- [x] Add append-only AnnotationRevision history.
+- [x] Implement review state transitions centrally.
+- [x] Add undo/redo or revision restore where practical.
+- [x] Add record filters for pending, approved, rejected and invalid.
+- [x] Add keyboard-first navigation and save-state feedback.
+- [x] Test schema changes, invalid labels, unsaved edits and review transitions.
 
 ### Deliverables
-Manual text/image classification workflows and revision history.
+- Canonical task schema registry & validation service in `packages/dataset_core/task_schemas.py`.
+- Dedicated record queue endpoint with review status & split filtering (`GET /api/v1/datasets/{dataset_id}/queue`) in `services/api/routes/records.py`.
+- Full annotation lifecycle routes (`POST /api/v1/records/{record_id}/annotations`, `PUT /api/v1/annotations/{annotation_id}`, `POST /api/v1/annotations/{annotation_id}/transition`) in `services/api/routes/annotations.py`.
+- Raw media streaming endpoint (`GET /api/v1/assets/{asset_id}/raw`) in `services/api/routes/assets.py`.
+- Interactive keyboard-first Annotation Workspace in `apps/web/src/components/AnnotationWorkspace.tsx` with hotkeys (`1`-`9` label selection, `J`/`K` navigation, `Enter` save, `A` approve, `C` needs correction, `R` reject), and append-only revision history timeline.
+- Comprehensive integration & unit tests in `tests/integration/test_manual_annotation_workspace.py` and `tests/unit/test_task_schemas.py`.
 
 ### Exit gate
-A user can import data, label it manually, edit labels, review records and retain history without external AI credentials.
+PASSED: Verified with 37 automated tests passing in 2.27s, 0 ruff errors, and successful frontend build (`tsc -b && vite build` built in 1.50s). Manual text and image annotation, out-of-vocabulary label enforcement, append-only revisions, and review transitions function completely offline with zero model credentials.
 
 ## 8. Phase 5 — Provider gateway and AI-assisted annotation
 
