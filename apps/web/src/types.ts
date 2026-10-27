@@ -201,3 +201,16 @@ export interface VersionDiff {
   net_record_change: number;
 }
 
+export interface ExportArtifact {
+  id: string;
+  version_id: string;
+  format: string;
+  exporter_version: string;
+  storage_key: string;
+  byte_size: number;
+  sha256: string;
+  record_count: number;
+  quality_warnings: string[];
+  created_at: string;
+}
+

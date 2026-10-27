@@ -26,6 +26,7 @@ from services.api.routes import (
     annotations,
     assets,
     datasets,
+    exports,
     inference,
     ingestion,
     projects,
@@ -132,6 +133,7 @@ app.include_router(assets.router)
 app.include_router(inference.router)
 app.include_router(validation.router)
 app.include_router(versions.router)
+app.include_router(exports.router)
 
 
 

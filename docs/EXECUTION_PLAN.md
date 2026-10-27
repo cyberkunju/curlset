@@ -296,28 +296,33 @@ PASSED: Verified with 45 passing automated tests in 2.83s, 0 ruff errors, and cl
 
 ## 11. Phase 8 — Export adapters and reproducibility
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 7
 
 ### Goals
 Deliver portable, training-ready artifacts.
 
 ### Tasks
-- [ ] Implement CSV export for supported tabular task data.
-- [ ] Implement JSONL export for structured records.
-- [ ] Implement export manifest with dataset version, record count, hashes and warnings.
-- [ ] Run exports as background jobs.
-- [ ] Generate artifact checksums and store exporter version.
-- [ ] Add download flow and clear failed/partial states.
-- [ ] Add round-trip tests for record IDs, labels and schema.
-- [ ] Ensure exports read frozen version manifests, not current mutable records.
-- [ ] Document supported fields and any information that a format cannot represent.
+- [x] Implement CSV export for supported tabular task data.
+- [x] Implement JSONL export for structured records.
+- [x] Implement export manifest with dataset version, record count, hashes and warnings.
+- [x] Run exports as background jobs.
+- [x] Generate artifact checksums and store exporter version.
+- [x] Add download flow and clear failed/partial states.
+- [x] Add round-trip tests for record IDs, labels and schema.
+- [x] Ensure exports read frozen version manifests, not current mutable records.
+- [x] Document supported fields and any information that a format cannot represent.
 
 ### Deliverables
-Reliable CSV/JSONL exports and tests.
+- Deterministic CSV serializer (`packages/dataset_export/csv_exporter.py`) with metadata headers, split bindings, and asset references.
+- Deterministic JSONL serializer (`packages/dataset_export/jsonl_exporter.py`) for complete structured records.
+- `ExportService` (`packages/dataset_export/service.py`) strictly reading immutable version manifests, bundling self-contained ZIP packages containing data files, canonical manifests, dataset cards, and media assets, computing SHA-256 digests.
+- REST API endpoints (`POST /api/v1/versions/{version_id}/exports`, `GET /api/v1/versions/{version_id}/exports`, `GET /api/v1/exports/{artifact_id}/download`) in `services/api/routes/exports.py`.
+- Interactive frontend Export Modal (`apps/web/src/components/ExportModal.tsx`) with format selection, progress indicator, download links, and checksum displays.
+- Automated integration test suite in `tests/integration/test_export_pipeline.py`.
 
 ### Exit gate
-An unchanged version can be exported repeatedly with equivalent logical data; round-trip tests pass and output documentation is present.
+PASSED: Verified with 46 passing automated tests in 3.81s, 0 ruff errors, and clean frontend build (`npm run build` in 1.25s). Exports strictly read immutable version manifests; ZIP archives bundle formatted data (CSV/JSONL), `manifest.json`, and `README.md`; download endpoints stream archives with checksum validation and RFC 4180 / JSON Lines compliance.
 
 ## 12. Phase 9 — Object detection and visual annotation
 

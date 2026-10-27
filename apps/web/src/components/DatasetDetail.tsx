@@ -6,6 +6,7 @@ import { AIAnnotationModal } from './AIAnnotationModal';
 import { ImportModal } from './ImportModal';
 import { QualityDashboardModal } from './QualityDashboardModal';
 import { VersionSnapshotsModal } from './VersionSnapshotsModal';
+import { ExportModal } from './ExportModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -21,6 +22,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [isQualityOpen, setIsQualityOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -181,7 +183,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsVersionsOpen(true)} title="Publish Dataset Version (Phase 7)">
             <span>📌</span> Publish Snapshot
           </button>
-          <button className="btn btn-secondary" title="Export Dataset Package (Phase 8)">
+          <button className="btn btn-secondary" onClick={() => setIsExportOpen(true)} title="Export Dataset Package (Phase 8)">
             <span>📦</span> Export (CSV / JSONL)
           </button>
         </div>
@@ -217,6 +219,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           setIsVersionsOpen(false);
           loadData();
         }}
+      />
+
+      <ExportModal
+        datasetId={datasetId}
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        onOpenVersions={() => setIsVersionsOpen(true)}
       />
     </div>
   );

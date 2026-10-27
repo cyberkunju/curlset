@@ -241,4 +241,22 @@ export async function compareVersions(versionAId: string, versionBId: string): P
   return handleResponse(res);
 }
 
+export async function triggerVersionExport(versionId: string, format: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/versions/${versionId}/exports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ format }),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchVersionExports(versionId: string): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/versions/${versionId}/exports`);
+  return handleResponse<any[]>(res);
+}
+
+export function getExportDownloadUrl(artifactId: string): string {
+  return `${API_BASE}/exports/${artifactId}/download`;
+}
+
 
