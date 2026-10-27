@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Target, Sparkles, Layers, Info, X } from 'lucide-react';
+import { Target, Sparkles, Layers, Info } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
+import { ModalShell } from './ui/ModalShell';
 
 interface ClusterMapModalProps {
   datasetId: string;
@@ -41,47 +42,63 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  // Coordinate mapping from [-1, 1] to SVG viewBox [20, 480]
+  // Coordinate mapping from [-1, 1] to SVG viewBox [30, 470]
   const mapCoord = (val: number) => {
     const clamped = Math.max(-1, Math.min(1, val));
     return 250 + clamped * 220;
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: '840px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Target size={20} strokeWidth={1.75} />
-              Interactive 2D Semantic Cluster Map
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              High-dimensional SVD projection with automated data-desert coverage gap discovery
-            </p>
-          </div>
-          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
-            <X size={18} />
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Interactive 2D Semantic Cluster Map"
+      description="High-dimensional SVD projection with automated data-desert coverage gap discovery"
+      icon={<Target size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
+      size="xl"
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+          <button onClick={onClose} className="btn btn-secondary" style={{ padding: '0.45rem 1rem' }}>
+            Close Map
           </button>
         </div>
-
+      }
+    >
+      <div>
         {loading ? (
-          <div className="loading-container" style={{ padding: '4rem' }}>
-            <div className="spinner" />
-            <div>Computing 2D SVD Semantic Projection...</div>
+          <div className="loading-container" style={{ padding: '4rem', textAlign: 'center' }}>
+            <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Computing 2D SVD Semantic Projection...
+            </div>
           </div>
-        ) : !data || data.points.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)' }}>
+        ) : !data || !data.points || data.points.length === 0 ? (
+          <div
+            style={{
+              padding: '3.5rem 2rem',
+              textAlign: 'center',
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-hairline)',
+            }}
+          >
             <Layers size={36} strokeWidth={1.75} style={{ margin: '0 auto 1rem', color: 'var(--text-muted)' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Insufficient Record Vectors</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+              Insufficient Record Vectors
+            </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               Import or create at least 2 records to project clusters and identify data deserts.
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1.5rem', alignItems: 'start' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) 280px',
+              gap: '1.25rem',
+              alignItems: 'start',
+            }}
+          >
             {/* Interactive SVG Projection Canvas */}
             <div
               style={{
@@ -98,42 +115,44 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                 <line x1="10" y1="250" x2="490" y2="250" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="4 4" />
 
                 {/* Coverage Gap Cells (Data Deserts) */}
-                {data.coverage_gap_cells && data.coverage_gap_cells.map((gap: any) => {
-                  const cx = mapCoord(gap.center_u);
-                  const cy = mapCoord(gap.center_v);
-                  const isSelected = selectedGap?.cell_id === gap.cell_id;
-                  return (
-                    <g key={gap.cell_id} onClick={() => setSelectedGap(gap)} style={{ cursor: 'pointer' }}>
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r="34"
-                        fill={isSelected ? 'rgba(244, 63, 94, 0.25)' : 'rgba(244, 63, 94, 0.08)'}
-                        stroke="var(--rose)"
-                        strokeWidth={isSelected ? '2' : '1'}
-                        strokeDasharray="4 3"
-                      />
-                      <circle cx={cx} cy={cy} r="4" fill="var(--rose)" />
-                    </g>
-                  );
-                })}
+                {data.coverage_gap_cells &&
+                  data.coverage_gap_cells.map((gap: any) => {
+                    const cx = mapCoord(gap.center_u);
+                    const cy = mapCoord(gap.center_v);
+                    const isSelected = selectedGap?.cell_id === gap.cell_id;
+                    return (
+                      <g key={gap.cell_id} onClick={() => setSelectedGap(gap)} style={{ cursor: 'pointer' }}>
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r="34"
+                          fill={isSelected ? 'rgba(244, 63, 94, 0.25)' : 'rgba(244, 63, 94, 0.08)'}
+                          stroke="var(--rose)"
+                          strokeWidth={isSelected ? '2' : '1'}
+                          strokeDasharray="4 3"
+                        />
+                        <circle cx={cx} cy={cy} r="4" fill="var(--rose)" />
+                      </g>
+                    );
+                  })}
 
                 {/* Cluster Centroids */}
-                {data.clusters && data.clusters.map((c: any) => {
-                  const cx = mapCoord(c.center_u);
-                  const cy = mapCoord(c.center_v);
-                  return (
-                    <g key={c.label}>
-                      <circle cx={cx} cy={cy} r="28" fill="rgba(37, 99, 235, 0.12)" stroke="var(--accent-interactive)" strokeWidth="1.5" />
-                      <text x={cx} y={cy - 8} fill="var(--text-primary)" fontSize="10" fontWeight="700" textAnchor="middle">
-                        {c.label}
-                      </text>
-                      <text x={cx} y={cy + 6} fill="var(--text-muted)" fontSize="8" textAnchor="middle">
-                        {c.count} items
-                      </text>
-                    </g>
-                  );
-                })}
+                {data.clusters &&
+                  data.clusters.map((c: any) => {
+                    const cx = mapCoord(c.center_u);
+                    const cy = mapCoord(c.center_v);
+                    return (
+                      <g key={c.label}>
+                        <circle cx={cx} cy={cy} r="28" fill="rgba(37, 99, 235, 0.12)" stroke="var(--accent-interactive)" strokeWidth="1.5" />
+                        <text x={cx} y={cy - 8} fill="#FAFAFA" fontSize="10" fontWeight="700" textAnchor="middle">
+                          {c.label}
+                        </text>
+                        <text x={cx} y={cy + 6} fill="#A1A1AA" fontSize="8" textAnchor="middle">
+                          {c.count} items
+                        </text>
+                      </g>
+                    );
+                  })}
 
                 {/* Record Points */}
                 {data.points.map((p: any) => {
@@ -173,7 +192,9 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <span>Label: <strong>{hoveredPoint.label}</strong></span>
+                  <span>
+                    Label: <strong>{hoveredPoint.label}</strong>
+                  </span>
                   <span style={{ color: 'var(--text-muted)' }}>{hoveredPoint.snippet || hoveredPoint.record_id}</span>
                 </div>
               )}
@@ -181,34 +202,75 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
 
             {/* Sidebar Inspector & Fill-the-Gap Action */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ padding: '0.85rem', background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <div
+                style={{
+                  padding: '0.85rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: 'var(--radius-md)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    color: 'var(--text-primary)',
+                  }}
+                >
                   <Info size={14} /> Map Legend
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FAFAFA' }} />
-                    Dataset Records ({data.total_records})
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FAFAFA', border: '1px solid #71717A' }} />
+                    Dataset Records ({data.total_records || data.points.length})
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1px solid var(--accent-interactive)', background: 'rgba(37, 99, 235, 0.2)' }} />
-                    Semantic Clusters ({data.clusters.length})
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '1.5px solid var(--accent-interactive)',
+                        background: 'rgba(37, 99, 235, 0.2)',
+                      }}
+                    />
+                    Semantic Clusters ({data.clusters?.length || 0})
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1px dashed var(--rose)', background: 'rgba(244, 63, 94, 0.2)' }} />
-                    Coverage Blind Spots ({data.coverage_gap_cells.length})
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '1.5px dashed var(--rose)',
+                        background: 'rgba(244, 63, 94, 0.2)',
+                      }}
+                    />
+                    Coverage Blind Spots ({data.coverage_gap_cells?.length || 0})
                   </div>
                 </div>
               </div>
 
               {/* Selected Gap Action Card */}
               {selectedGap ? (
-                <div style={{ padding: '1rem', background: 'var(--bg-surface)', border: '1px solid var(--rose)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--rose)', marginBottom: '0.25rem' }}>
+                <div
+                  style={{
+                    padding: '1rem',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--rose)',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--rose)', marginBottom: '0.25rem' }}>
                     Targeted Data Desert
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                    Coordinates ({selectedGap.center_u}, {selectedGap.center_v}) currently lack coverage for class <strong>{selectedGap.suggested_class}</strong>.
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+                    Coordinates ({selectedGap.center_u?.toFixed(2) ?? selectedGap.center_u}, {selectedGap.center_v?.toFixed(2) ?? selectedGap.center_v}) currently lack coverage for class{' '}
+                    <strong>{selectedGap.suggested_class || 'Underrepresented'}</strong>.
                   </p>
                   <SpringButton
                     variant="primary"
@@ -224,7 +286,17 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                   </SpringButton>
                 </div>
               ) : (
-                <div style={{ padding: '1rem', background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                <div
+                  style={{
+                    padding: '1rem',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: 'var(--radius-md)',
+                    textAlign: 'center',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-muted)',
+                  }}
+                >
                   Click any dashed red circle on the map to target synthesis into that blind spot.
                 </div>
               )}
@@ -232,6 +304,6 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 };

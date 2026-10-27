@@ -1092,6 +1092,49 @@ Phase R5.2.4.1 closed manifest-ordering vulnerabilities by resolving primary ima
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation & Remote CI Note**: Browser subagent execution and remote GitHub Actions CI remain unverified in the offline sandbox; code-level types, boundary conditions, and test suites are 100% locally verified.
 
+---
+
+## 24. Phase R6 — Governance, Diagnostics, Settings & Modal UI Completion
+
+**Status:** COMPLETE  
+**Base Commit Inspected:** `d5ffca36fff01b91ba6faa9b37d7e03ac356645a`  
+**Quality Gates Passed:** `npm run test:coordinates` (19 passed), `npm run build` (0 TypeScript errors), `pytest tests/ -q` (150 passed), `ruff check .` (0 lint errors).
+
+### 24.1 Problem Statement & Audit
+Prior to R6, secondary views and dialogs suffered from design-system inconsistencies and usability gaps:
+1. **`GovernanceView.tsx`**: Summary cards consumed excessive vertical space with decorative elements; the audit log lacked keyword and date-range filtering; team membership management lacked immediate mutation feedback, confirmation safeguards before removal, and duplicate submission prevention during pending network actions.
+2. **`SystemHealthView.tsx`**: Health and readiness checks were displayed with generic status cards without measuring actual probe round-trip latency, and model provider status was not integrated into the live diagnostics console.
+3. **Modal Inconsistencies**: `ProjectSettingsModal.tsx` and `ClusterMapModal.tsx` relied on raw legacy overlay divs and bespoke styling rather than the Phase R1 `ModalShell`, creating inconsistent borders, paddings, responsive behavior, and accessibility landmarks.
+4. **Task-Type Coverage**: `CreateDatasetModal.tsx` only listed 4 of the 6 canonical task types supported by the platform's backend and domain schemas.
+
+### 24.2 Architectural Changes & Deliverables Completed
+
+1. **Governance Redesign (`GovernanceView.tsx`):**
+   - **Compact Metric Meters**: Transformed storage, record, and rate-limit summaries into compact meter cards using design tokens (`var(--bg-elevated)`, `var(--border-hairline)`). Proportional progress meters calculate exact percentages with verified numerators and denominators (`storage_bytes_used / storage_quota_bytes`, `records_used / records_quota`).
+   - **Audit Event Log Table with Client-Side Filters**: Implemented keyword search across actor, action, resource, and details fields, combined with start-date and end-date timestamp filtering.
+   - **Scope Transparency**: Added an explicit scope disclosure caption: *"Showing X of Y loaded events. Filters apply over loaded event history."* and an instant "Clear Filters" action.
+   - **Team & Role Management**: Refactored team members into a clean, responsive table with permission badges; added inline mutation success (`CheckCircle2`) and error (`AlertCircle`) banners; implemented confirmation prompts prior to member removal; disabled buttons during pending operations (`addingMember`, `removingUserId`) to prevent duplicate submissions.
+
+2. **Diagnostics Console Redesign (`SystemHealthView.tsx`):**
+   - **Real Request Latency Measurement**: Measured genuine client-side round-trip probe latency using high-resolution timestamps (`performance.now()`) around `/health` and `/readiness` API probes, displaying exact measurements (e.g. `12ms`, `8ms`) and labeling them truthfully as request latency.
+   - **Service Health & Readiness Hierarchy**: Structured system diagnostics into Overall Status, Core Service Health, System Readiness (Database & Object Storage dependencies), and Live AI Model Providers.
+   - **Model Provider Registry**: Integrated `fetchProviders()` into the console, listing each registered provider along with its supported capabilities (`image_classification`, `object_detection`, `text_classification`, etc.) and configured model names.
+   - **Interactive Diagnostics Refresh**: Added a functional refresh action with a spinning animation, disabling duplicate trigger attempts while probes are in flight and displaying real error states when requests fail.
+
+3. **Standardized Modal Shells (`ProjectSettingsModal.tsx` & `ClusterMapModal.tsx`):**
+   - **`ProjectSettingsModal.tsx`**: Migrated from custom overlay markup to `ModalShell` (`size="xl"`), bringing keyboard Escape listeners, backdrop blur, body scroll lock, and accessible dialog markup to Project Quotas, Team Management, and Audit Logs. Reused the audit log search and date filtering components.
+   - **`ClusterMapModal.tsx`**: Migrated to `ModalShell` (`size="xl"`), fully preserving the 2D SVG SVD projection canvas, center grid axes, cluster centroid hulls, data-desert coverage gap targeting, point hover tooltips, and the "Synthesize Edge Cases Here" trigger without layout clipping.
+   - **`CreateDatasetModal.tsx`**: Expanded task-type selection options to include all 6 canonical platform task types (`image_classification`, `text_classification`, `object_detection`, `paired_image_text`, `audio_transcription`, and `document_ocr`).
+   - **`CreateProjectModal.tsx`**: Verified clean integration with `ModalShell` and validated input behavior.
+
+### 24.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (19/19 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.85s).
+- **Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 6.73s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Interactive browser subagent tools remain unavailable in this environment; visual layout, accessibility landmarks, and event handlers were strictly verified via component source inspection and the production TypeScript compiler.
+
+
 
 
 

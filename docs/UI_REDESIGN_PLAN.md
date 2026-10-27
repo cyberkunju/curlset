@@ -223,7 +223,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 | **R3** | **Projects & Dataset Management** | **COMPLETE** | ProjectList metrics & semantic table/grid views, ProjectDetail dataset inventory with task-type filtering, DatasetDetail layout inversion (compact 5-stage pipeline dock + primary Records Explorer with review status/split filtering & pagination). |
 | **R4** | **Annotation Workbench (Modality Workspaces)** | **COMPLETE** | Synchronized queue ID tracking, image classification metadata containment, ObjectDetectionCanvas with zoom/pan & 8-class color palette, audio transcription waveform scrubber & active speech cue tracking, reader typography for text classification, ShortcutHelpModal. |
 | **R5** | **Generation, Quality, Versioning & Exports** | **COMPLETE** | High-density quality scorecard with proportional distribution bars & record filtering; synthetic generation schema preview; AI annotation demo provider labeling & capability validation; Version diff interactive onion-skin opacity slider & class delta table; Export modal 9 presets, illustrative code previews & real server-side token simulator. |
-| **R6** | **Governance, Diagnostics, Settings & Modals** | PENDING AUTHORIZATION | Standardized modal containers, audit log table filtering, real-time health telemetry console. |
+| **R6** | **Governance, Diagnostics, Settings & Modals** | **COMPLETE** | Standardized `ModalShell` integration across `ProjectSettingsModal` & `ClusterMapModal`, `GovernanceView` compact metric cards & client-side filtered audit logs, `SystemHealthView` live diagnostics console with real measured latency & provider registry, 0 mock metrics. |
 | **R7** | **Full Application Visual QA & Verification** | PENDING AUTHORIZATION | Cross-viewport testing (1440px, 1280px, 768px, 390px), responsive regression testing, final sign-off. |
 
 ---
@@ -361,13 +361,13 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 - **Exit Gate:** `npm run test:coordinates` passed (19/19); `npm run build` passed (0 errors, built in 6.47s); 46/46 `test_coordinate_transforms.py` passed; 1/1 `test_version_diff.py` passed; 150/150 full pytest suite passed; `ruff check .` passed (0 lint errors).
 - **Environmental Note**: Browser subagent execution and remote CI checks remain unverified in the offline sandbox; code-level types, boundary conditions, and test suites are 100% locally verified.
 
-#### Phase R6: Governance, Diagnostics, Settings & Modals
-- **Objective:** Standardize remaining secondary views and dialogs.
-- **Tasks:**
-  - `GovernanceView.tsx`: Compact metric meters, filterable audit event log table with search and date range filters, clean team role management.
-  - `SystemHealthView.tsx`: Real-time diagnostics console with ping latency meter, service dependency matrix, and model provider status indicators.
-  - Standardize `CreateProjectModal.tsx`, `CreateDatasetModal.tsx`, `ProjectSettingsModal.tsx`, and `ClusterMapModal.tsx` using the Phase R1 modal shell.
-- **Exit Gate:** All secondary screens adhere to the neutral design system; 0 broken links or unstyled modals.
+#### Phase R6: Governance, Diagnostics, Settings & Modals (COMPLETED)
+- **Objective:** Complete secondary-screen UI redesign using the application's established neutral-first design system and standardize remaining modal dialogs on `ModalShell`.
+- **Tasks Delivered:**
+  - `GovernanceView.tsx`: Redesigned summary metrics into compact, consistent meter cards displaying true percentage and byte/record limits; structured audit log into a responsive table with keyword search across actor/action/resource/details, start/end date range filters, "Clear Filters" button, and explicit disclosure that filters evaluate over loaded events; implemented clean team-role table with mutation feedback banners and deletion confirmation guarding against duplicate submissions.
+  - `SystemHealthView.tsx`: Redesigned as a professional diagnostics console; measured real client round-trip probe latency (`performance.now()`) across `/health` and `/readiness` endpoints; integrated live provider inspection via `fetchProviders()` displaying supported capabilities and models; added responsive refresh action with spinning animation and duplicate request prevention.
+  - Standardized Modals: Refactored `ProjectSettingsModal.tsx` and `ClusterMapModal.tsx` to use Phase R1 `ModalShell`, preserving full SVG cluster canvas projection, coverage gap targeting, and synthetic generation trigger; verified `CreateProjectModal.tsx` and expanded task-type coverage in `CreateDatasetModal.tsx` to all 6 domain task types.
+- **Exit Gate:** `npm run test:coordinates` passed (19/19); `npm run build` passed in 5.85s (0 errors); 150/150 pytest tests passed in 6.73s; `ruff check .` passed (0 lint errors); zero promotional puffery or fabricated metrics.
 
 #### Phase R7: Full Application Visual QA & Verification
 - **Objective:** Comprehensive visual, responsive, and functional regression testing across the entire platform.

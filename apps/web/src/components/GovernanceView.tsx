@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   fetchProjects,
   fetchProjectMembers,
@@ -8,7 +8,23 @@ import {
   fetchProjectAuditLogs,
 } from '../api';
 import { Project, ProjectMember, ProjectQuotaUsage, AuditLogEntry } from '../types';
-import { ShieldCheck, BarChart2, Users, FileText, HardDrive, ShieldAlert, Layers, AlertCircle } from 'lucide-react';
+import {
+  ShieldCheck,
+  BarChart2,
+  Users,
+  FileText,
+  HardDrive,
+  ShieldAlert,
+  Layers,
+  AlertCircle,
+  CheckCircle2,
+  Search,
+  Calendar,
+  X,
+  UserPlus,
+  Trash2,
+  RotateCcw,
+} from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
 
 export const GovernanceView: React.FC = () => {
@@ -20,18 +36,25 @@ export const GovernanceView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'quotas' | 'team' | 'audit'>('quotas');
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Quota & Team state
+  // Quota, Team & Audit state
   const [usage, setUsage] = useState<ProjectQuotaUsage | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
-  // Member form
+  // Member form state
   const [newUserId, setNewUserId] = useState('');
   const [newRole, setNewRole] = useState<'editor' | 'viewer'>('editor');
   const [addingMember, setAddingMember] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
-  // Initial load projects
+  // Audit filter state (filters over the loaded audit records)
+  const [auditSearchQuery, setAuditSearchQuery] = useState('');
+  const [auditStartDate, setAuditStartDate] = useState('');
+  const [auditEndDate, setAuditEndDate] = useState('');
+
+  // Initial load of projects
   useEffect(() => {
     const init = async () => {
       setLoadingProjects(true);
@@ -56,6 +79,7 @@ export const GovernanceView: React.FC = () => {
     const loadDetails = async () => {
       setLoadingData(true);
       setError(null);
+      setSuccessMessage(null);
       try {
         if (activeTab === 'quotas') {
           const u = await fetchProjectQuotaUsage(selectedProjectId);
@@ -78,12 +102,14 @@ export const GovernanceView: React.FC = () => {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserId.trim() || !selectedProjectId) return;
+    if (!newUserId.trim() || !selectedProjectId || addingMember) return;
     setAddingMember(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       await addProjectMember(selectedProjectId, newUserId.trim(), newRole);
       setNewUserId('');
+      setSuccessMessage(`Successfully added user '${newUserId.trim()}' with role '${newRole}'.`);
       const updated = await fetchProjectMembers(selectedProjectId);
       setMembers(updated);
     } catch (err: any) {
@@ -94,31 +120,102 @@ export const GovernanceView: React.FC = () => {
   };
 
   const handleRemoveMember = async (targetUserId: string) => {
-    if (!confirm(`Are you sure you want to remove user '${targetUserId}'?`)) return;
+    if (removingUserId) return;
+    if (!window.confirm(`Are you sure you want to remove user '${targetUserId}' from this project?`)) {
+      return;
+    }
+    setRemovingUserId(targetUserId);
     setError(null);
+    setSuccessMessage(null);
     try {
       await removeProjectMember(selectedProjectId, targetUserId);
       setMembers((prev) => prev.filter((m) => m.user_id !== targetUserId));
+      setSuccessMessage(`User '${targetUserId}' removed successfully.`);
     } catch (err: any) {
       setError(err?.message || 'Failed to remove member');
+    } finally {
+      setRemovingUserId(null);
     }
   };
 
   const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (!bytes || bytes <= 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  };
+
+  // Filter audit logs client-side over loaded data
+  const filteredAuditLogs = useMemo(() => {
+    return auditLogs.filter((log) => {
+      // 1. Keyword search
+      if (auditSearchQuery.trim()) {
+        const q = auditSearchQuery.toLowerCase();
+        const actionMatch = log.action?.toLowerCase().includes(q);
+        const userMatch = log.user_id?.toLowerCase().includes(q);
+        const resourceTypeMatch = log.resource_type?.toLowerCase().includes(q);
+        const resourceIdMatch = log.resource_id?.toLowerCase().includes(q);
+        const detailsMatch = JSON.stringify(log.details || {}).toLowerCase().includes(q);
+        if (!actionMatch && !userMatch && !resourceTypeMatch && !resourceIdMatch && !detailsMatch) {
+          return false;
+        }
+      }
+
+      // 2. Date filters
+      if (log.created_at) {
+        const logDate = new Date(log.created_at);
+        if (auditStartDate) {
+          const start = new Date(auditStartDate);
+          start.setHours(0, 0, 0, 0);
+          if (logDate < start) return false;
+        }
+        if (auditEndDate) {
+          const end = new Date(auditEndDate);
+          end.setHours(23, 59, 59, 999);
+          if (logDate > end) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [auditLogs, auditSearchQuery, auditStartDate, auditEndDate]);
+
+  const hasActiveAuditFilters = Boolean(auditSearchQuery || auditStartDate || auditEndDate);
+
+  const clearAuditFilters = () => {
+    setAuditSearchQuery('');
+    setAuditStartDate('');
+    setAuditEndDate('');
   };
 
   const currentProject = projects.find((p) => p.id === selectedProjectId);
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+    <div className="governance-view" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+      {/* Header & Project Selector */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <h1
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              color: 'var(--text-primary)',
+            }}
+          >
             <ShieldCheck size={24} style={{ color: 'var(--accent-interactive)' }} /> Governance & Resource Quotas
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
@@ -128,8 +225,8 @@ export const GovernanceView: React.FC = () => {
 
         {/* Project Selector */}
         {projects.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Project:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Project:</span>
             <CustomSelect
               value={selectedProjectId}
               onChange={(val) => setSelectedProjectId(val)}
@@ -145,22 +242,30 @@ export const GovernanceView: React.FC = () => {
       </div>
 
       {loadingProjects ? (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <div>Loading projects...</div>
+        <div className="loading-container" style={{ padding: '4rem', textAlign: 'center' }}>
+          <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading project workspaces...</div>
         </div>
       ) : projects.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
-            <ShieldCheck size={36} style={{ color: 'var(--text-muted)' }} />
+        <div className="empty-state" style={{ padding: '4rem 2rem', textAlign: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+            <ShieldCheck size={40} style={{ color: 'var(--text-muted)' }} />
           </div>
-          <h3 className="empty-title">No projects available</h3>
-          <p className="empty-desc">Create a project workspace first to configure governance and quotas.</p>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>No projects available</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Create a project workspace first to configure governance and quotas.</p>
         </div>
       ) : (
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          {/* Sub Navigation */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-hairline)', padding: '0 1rem', background: 'var(--bg-elevated)' }}>
+          {/* Sub Navigation Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--border-hairline)',
+              padding: '0 0.5rem',
+              background: 'var(--bg-elevated)',
+              overflowX: 'auto',
+            }}
+          >
             <button
               onClick={() => setActiveTab('quotas')}
               className="btn btn-ghost"
@@ -173,6 +278,7 @@ export const GovernanceView: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                whiteSpace: 'nowrap',
               }}
             >
               <BarChart2 size={16} /> Quotas & Usage Limits
@@ -189,9 +295,10 @@ export const GovernanceView: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                whiteSpace: 'nowrap',
               }}
             >
-              <Users size={16} /> Team & RBAC Roles
+              <Users size={16} /> Team & RBAC Roles ({members.length})
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -205,139 +312,304 @@ export const GovernanceView: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                whiteSpace: 'nowrap',
               }}
             >
-              <FileText size={16} /> Security Audit Trail
+              <FileText size={16} /> Security Audit Trail ({auditLogs.length})
             </button>
           </div>
 
           <div style={{ padding: '1.5rem' }}>
+            {/* Global Alerts */}
             {error && (
-              <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', color: '#fca5a5', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+              <div
+                style={{
+                  marginBottom: '1.25rem',
+                  padding: '0.75rem 1rem',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--rose)',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{error}</span>
               </div>
             )}
 
+            {successMessage && (
+              <div
+                style={{
+                  marginBottom: '1.25rem',
+                  padding: '0.75rem 1rem',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--emerald)',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
             {loadingData ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div className="spinner" style={{ margin: '0 auto 0.75rem' }} />
                 Loading {activeTab} data for project...
               </div>
             ) : activeTab === 'quotas' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {/* Storage Card */}
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <HardDrive size={16} style={{ color: 'var(--accent-interactive)' }} /> Storage Consumption
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      {formatBytes(usage?.storage_bytes_used || 0)} / {formatBytes(usage?.storage_quota_bytes || 0)} ({usage?.storage_percentage || 0}%)
-                    </span>
+              /* TAB 1: QUOTAS & USAGE LIMITS */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                  {/* Storage Meter Card */}
+                  <div
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-hairline)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                            <HardDrive size={18} style={{ color: 'var(--accent-interactive)' }} /> Storage Consumption
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                            Object storage volume allocated to record media and versions
+                          </div>
+                        </div>
+                        <span
+                          className={`badge ${
+                            (usage?.storage_percentage || 0) > 90
+                              ? 'badge-rose'
+                              : (usage?.storage_percentage || 0) > 75
+                              ? 'badge-amber'
+                              : 'badge-blue'
+                          }`}
+                        >
+                          {usage?.storage_percentage !== undefined ? `${usage.storage_percentage}%` : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                        {formatBytes(usage?.storage_bytes_used || 0)}{' '}
+                        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                          / {formatBytes(usage?.storage_quota_bytes || 0)}
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${Math.min(Math.max(usage?.storage_percentage || 0, 0), 100)}%`,
+                            height: '100%',
+                            background:
+                              (usage?.storage_percentage || 0) > 90
+                                ? 'var(--rose)'
+                                : (usage?.storage_percentage || 0) > 75
+                                ? 'var(--amber)'
+                                : 'var(--accent-interactive)',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.85rem', lineHeight: 1.4 }}>
+                      Enforced at the storage layer. Uploads exceeding quota are rejected with HTTP 413 to prevent unmeasured disk growth.
+                    </p>
                   </div>
-                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${Math.min(usage?.storage_percentage || 0, 100)}%`,
-                        height: '100%',
-                        background: (usage?.storage_percentage || 0) > 90 ? 'var(--rose)' : (usage?.storage_percentage || 0) > 70 ? 'var(--amber)' : 'var(--accent-interactive)',
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
+
+                  {/* Record Volume Meter Card */}
+                  <div
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-hairline)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                            <Layers size={18} style={{ color: 'var(--accent-interactive)' }} /> Record Capacity Quota
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                            Relational database item capacity across all datasets in project
+                          </div>
+                        </div>
+                        <span
+                          className={`badge ${
+                            (usage?.records_percentage || 0) > 90
+                              ? 'badge-rose'
+                              : (usage?.records_percentage || 0) > 75
+                              ? 'badge-amber'
+                              : 'badge-emerald'
+                          }`}
+                        >
+                          {usage?.records_percentage !== undefined ? `${usage.records_percentage}%` : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                        {(usage?.records_used || 0).toLocaleString()}{' '}
+                        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                          / {(usage?.records_quota || 0).toLocaleString()} records
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${Math.min(Math.max(usage?.records_percentage || 0, 0), 100)}%`,
+                            height: '100%',
+                            background:
+                              (usage?.records_percentage || 0) > 90
+                                ? 'var(--rose)'
+                                : (usage?.records_percentage || 0) > 75
+                                ? 'var(--amber)'
+                                : 'var(--emerald)',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.85rem', lineHeight: 1.4 }}>
+                      Guards database indexing throughput and prevents memory saturation during batch import or synthetic generation.
+                    </p>
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Enforced at the storage layer. Uploads exceeding project quota are rejected with HTTP 413 to prevent uncontrolled disk growth.
-                  </p>
                 </div>
 
-                {/* Records Card */}
-                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Layers size={16} style={{ color: 'var(--accent-interactive)' }} /> Record Capacity Quota
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      {(usage?.records_used || 0).toLocaleString()} / {(usage?.records_quota || 0).toLocaleString()} records ({usage?.records_percentage || 0}%)
-                    </span>
+                {/* Technical Rate Limiting Specifications */}
+                <div
+                  style={{
+                    padding: '1.15rem',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.825rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldAlert size={16} style={{ color: 'var(--accent-interactive)' }} /> Active Rate Limiting & Resource Throttling Rules
                   </div>
-                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${Math.min(usage?.records_percentage || 0, 100)}%`,
-                        height: '100%',
-                        background: (usage?.records_percentage || 0) > 90 ? 'var(--rose)' : (usage?.records_percentage || 0) > 70 ? 'var(--amber)' : 'var(--emerald)',
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.65rem', marginTop: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>API Ingestion:</strong> 300 requests / 60s per client token
+                    </div>
+                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Batch AI Inference:</strong> 30 requests / 60s window
+                    </div>
+                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Synthetic Sample Generation:</strong> 25 requests / 60s window
+                    </div>
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Protects relational database memory and indexing performance across datasets.
-                  </p>
-                </div>
-
-                {/* Abuse / Rate Limiting Notice (Neutral Panel) */}
-                <div style={{ padding: '1rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ShieldAlert size={16} style={{ color: 'var(--accent-interactive)' }} /> Rate Limiting & Abuse Defense Enabled
-                  </div>
-                  <div>• API Ingestion: 300 requests / 60 seconds rolling window per client.</div>
-                  <div>• Batch AI Model Inference: 30 requests / 60 seconds rolling window.</div>
-                  <div>• Synthetic Sample Generation: 25 requests / 60 seconds rolling window.</div>
                 </div>
               </div>
             ) : activeTab === 'team' ? (
+              /* TAB 2: TEAM & RBAC ROLES */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {/* Add member form */}
-                <form onSubmit={handleAddMember} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', background: 'var(--surface-base)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>User Identifier / Email</label>
+                <form
+                  onSubmit={handleAddMember}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    alignItems: 'flex-end',
+                    background: 'var(--bg-elevated)',
+                    padding: '1.15rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-hairline)',
+                  }}
+                >
+                  <div style={{ flex: '1 1 240px' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                      User Identifier / Email *
+                    </label>
                     <input
                       type="text"
-                      className="input"
+                      className="form-input"
                       placeholder="e.g. dev_analyst_2@team.org"
                       value={newUserId}
                       onChange={(e) => setNewUserId(e.target.value)}
+                      disabled={addingMember}
                       required
-                      style={{ width: '100%', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
                     />
                   </div>
-                  <div style={{ width: '180px' }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Role</label>
+
+                  <div style={{ width: '190px' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                      Role *
+                    </label>
                     <CustomSelect
                       value={newRole}
                       onChange={(val) => setNewRole(val as any)}
+                      disabled={addingMember}
                       options={[
-                        { value: 'editor', label: 'Editor (Write)' },
+                        { value: 'editor', label: 'Editor (Write & Annotate)' },
                         { value: 'viewer', label: 'Viewer (Read-only)' },
                       ]}
                       size="sm"
-                      style={{ width: '100%', minWidth: '160px' }}
+                      style={{ width: '100%' }}
                       ariaLabel="Select member role"
                     />
                   </div>
-                  <button type="submit" className="btn btn-primary" disabled={addingMember || !newUserId.trim()} style={{ padding: '0.45rem 1rem' }}>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={addingMember || !newUserId.trim()}
+                    style={{ padding: '0.5rem 1.15rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                  >
+                    <UserPlus size={15} />
                     {addingMember ? 'Adding...' : 'Add Member'}
                   </button>
                 </form>
 
                 {/* Member table */}
-                <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                    <thead style={{ background: 'var(--surface-hover)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-subtle)', fontSize: '0.75rem' }}>
+                    <thead style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-hairline)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       <tr>
-                        <th style={{ padding: '0.65rem 1rem' }}>User Identifier</th>
-                        <th style={{ padding: '0.65rem 1rem' }}>Role</th>
-                        <th style={{ padding: '0.65rem 1rem' }}>Capabilities</th>
-                        <th style={{ padding: '0.65rem 1rem', textAlign: 'right' }}>Actions</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>User Identifier</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Role</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Permissions & Capabilities</th>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {members.map((m) => (
-                        <tr key={m.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '0.75rem 1rem', fontFamily: 'var(--font-mono)' }}>
+                        <tr key={m.id} style={{ borderBottom: '1px solid var(--border-hairline)', transition: 'background-color 0.15s ease' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--text-primary)' }}>
                             {m.user_id}
                             {m.user_id === currentProject?.owner_id && (
-                              <span className="badge badge-amber" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Owner</span>
+                              <span className="badge badge-amber" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>
+                                Owner
+                              </span>
                             )}
                           </td>
                           <td style={{ padding: '0.75rem 1rem' }}>
@@ -345,16 +617,34 @@ export const GovernanceView: React.FC = () => {
                               {m.role}
                             </span>
                           </td>
-                          <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                            {m.role === 'owner' ? 'Full administrative rights & quota config' : m.role === 'editor' ? 'Upload assets, annotate, synthesize, publish & export' : 'Inspect datasets and download export packages'}
+                          <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                            {m.role === 'owner'
+                              ? 'Full administrative control, quota provisioning & membership administration'
+                              : m.role === 'editor'
+                              ? 'Import data, create annotations, generate synthetic records & publish versions'
+                              : 'Inspect dataset splits, view audit events & download export bundles (read-only)'}
                           </td>
                           <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                             {m.user_id !== currentProject?.owner_id ? (
-                              <button onClick={() => handleRemoveMember(m.user_id)} style={{ background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer', fontSize: '0.8rem' }}>
-                                Remove
+                              <button
+                                onClick={() => handleRemoveMember(m.user_id)}
+                                disabled={removingUserId === m.user_id}
+                                className="btn btn-ghost"
+                                style={{
+                                  color: 'var(--rose)',
+                                  padding: '0.25rem 0.5rem',
+                                  fontSize: '0.8rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                }}
+                                title={`Remove ${m.user_id}`}
+                              >
+                                <Trash2 size={14} />
+                                {removingUserId === m.user_id ? 'Removing...' : 'Remove'}
                               </button>
                             ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Immutable</span>
                             )}
                           </td>
                         </tr>
@@ -364,42 +654,143 @@ export const GovernanceView: React.FC = () => {
                 </div>
               </div>
             ) : (
+              /* TAB 3: SECURITY AUDIT TRAIL */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <span>Audit log events for project <code style={{ fontFamily: 'var(--font-mono)' }}>{selectedProjectId}</code>:</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{auditLogs.length} events</span>
+                {/* Search & Date Filter Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.85rem 1rem',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  {/* Search query */}
+                  <div style={{ position: 'relative', flex: '1 1 200px' }}>
+                    <Search size={15} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Search action, actor, resource..."
+                      value={auditSearchQuery}
+                      onChange={(e) => setAuditSearchQuery(e.target.value)}
+                      style={{ width: '100%', paddingLeft: '2rem', paddingRight: '0.75rem', fontSize: '0.85rem', height: '34px' }}
+                    />
+                  </div>
+
+                  {/* Start Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Calendar size={13} /> From:
+                    </span>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={auditStartDate}
+                      onChange={(e) => setAuditStartDate(e.target.value)}
+                      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', height: '34px' }}
+                    />
+                  </div>
+
+                  {/* End Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Calendar size={13} /> To:
+                    </span>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={auditEndDate}
+                      onChange={(e) => setAuditEndDate(e.target.value)}
+                      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', height: '34px' }}
+                    />
+                  </div>
+
+                  {/* Reset Filters */}
+                  {hasActiveAuditFilters && (
+                    <button
+                      onClick={clearAuditFilters}
+                      className="btn btn-secondary"
+                      style={{ height: '34px', fontSize: '0.8rem', padding: '0 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <RotateCcw size={13} /> Clear Filters
+                    </button>
+                  )}
                 </div>
 
+                {/* Scope Notice & Record Count */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 0.25rem' }}>
+                  <span>
+                    Filtering over the {auditLogs.length} most recent events loaded from the server for project{' '}
+                    <code style={{ fontFamily: 'var(--font-mono)' }}>{selectedProjectId}</code>
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                    {filteredAuditLogs.length} / {auditLogs.length} events matching
+                  </span>
+                </div>
+
+                {/* Table or Empty State */}
                 {auditLogs.length === 0 ? (
-                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    No audit records registered yet for this project.
+                  <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-hairline)' }}>
+                    <FileText size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--text-muted)' }} />
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>No audit records logged yet</div>
+                    <div style={{ fontSize: '0.8rem' }}>Actions performed in this project will appear here automatically.</div>
+                  </div>
+                ) : filteredAuditLogs.length === 0 ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-hairline)' }}>
+                    <Search size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--text-muted)' }} />
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>No events match current filters</div>
+                    <div style={{ fontSize: '0.8rem', marginBottom: '0.75rem' }}>Try clearing or widening your search keyword or date range.</div>
+                    <button onClick={clearAuditFilters} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+                      Clear Filters
+                    </button>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
-                      <thead style={{ background: 'var(--surface-hover)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div style={{ border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+                      <thead style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-hairline)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                         <tr>
-                          <th style={{ padding: '0.65rem 0.75rem' }}>Timestamp</th>
-                          <th style={{ padding: '0.65rem 0.75rem' }}>Action</th>
-                          <th style={{ padding: '0.65rem 0.75rem' }}>Actor</th>
-                          <th style={{ padding: '0.65rem 0.75rem' }}>Target Resource</th>
-                          <th style={{ padding: '0.65rem 0.75rem' }}>Details (Redacted)</th>
+                          <th style={{ padding: '0.65rem 0.85rem' }}>Timestamp</th>
+                          <th style={{ padding: '0.65rem 0.85rem' }}>Action</th>
+                          <th style={{ padding: '0.65rem 0.85rem' }}>Actor</th>
+                          <th style={{ padding: '0.65rem 0.85rem' }}>Target Resource</th>
+                          <th style={{ padding: '0.65rem 0.85rem' }}>Details (Redacted)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {auditLogs.map((log) => (
-                          <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        {filteredAuditLogs.map((log) => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid var(--border-hairline)' }}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '0.775rem' }}>
                               {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                             </td>
-                            <td style={{ padding: '0.65rem 0.75rem' }}>
-                              <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{log.action}</span>
+                            <td style={{ padding: '0.65rem 0.85rem' }}>
+                              <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
+                                {log.action}
+                              </span>
                             </td>
-                            <td style={{ padding: '0.65rem 0.75rem', fontFamily: 'var(--font-mono)' }}>{log.user_id}</td>
-                            <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)' }}>
-                              {log.resource_type} {log.resource_id ? `(${log.resource_id})` : ''}
+                            <td style={{ padding: '0.65rem 0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {log.user_id}
                             </td>
-                            <td style={{ padding: '0.65rem 0.75rem', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={JSON.stringify(log.details)}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-secondary)' }}>
+                              {log.resource_type} {log.resource_id ? <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>({log.resource_id})</code> : ''}
+                            </td>
+                            <td
+                              style={{
+                                padding: '0.65rem 0.85rem',
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.75rem',
+                                color: 'var(--text-muted)',
+                                maxWidth: '320px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={JSON.stringify(log.details)}
+                            >
                               {JSON.stringify(log.details)}
                             </td>
                           </tr>

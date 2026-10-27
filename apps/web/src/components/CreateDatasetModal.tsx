@@ -101,6 +101,8 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
               { value: 'text_classification', label: 'Text Classification (Sentiment, topic, intent)' },
               { value: 'object_detection', label: 'Object Detection (Bounding boxes with pixel geometry)' },
               { value: 'paired_image_text', label: 'Paired Image-Text (Captions, VQA, instruction-tuning)' },
+              { value: 'audio_transcription', label: 'Audio Transcription (Speech-to-text, timestamps)' },
+              { value: 'document_ocr', label: 'Document OCR (Key-value extraction, text bounds)' },
             ]}
             style={{ width: '100%' }}
             ariaLabel="Select task type"
