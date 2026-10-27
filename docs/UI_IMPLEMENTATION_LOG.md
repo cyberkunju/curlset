@@ -832,6 +832,63 @@ Phase R5.2 established the canonical coordinate system as intrinsic source-image
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification and behavior verified through pure TypeScript unit tests, static type checking, and integration test suites.
 
+---
+
+## 19. Phase R5.2.2 — Coordinate Editing Integrity & Version Asset Isolation
+
+**Date:** October 27, 2026  
+**Status:** **COMPLETE**
+
+### 19.1 Problem Statement & Gaps Addressed
+Phase R5.2.1 established legacy calibration safety and dimension isolation for version diffs, but three coordinate-space and version-diff integrity vulnerabilities remained:
+1. **Normalized-Coordinate Editing Mismatch**: While pointer interactions converted clicks into intrinsic source pixels $[0, W_{src}] \times [0, H_{src}]$, annotations declared as `normalized` $[0, 1]$ remained in normalized space, allowing mixed pixel and normalized coordinates within a single payload.
+2. **Legacy-Lock Bypass via Box Deletion**: In uncalibrated historical annotations, deleting all boxes individually set `boxes.length === 0`, removing the legacy lock and silently transitioning the record into an editable intrinsic coordinate system without explicit calibration.
+3. **Cross-Version Asset Sharing & Container Stretching**: In `VersionDiffModal.tsx`, `SpatialDiffViewer` used a single `asset_url` even when Version 1 and Version 2 referenced different source assets. Overlaying both versions over one image visually misrepresented differences. Additionally, normalized boxes without source dimensions were projected across the container as though it were the image.
+
+### 19.2 Architectural Changes & Deliverables Completed
+
+1. **Normalized Coordinate Editing Contract (`apps/web/src/utils/coordinateContract.ts` & `ObjectDetectionCanvas.tsx`):**
+   - Added pure helper `convertNormalizedToPixelIntrinsic(boxes, dimensions)`: converts normalized $[0, 1]$ boxes to rounded intrinsic pixel integers $[0, W_{src}] \times [0, H_{src}]$, strictly preserving box `id`, `label`, `confidence`, and extra metadata. Throws an error if source dimensions are non-positive or null.
+   - In `ObjectDetectionCanvas.tsx`:
+     - Disabled new box creation, dragging, and edge snapping while annotations are declared `normalized`.
+     - Added a dedicated Normalized Coordinates Disclosure Banner with an explicit action: `"Convert to Source Pixels"`.
+     - If verified image dimensions cannot be established (`!naturalDims || naturalDims.width <= 0`), conversion and geometric modifications remain disabled, preventing guessed conversion or unit mixing.
+     - When converted, the active coordinate system updates to `'pixel-intrinsic'`, unlocking the calibrated canvas for full drawing, moving, and snapping.
+     - Saving persists `coordinate_system: 'pixel-intrinsic'` with verified source image dimensions. `normalized` is never retained as declared coordinate system after writing pixel-valued geometry.
+
+2. **Legacy-Lock Bypass Closure (`apps/web/src/components/ObjectDetectionCanvas.tsx` & `AnnotationWorkspace.tsx`):**
+   - In `coordinateContract.ts`: updated `isCoordinateSystemCalibrated(system, boxes)` to return `true` strictly if system is `'pixel-intrinsic'` or `'normalized'`. An empty box list without an explicit coordinate system is no longer treated as calibrated.
+   - In `ObjectDetectionCanvas.tsx`: disabled individual box deletion buttons in the inspector when `isLegacyUncalibrated` is true, styling them with `cursor: 'not-allowed'` and a tooltip explaining that deletion is disabled to preserve calibration integrity.
+   - In `AnnotationWorkspace.tsx`:
+     - Tracked `isLegacyRecord` across record loading (`loadActiveRecord`) based on historical metadata.
+     - Updated `handleRecreateCalibrated`: requires explicit confirmation informing the user that original box placement cannot be recovered reliably from missing historical calibration metadata. Only this action unlocks calibrated re-annotation.
+     - In `handleSaveAnnotation`: uncalibrated legacy records strictly preserve coordinate uncertainty upon save. Edits to non-geometric fields (e.g. notes, labels) never stamp uncertain geometry as calibrated, even if boxes are empty.
+
+3. **Version Asset & Dimension Isolation (`packages/dataset_versioning/service.py` & `VersionDiffModal.tsx`):**
+   - **Backend Asset Identity & URLs**: In `VersioningService.diff_dataset_versions`, spatial diff items now independently resolve and transmit:
+     - `asset_id_v1` and `asset_id_v2`
+     - `asset_url_v1` and `asset_url_v2` (via `/api/v1/assets/{asset_id}/file`)
+     - `same_asset: bool` (true only if primary asset IDs match)
+   - **Spatial Diff Viewer Isolation**:
+     - `SpatialDiffViewer` receives `rawAssetUrlV1`, `rawAssetUrlV2`, `assetIdV1`, `assetIdV2`, and `sameAsset`.
+     - Tracks independent `naturalDimsV1` and `naturalDimsV2` alongside independent image loading and error states.
+     - Removed all shared `assetDimensions` fallbacks between versions.
+   - **Shared Overlay Protection**: If `!sameAsset`, shared overlay comparison is prohibited. Renders a truthful warning card: `"Shared Overlay Unavailable: Baseline (v1) and Target (v2) reference different source assets... An accurate shared overlay comparison cannot be drawn over a single image."` Guides the user to side-by-side mode.
+   - **Side-by-Side Mode**: Each column loads its own asset URL, tracks its own natural dimensions, and projects its own boxes independently.
+   - **Normalized Geometry Bounds**: In `computeBoxStyle`, removed container-stretching fallback for normalized coordinates. If verified source dimensions are missing, normalized geometry returns `null` rather than distorting across container margins.
+
+4. **Automated Verification:**
+   - Updated `apps/web/tests/coordinate_contract.test.ts`: 10 pure TypeScript contract tests verifying identification, uncalibrated protection, legacy-lock bypass prevention on empty boxes, normalized conversion with real dimensions and metadata preservation, conversion rejection on missing dimensions, and display/source projection.
+   - Updated `tests/unit/test_coordinate_transforms.py`: added 4 new unit test cases covering differing source assets isolation (`same_asset=False`, distinct URLs), identical source asset matching (`same_asset=True`), zero dimension leakage across versions when one lacks dimensions, and legacy-lock bypass prevention during payload updates.
+
+### 19.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (10/10 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.86s).
+- **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (16/16 unit tests in 0.89s).
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **120 passed, 0 failures** in 6.56s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
+
 
 
 

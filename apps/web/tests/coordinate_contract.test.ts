@@ -1,10 +1,11 @@
 /**
- * Regression and Contract Tests for Coordinate Calibration (Phase R5.2.1)
+ * Regression and Contract Tests for Coordinate Calibration & Editing Integrity (Phase R5.2.2)
  *
  * Runs directly via Node.js to verify actual TypeScript implementation.
  */
 import assert from 'node:assert';
 import {
+  convertNormalizedToPixelIntrinsic,
   displayToSourceCoords,
   identifyCoordinateSystem,
   isCoordinateSystemCalibrated,
@@ -14,7 +15,7 @@ import {
 import type { BoundingBox } from '../src/utils/coordinateContract.ts';
 
 function runTests() {
-  console.log('--- Running TypeScript Coordinate Calibration Tests ---');
+  console.log('--- Running TypeScript Coordinate Calibration & Editing Integrity Tests ---');
 
   // Test 1: Historical annotation without coordinate metadata is identified as uncalibrated
   {
@@ -52,7 +53,7 @@ function runTests() {
     );
   }
 
-  // Test 3: Fractional coordinates without explicit metadata are still uncalibrated
+  // Test 3: Fractional coordinates without explicit metadata remain uncalibrated
   {
     const fractionalBoxes: BoundingBox[] = [
       { label: 'object', x: 0.1, y: 0.2, w: 0.3, h: 0.4 },
@@ -75,7 +76,7 @@ function runTests() {
     );
   }
 
-  // Test 4: Explicit pixel-intrinsic coordinates plot when dimensions exist
+  // Test 4: Explicit pixel-intrinsic coordinates plot when dimensions exist, refuse when missing
   {
     const intrinsicBoxes: BoundingBox[] = [
       { label: 'car', x: 100, y: 200, w: 300, h: 150 },
@@ -97,7 +98,7 @@ function runTests() {
     );
   }
 
-  // Test 5: Explicit normalized coordinates can be plotted
+  // Test 5: Explicit normalized coordinates require source dimensions to prevent container stretching
   {
     const normalizedBoxes: BoundingBox[] = [
       { label: 'sign', x: 0.2, y: 0.3, w: 0.4, h: 0.2 },
@@ -105,21 +106,112 @@ function runTests() {
     const system = identifyCoordinateSystem('normalized', normalizedBoxes);
     assert.strictEqual(system, 'normalized');
 
-    const canPlot = shouldPlotVersionGeometry('normalized', normalizedBoxes, null);
-    assert.strictEqual(canPlot, true, 'Explicitly normalized coordinates can be plotted');
+    const canPlotWithoutDims = shouldPlotVersionGeometry('normalized', normalizedBoxes, null);
+    assert.strictEqual(
+      canPlotWithoutDims,
+      false,
+      'Normalized geometry without verified dimensions must not be projected across container'
+    );
+
+    const canPlotWithDims = shouldPlotVersionGeometry('normalized', normalizedBoxes, {
+      width: 1920,
+      height: 1080,
+    });
+    assert.strictEqual(
+      canPlotWithDims,
+      true,
+      'Normalized geometry with verified source dimensions can be plotted'
+    );
   }
 
-  // Test 6: Empty box list is uncommitted / safe to calibrate
+  // Test 6: Legacy lock bypass prevention - empty box list without declared system is NOT calibrated
   {
     const isCalibrated = isCoordinateSystemCalibrated(undefined, []);
     assert.strictEqual(
       isCalibrated,
-      true,
-      'Empty box lists are safe to calibrate into canonical frame'
+      false,
+      'Empty box lists without an explicit calibrated coordinate system must not bypass legacy lock'
+    );
+
+    const isIntrinsicCalibrated = isCoordinateSystemCalibrated('pixel-intrinsic', []);
+    assert.strictEqual(isIntrinsicCalibrated, true, 'Explicit pixel-intrinsic is calibrated');
+
+    const isNormalizedCalibrated = isCoordinateSystemCalibrated('normalized', []);
+    assert.strictEqual(isNormalizedCalibrated, true, 'Explicit normalized is calibrated');
+  }
+
+  // Test 7: convertNormalizedToPixelIntrinsic with real dimensions
+  {
+    const normalizedBoxes: BoundingBox[] = [
+      {
+        id: 'box-1',
+        label: 'vehicle',
+        x: 0.1,
+        y: 0.2,
+        w: 0.5,
+        h: 0.4,
+        confidence: 0.95,
+      },
+      {
+        id: 'box-2',
+        label: 'pedestrian',
+        x: 0.0,
+        y: 0.5,
+        w: 0.25,
+        h: 0.5,
+        confidence: 0.88,
+      },
+    ];
+
+    const converted = convertNormalizedToPixelIntrinsic(normalizedBoxes, {
+      width: 1920,
+      height: 1080,
+    });
+
+    assert.strictEqual(converted.length, 2);
+    // Box 1: x: 0.1 * 1920 = 192, y: 0.2 * 1080 = 216, w: 0.5 * 1920 = 960, h: 0.4 * 1080 = 432
+    assert.strictEqual(converted[0].x, 192);
+    assert.strictEqual(converted[0].y, 216);
+    assert.strictEqual(converted[0].w, 960);
+    assert.strictEqual(converted[0].h, 432);
+    assert.strictEqual(converted[0].id, 'box-1', 'Box id must be preserved');
+    assert.strictEqual(converted[0].label, 'vehicle', 'Class label must be preserved');
+    assert.strictEqual(converted[0].confidence, 0.95, 'Confidence must be preserved');
+
+    // Box 2: x: 0, y: 0.5 * 1080 = 540, w: 0.25 * 1920 = 480, h: 0.5 * 1080 = 540
+    assert.strictEqual(converted[1].x, 0);
+    assert.strictEqual(converted[1].y, 540);
+    assert.strictEqual(converted[1].w, 480);
+    assert.strictEqual(converted[1].h, 540);
+    assert.strictEqual(converted[1].id, 'box-2');
+    assert.strictEqual(converted[1].label, 'pedestrian');
+    assert.strictEqual(converted[1].confidence, 0.88);
+  }
+
+  // Test 8: convertNormalizedToPixelIntrinsic throws when dimensions are missing or non-positive
+  {
+    const boxes: BoundingBox[] = [{ label: 'test', x: 0.1, y: 0.1, w: 0.2, h: 0.2 }];
+
+    assert.throws(
+      () => convertNormalizedToPixelIntrinsic(boxes, null),
+      /Valid source image dimensions/,
+      'Must reject conversion when dimensions are null'
+    );
+
+    assert.throws(
+      () => convertNormalizedToPixelIntrinsic(boxes, { width: 0, height: 600 }),
+      /Valid source image dimensions/,
+      'Must reject conversion when width is zero'
+    );
+
+    assert.throws(
+      () => convertNormalizedToPixelIntrinsic(boxes, { width: 800, height: -10 }),
+      /Valid source image dimensions/,
+      'Must reject conversion when height is negative'
     );
   }
 
-  // Test 7: displayToSourceCoords accuracy at 1:1 and downscaled viewports
+  // Test 9: displayToSourceCoords accuracy at 1:1 and downscaled viewports
   {
     // 1:1 display
     const pt1 = displayToSourceCoords(150, 250, 800, 600, 800, 600);
@@ -134,7 +226,7 @@ function runTests() {
     assert.deepStrictEqual(ptClamped, { x: 1920, y: 1080 });
   }
 
-  // Test 8: sourceToDisplayBox mapping
+  // Test 10: sourceToDisplayBox mapping
   {
     const box: BoundingBox = { label: 'box', x: 200, y: 100, w: 400, h: 200 };
 
@@ -147,9 +239,9 @@ function runTests() {
       height: '100px',
     });
 
-    // Normalized box projection
+    // Normalized box projection with verified dimensions
     const normBox: BoundingBox = { label: 'box', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
-    const normStyle = sourceToDisplayBox(normBox, 800, 400, 0, 0, true);
+    const normStyle = sourceToDisplayBox(normBox, 800, 400, 1600, 800, true);
     assert.deepStrictEqual(normStyle, {
       left: '200px',
       top: '200px',
@@ -160,9 +252,13 @@ function runTests() {
     // Invalid dimensions return null
     const invalidStyle = sourceToDisplayBox(box, 0, 0, 1000, 500, false);
     assert.strictEqual(invalidStyle, null, 'Invalid display dimensions should return null');
+
+    // Missing source dimensions for normalized box returns null (prevents container distortion)
+    const invalidNormStyle = sourceToDisplayBox(normBox, 800, 400, 0, 0, true);
+    assert.strictEqual(invalidNormStyle, null, 'Missing source dimensions for normalized box should return null');
   }
 
-  console.log('✓ All TypeScript Coordinate Calibration Tests PASSED!');
+  console.log('✓ All TypeScript Coordinate Calibration & Editing Integrity Tests PASSED!');
 }
 
 runTests();

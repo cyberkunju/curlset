@@ -315,6 +315,15 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - **Automated Verification**: Added `apps/web/tests/coordinate_contract.test.ts` (tested via `npm run test:coordinates`) and `TestLegacyCalibrationSafety` in `tests/unit/test_coordinate_transforms.py`.
 - **Exit Gate:** `npm run test:coordinates` passed; `npm run build` passed in 6.43s (0 errors); 116/116 pytest passed (8.15s); `ruff check .` passed (0 lint errors).
 
+#### Phase R5.2.2: Coordinate Editing Integrity & Version Asset Isolation (COMPLETED)
+- **Objective:** Fix normalized-coordinate editing to eliminate mixed unit payloads, close the legacy-lock bypass via box deletion, and isolate per-version asset URLs and dimensions in spatial version diffs.
+- **Tasks Delivered:**
+  - **Normalized Editing Contract (`apps/web/src/utils/coordinateContract.ts` & `ObjectDetectionCanvas.tsx`)**: Disabled direct drawing/moving on normalized annotations to prevent mixed-unit payloads. Added `convertNormalizedToPixelIntrinsic(boxes, dimensions)` and a dedicated banner action `"Convert to Source Pixels"` requiring verified source dimensions. Stamped `pixel-intrinsic` upon conversion and save.
+  - **Legacy-Lock Bypass Closure (`ObjectDetectionCanvas.tsx` & `AnnotationWorkspace.tsx`)**: Empty box lists without explicit coordinate metadata no longer report calibrated status. Disabled individual box deletion in legacy uncalibrated mode. Enforced that only explicit `"Clear & Re-annotate (Calibrated)"` with confirmation resets geometry and authorizes calibrated re-annotation. Uncalibrated annotations never silently stamp `pixel-intrinsic` when non-geometric fields are saved.
+  - **Version Asset & Dimension Isolation (`packages/dataset_versioning/service.py` & `VersionDiffModal.tsx`)**: `diff_dataset_versions` independently resolves `asset_id_v1`, `asset_id_v2`, `asset_url_v1`, `asset_url_v2`, and `same_asset`. `SpatialDiffViewer` resolves dimensions and asset URLs per version without cross-version fallback. Prohibits shared overlay comparison when source assets differ (`!same_asset`), displaying a truthful fallback card and directing users to side-by-side mode. Suppresses container-stretched normalized geometry when dimensions are missing.
+  - **Automated Verification**: Added 10 tests in `apps/web/tests/coordinate_contract.test.ts` and 4 new tests in `tests/unit/test_coordinate_transforms.py`.
+- **Exit Gate:** `npm run test:coordinates` passed (10/10); `npm run build` passed (0 errors); 16/16 `test_coordinate_transforms.py` passed; 120/120 full pytest suite passed; `ruff check .` passed (0 lint errors).
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**

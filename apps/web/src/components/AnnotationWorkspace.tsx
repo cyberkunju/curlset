@@ -74,6 +74,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [canvasImageDims, setCanvasImageDims] = useState<{ width: number; height: number } | null>(null);
   const [activeCoordSystem, setActiveCoordSystem] = useState<string | null>(null);
+  const [isLegacyRecord, setIsLegacyRecord] = useState<boolean>(false);
   const [isNewlyRecreated, setIsNewlyRecreated] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
   const [transcriptText, setTranscriptText] = useState<string>('');
@@ -221,7 +222,16 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           setBoxes([]);
         }
         setCanvasImageDims(null);
-        setActiveCoordSystem(detail.annotation?.payload?.coordinate_system || null);
+
+        const existingCoord = detail.annotation?.payload?.coordinate_system;
+        const boxCount = Array.isArray(detail.annotation?.payload?.boxes)
+          ? detail.annotation.payload.boxes.length
+          : 0;
+        const isLegacy =
+          existingCoord === 'uncalibrated-legacy' ||
+          (existingCoord !== 'pixel-intrinsic' && existingCoord !== 'normalized' && boxCount > 0);
+        setIsLegacyRecord(isLegacy);
+        setActiveCoordSystem(existingCoord || null);
         setIsNewlyRecreated(false);
 
         if (dataset.task_type === 'audio_transcription') {
@@ -241,11 +251,28 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
 
   // Recreate uncalibrated legacy annotation into verified intrinsic source pixels
   const handleRecreateCalibrated = () => {
+    if (boxes.length > 0) {
+      const confirmed = window.confirm(
+        'Original box placement cannot be recovered reliably from missing historical calibration metadata. ' +
+        'Clearing existing geometry will unlock the canvas for calibrated re-annotation in intrinsic image pixels. Proceed?'
+      );
+      if (!confirmed) return;
+    }
     setBoxes([]);
+    setIsLegacyRecord(false);
     setActiveCoordSystem('pixel-intrinsic');
     setIsNewlyRecreated(true);
     setIsDirty(true);
     showToast('Cleared uncalibrated boxes. Canvas is now active in calibrated source-image frame.');
+  };
+
+  const handleConvertNormalizedToIntrinsic = (convertedBoxes: BoundingBox[]) => {
+    setBoxes(convertedBoxes);
+    setIsLegacyRecord(false);
+    setActiveCoordSystem('pixel-intrinsic');
+    setIsNewlyRecreated(false);
+    setIsDirty(true);
+    showToast('Converted all boxes to intrinsic source pixels. Coordinate system is now pixel-intrinsic.');
   };
 
   useEffect(() => {
@@ -298,39 +325,51 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         }
 
         const existingCoordSys = currentRecord?.annotation?.payload?.coordinate_system;
-        const isCalibratedIntrinsic =
-          activeCoordSystem === 'pixel-intrinsic' ||
-          existingCoordSys === 'pixel-intrinsic' ||
-          (isNewlyRecreated && (canvasImageDims || activeAsset?.dimensions)) ||
-          (boxes.length === 0 && (canvasImageDims || activeAsset?.dimensions));
+        const dimsToSave =
+          canvasImageDims ||
+          activeAsset?.dimensions ||
+          currentRecord?.annotation?.payload?.image_dimensions;
+        const hasValidDims = Boolean(
+          dimsToSave?.width && dimsToSave.width > 0 && dimsToSave?.height && dimsToSave.height > 0
+        );
 
-        if (isCalibratedIntrinsic) {
-          payload.coordinate_system = 'pixel-intrinsic';
-          const dimsToSave =
-            canvasImageDims ||
-            activeAsset?.dimensions ||
-            currentRecord?.annotation?.payload?.image_dimensions;
-          if (dimsToSave?.width && dimsToSave?.height) {
-            payload.image_dimensions = {
-              width: dimsToSave.width,
-              height: dimsToSave.height,
-            };
+        if (isLegacyRecord) {
+          // Uncalibrated legacy record: edits to non-geometric fields or empty boxes
+          // must NEVER stamp uncertain geometry as calibrated
+          if (existingCoordSys) {
+            payload.coordinate_system = existingCoordSys;
           }
-        } else if (activeCoordSystem === 'normalized' || existingCoordSys === 'normalized') {
+          if (currentRecord?.annotation?.payload?.image_dimensions) {
+            payload.image_dimensions = currentRecord.annotation.payload.image_dimensions;
+          }
+        } else if (
+          hasValidDims &&
+          (activeCoordSystem === 'pixel-intrinsic' ||
+            existingCoordSys === 'pixel-intrinsic' ||
+            isNewlyRecreated ||
+            (!existingCoordSys && !isLegacyRecord))
+        ) {
+          // Calibrated intrinsic: only when created in calibrated canvas and valid image dimensions are recorded
+          payload.coordinate_system = 'pixel-intrinsic';
+          payload.image_dimensions = {
+            width: dimsToSave.width,
+            height: dimsToSave.height,
+          };
+        } else if (
+          (activeCoordSystem === 'normalized' || existingCoordSys === 'normalized') &&
+          !isNewlyRecreated
+        ) {
           payload.coordinate_system = 'normalized';
-          const dimsToSave =
-            canvasImageDims ||
-            activeAsset?.dimensions ||
-            currentRecord?.annotation?.payload?.image_dimensions;
-          if (dimsToSave?.width && dimsToSave?.height) {
+          if (hasValidDims) {
             payload.image_dimensions = {
               width: dimsToSave.width,
               height: dimsToSave.height,
             };
+          } else if (currentRecord?.annotation?.payload?.image_dimensions) {
+            payload.image_dimensions = currentRecord.annotation.payload.image_dimensions;
           }
         } else {
-          // Uncalibrated legacy annotation: preserve coordinate-space uncertainty
-          // Do not label the payload as calibrated and do not rewrite coordinates
+          // Fallback preservation of coordinate metadata
           if (existingCoordSys) {
             payload.coordinate_system = existingCoordSys;
           }
@@ -988,8 +1027,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       selectedClass={selectedLabel || allowedClasses[0] || 'object'}
                       assetDimensions={activeAsset.dimensions}
                       coordinateSystem={activeCoordSystem || currentRecord?.annotation?.payload?.coordinate_system}
+                      isLegacyRecord={isLegacyRecord}
                       onDimensionsLoaded={(dims) => setCanvasImageDims(dims)}
                       onRecreateCalibrated={handleRecreateCalibrated}
+                      onConvertNormalizedToIntrinsic={handleConvertNormalizedToIntrinsic}
                       onChange={(newBoxes) => {
                         setBoxes(newBoxes);
                         setIsDirty(true);

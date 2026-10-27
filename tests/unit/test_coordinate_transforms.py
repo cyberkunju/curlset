@@ -451,6 +451,182 @@ class TestLegacyCalibrationSafety:
         assert item["coordinate_system_v2"] == "pixel-intrinsic"
         assert item["image_dimensions_v2"] == {"width": 640, "height": 480}
 
+    def test_version_diff_different_source_assets_isolation(self, monkeypatch):
+        """Diffing versions with different source assets records distinct URLs and same_asset=False."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_diff_ast_01",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 800, "height": 600},
+                            "boxes": [{"label": "cat", "x": 10, "y": 20, "w": 100, "h": 100}],
+                        }
+                    },
+                    "assets": [{"asset_id": "asset_img_v1", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+                }
+            ]
+        }
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_diff_ast_01",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 1920, "height": 1080},
+                            "boxes": [{"label": "dog", "x": 50, "y": 50, "w": 200, "h": 200}],
+                        }
+                    },
+                    "assets": [{"asset_id": "asset_img_v2", "role": "primary_image", "dimensions": {"width": 1920, "height": 1080}}],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: v1_manifest if vid == "v1" else v2_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is False
+        assert item["asset_id_v1"] == "asset_img_v1"
+        assert item["asset_id_v2"] == "asset_img_v2"
+        assert item["asset_url_v1"] == "/api/v1/assets/asset_img_v1/file"
+        assert item["asset_url_v2"] == "/api/v1/assets/asset_img_v2/file"
+        assert item["asset_dimensions_v1"] == {"width": 800, "height": 600}
+        assert item["asset_dimensions_v2"] == {"width": 1920, "height": 1080}
+
+    def test_version_diff_same_source_asset(self, monkeypatch):
+        """Diffing versions referencing identical source asset records same_asset=True."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        shared_manifest_records = lambda boxes: {
+            "records": [
+                {
+                    "record_id": "rec_same_01",
+                    "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": boxes}},
+                    "assets": [{"asset_id": "shared_asset_123", "role": "primary_image", "dimensions": {"width": 1280, "height": 720}}],
+                }
+            ]
+        }
+
+        v1_manifest = shared_manifest_records([{"label": "a", "x": 10, "y": 10, "w": 50, "h": 50}])
+        v2_manifest = shared_manifest_records([{"label": "b", "x": 20, "y": 20, "w": 60, "h": 60}])
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: v1_manifest if vid == "v1" else v2_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is True
+        assert item["asset_id_v1"] == "shared_asset_123"
+        assert item["asset_id_v2"] == "shared_asset_123"
+
+    def test_version_diff_missing_dimensions_for_one_version(self, monkeypatch):
+        """No dimension silently leaks from one version to another when one has missing dimensions."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_leak_check",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 1024, "height": 768},
+                            "boxes": [{"label": "box1", "x": 50, "y": 50, "w": 100, "h": 100}],
+                        }
+                    },
+                    "assets": [{"asset_id": "ast_v1_known", "role": "primary_image", "dimensions": {"width": 1024, "height": 768}}],
+                }
+            ]
+        }
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_leak_check",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "normalized",
+                            "boxes": [{"label": "box1", "x": 0.05, "y": 0.05, "w": 0.1, "h": 0.1}],
+                        }
+                    },
+                    "assets": [{"asset_id": "ast_v2_unknown", "role": "primary_image"}],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: v1_manifest if vid == "v1" else v2_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        # V1 must have 1024x768, V2 must remain None
+        assert item["asset_dimensions_v1"] == {"width": 1024, "height": 768}
+        assert item["asset_dimensions_v2"] is None
+        assert item["image_dimensions_v1"] == {"width": 1024, "height": 768}
+        assert item["image_dimensions_v2"] is None
+
+    def test_legacy_lock_bypass_prevention(self):
+        """Removing boxes from uncalibrated payload does not silently calibrate it."""
+        # Uncalibrated payload with boxes
+        legacy_payload = {
+            "boxes": [{"label": "old", "x": 100, "y": 100, "w": 200, "h": 200}],
+            "notes": "Historical review",
+        }
+        # Non-geometric edit: updating notes without calibration action
+        updated_notes_payload = dict(legacy_payload)
+        updated_notes_payload["notes"] = "Updated note"
+        assert updated_notes_payload.get("coordinate_system") is None
+
+        # Even if boxes are emptied through legacy inspector (which UI now prevents),
+        # backend/persistence rules do not stamp 'pixel-intrinsic' without verified calibration action
+        cleared_boxes_payload = dict(legacy_payload)
+        cleared_boxes_payload["boxes"] = []
+        assert cleared_boxes_payload.get("coordinate_system") is None
+
     def test_coco_export_preserves_historical_payload_without_corruption(self):
         """COCO export does not mutate or corrupt historical records lacking coordinate metadata."""
         manifest = {

@@ -405,19 +405,29 @@ class VersioningService:
                 total_iou_sum += rec_iou
                 spatial_count += 1
 
-                # Find primary image asset for rendering
-                asset_url = None
+                # Find primary image assets for version 1 and version 2 independently
                 assets_1 = r1.get("assets", [])
                 assets_2 = r2.get("assets", [])
                 asset_1 = assets_1[0] if assets_1 else None
                 asset_2 = assets_2[0] if assets_2 else None
+
+                asset_id_1 = asset_1.get("asset_id") if asset_1 else None
+                asset_id_2 = asset_2.get("asset_id") if asset_2 else None
+                asset_url_1 = f"/api/v1/assets/{asset_id_1}/file" if asset_id_1 else None
+                asset_url_2 = f"/api/v1/assets/{asset_id_2}/file" if asset_id_2 else None
+                same_asset = bool(asset_id_1 and asset_id_2 and asset_id_1 == asset_id_2)
+
                 primary_asset = asset_2 if asset_2 else asset_1
-                if primary_asset and primary_asset.get("asset_id"):
-                    asset_url = f"/api/v1/assets/{primary_asset.get('asset_id')}/file"
+                asset_url = asset_url_2 or asset_url_1
 
                 spatial_diffs.append({
                     "record_id": rid,
+                    "asset_id_v1": asset_id_1,
+                    "asset_id_v2": asset_id_2,
+                    "asset_url_v1": asset_url_1,
+                    "asset_url_v2": asset_url_2,
                     "asset_url": asset_url,
+                    "same_asset": same_asset,
                     "boxes_v1": boxes_1,
                     "boxes_v2": boxes_2,
                     "mean_iou": rec_iou,

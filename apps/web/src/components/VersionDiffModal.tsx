@@ -25,7 +25,12 @@ export interface VersionDiffModalProps {
 }
 
 interface SpatialDiffViewerProps {
-  assetUrl: string | null;
+  assetUrl?: string | null;
+  assetUrlV1?: string | null;
+  assetUrlV2?: string | null;
+  assetIdV1?: string | null;
+  assetIdV2?: string | null;
+  sameAsset?: boolean;
   boxesV1: any[];
   boxesV2: any[];
   coordinateSystemV1?: string | null;
@@ -43,13 +48,17 @@ interface SpatialDiffViewerProps {
 
 const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   assetUrl,
+  assetUrlV1,
+  assetUrlV2,
+  assetIdV1,
+  assetIdV2,
+  sameAsset,
   boxesV1,
   boxesV2,
   coordinateSystemV1,
   coordinateSystemV2,
   imageDimensionsV1,
   imageDimensionsV2,
-  assetDimensions,
   assetDimensionsV1,
   assetDimensionsV2,
   viewMode,
@@ -58,33 +67,43 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   recordId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [naturalDims, setNaturalDims] = useState<{ width: number; height: number } | null>(null);
+  const [naturalDimsV1, setNaturalDimsV1] = useState<{ width: number; height: number } | null>(null);
+  const [naturalDimsV2, setNaturalDimsV2] = useState<{ width: number; height: number } | null>(null);
   const [containerDims, setContainerDims] = useState<{ width: number; height: number }>({ width: 300, height: 170 });
-  const [imgError, setImgError] = useState(false);
+  const [imgErrorV1, setImgErrorV1] = useState(false);
+  const [imgErrorV2, setImgErrorV2] = useState(false);
+
+  const resolvedUrlV1 = assetUrlV1 || assetUrl || null;
+  const resolvedUrlV2 = assetUrlV2 || assetUrl || null;
 
   // V1 and V2 must resolve their reference dimensions independently to avoid cross-version dimension leakage.
   // We prefer the version's explicit payload dimensions, then that version's asset metadata, then the loaded asset natural dimensions.
   const dimsV1 = useMemo(() => {
     if (imageDimensionsV1 && imageDimensionsV1.width > 0 && imageDimensionsV1.height > 0) return imageDimensionsV1;
     if (assetDimensionsV1 && assetDimensionsV1.width > 0 && assetDimensionsV1.height > 0) return assetDimensionsV1;
-    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
-    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
+    if (naturalDimsV1 && naturalDimsV1.width > 0 && naturalDimsV1.height > 0) return naturalDimsV1;
     return null;
-  }, [imageDimensionsV1, assetDimensionsV1, assetDimensions, naturalDims]);
+  }, [imageDimensionsV1, assetDimensionsV1, naturalDimsV1]);
 
   const dimsV2 = useMemo(() => {
     if (imageDimensionsV2 && imageDimensionsV2.width > 0 && imageDimensionsV2.height > 0) return imageDimensionsV2;
     if (assetDimensionsV2 && assetDimensionsV2.width > 0 && assetDimensionsV2.height > 0) return assetDimensionsV2;
-    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
-    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
+    if (naturalDimsV2 && naturalDimsV2.width > 0 && naturalDimsV2.height > 0) return naturalDimsV2;
     return null;
-  }, [imageDimensionsV2, assetDimensionsV2, assetDimensions, naturalDims]);
+  }, [imageDimensionsV2, assetDimensionsV2, naturalDimsV2]);
 
   const coordSystemV1 = useMemo(() => identifyCoordinateSystem(coordinateSystemV1, boxesV1), [coordinateSystemV1, boxesV1]);
   const coordSystemV2 = useMemo(() => identifyCoordinateSystem(coordinateSystemV2, boxesV2), [coordinateSystemV2, boxesV2]);
 
   const v1Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV1, boxesV1, dimsV1), [coordinateSystemV1, boxesV1, dimsV1]);
   const v2Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV2, boxesV2, dimsV2), [coordinateSystemV2, boxesV2, dimsV2]);
+
+  // Asset compatibility check for overlay mode
+  const areAssetsCompatible = Boolean(
+    sameAsset ||
+    (assetIdV1 && assetIdV2 && assetIdV1 === assetIdV2) ||
+    (!assetIdV1 && !assetIdV2 && resolvedUrlV1 && resolvedUrlV2 && resolvedUrlV1 === resolvedUrlV2)
+  );
 
   // Measure container dimensions with ResizeObserver
   useEffect(() => {
@@ -112,6 +131,10 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     const activeCoordSystem = isV1 ? coordSystemV1 : coordSystemV2;
     const activeVersionDims = isV1 ? dimsV1 : dimsV2;
 
+    if (!activeVersionDims || activeVersionDims.width <= 0 || activeVersionDims.height <= 0) {
+      return null;
+    }
+
     const cw = containerDims.width;
     const ch = containerDims.height;
     const bx = Number(box.x) || 0;
@@ -119,109 +142,60 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     const bw = Number(box.w ?? box.width) || 0;
     const bh = Number(box.h ?? box.height) || 0;
 
-    if (activeCoordSystem === 'uncalibrated-legacy' || activeCoordSystem === 'unknown') {
+    const nw = activeVersionDims.width;
+    const nh = activeVersionDims.height;
+    const rImg = nw / nh;
+    const rCont = cw / ch;
+
+    let renderedW = cw;
+    let renderedH = ch;
+    let offX = 0;
+    let offY = 0;
+
+    if (rCont > rImg) {
+      renderedH = ch;
+      renderedW = ch * rImg;
+      offX = (cw - renderedW) / 2;
+      offY = 0;
+    } else {
+      renderedW = cw;
+      renderedH = cw / rImg;
+      offX = 0;
+      offY = (ch - renderedH) / 2;
+    }
+
+    let scaledX = 0;
+    let scaledY = 0;
+    let scaledW = 0;
+    let scaledH = 0;
+
+    if (activeCoordSystem === 'normalized') {
+      scaledX = bx * renderedW;
+      scaledY = by * renderedH;
+      scaledW = bw * renderedW;
+      scaledH = bh * renderedH;
+    } else if (activeCoordSystem === 'pixel-intrinsic') {
+      const scaleX = renderedW / nw;
+      const scaleY = renderedH / nh;
+      scaledX = bx * scaleX;
+      scaledY = by * scaleY;
+      scaledW = bw * scaleX;
+      scaledH = bh * scaleY;
+    } else {
       return null;
     }
 
-    if (activeCoordSystem === 'normalized') {
-      if (activeVersionDims && activeVersionDims.width > 0 && activeVersionDims.height > 0) {
-        const nw = activeVersionDims.width;
-        const nh = activeVersionDims.height;
-        const rImg = nw / nh;
-        const rCont = cw / ch;
+    const clampedX = Math.max(0, Math.min(renderedW, scaledX));
+    const clampedY = Math.max(0, Math.min(renderedH, scaledY));
+    const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
+    const clampedH = Math.max(2, Math.min(renderedH - clampedY, scaledH));
 
-        let renderedW = cw;
-        let renderedH = ch;
-        let offX = 0;
-        let offY = 0;
-
-        if (rCont > rImg) {
-          renderedH = ch;
-          renderedW = ch * rImg;
-          offX = (cw - renderedW) / 2;
-          offY = 0;
-        } else {
-          renderedW = cw;
-          renderedH = cw / rImg;
-          offX = 0;
-          offY = (ch - renderedH) / 2;
-        }
-
-        const scaledX = bx * renderedW;
-        const scaledY = by * renderedH;
-        const scaledW = bw * renderedW;
-        const scaledH = bh * renderedH;
-
-        const clampedX = Math.max(0, Math.min(renderedW, scaledX));
-        const clampedY = Math.max(0, Math.min(renderedH, scaledY));
-        const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
-        const clampedH = Math.max(2, Math.min(renderedH - clampedY, scaledH));
-
-        return {
-          left: `${offX + clampedX}px`,
-          top: `${offY + clampedY}px`,
-          width: `${clampedW}px`,
-          height: `${clampedH}px`,
-        };
-      }
-
-      // Fallback for normalized without dimensions: map to container directly
-      return {
-        left: `${bx * cw}px`,
-        top: `${by * ch}px`,
-        width: `${Math.max(2, bw * cw)}px`,
-        height: `${Math.max(2, bh * ch)}px`,
-      };
-    }
-
-    if (activeCoordSystem === 'pixel-intrinsic') {
-      if (!activeVersionDims || activeVersionDims.width <= 0 || activeVersionDims.height <= 0) {
-        return null;
-      }
-
-      const nw = activeVersionDims.width;
-      const nh = activeVersionDims.height;
-      const rImg = nw / nh;
-      const rCont = cw / ch;
-
-      let renderedW = cw;
-      let renderedH = ch;
-      let offX = 0;
-      let offY = 0;
-
-      if (rCont > rImg) {
-        renderedH = ch;
-        renderedW = ch * rImg;
-        offX = (cw - renderedW) / 2;
-        offY = 0;
-      } else {
-        renderedW = cw;
-        renderedH = cw / rImg;
-        offX = 0;
-        offY = (ch - renderedH) / 2;
-      }
-
-      const scaleX = renderedW / nw;
-      const scaleY = renderedH / nh;
-      const scaledX = bx * scaleX;
-      const scaledY = by * scaleY;
-      const scaledW = bw * scaleX;
-      const scaledH = bh * scaleY;
-
-      const clampedX = Math.max(0, Math.min(renderedW, scaledX));
-      const clampedY = Math.max(0, Math.min(renderedH, scaledY));
-      const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
-      const clampedH = Math.max(2, Math.min(renderedH - clampedY, scaledH));
-
-      return {
-        left: `${offX + clampedX}px`,
-        top: `${offY + clampedY}px`,
-        width: `${clampedW}px`,
-        height: `${clampedH}px`,
-      };
-    }
-
-    return null;
+    return {
+      left: `${offX + clampedX}px`,
+      top: `${offY + clampedY}px`,
+      width: `${clampedW}px`,
+      height: `${clampedH}px`,
+    };
   };
 
   const renderBoxesLayer = (boxes: any[], isV1: boolean, opacity: number) => {
@@ -277,7 +251,6 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     );
   };
 
-  const hasValidAsset = Boolean(assetUrl && !imgError);
   const hasAnyBoxes = (boxesV1 && boxesV1.length > 0) || (boxesV2 && boxesV2.length > 0);
   const hasPlottableBoxes =
     (boxesV1.length > 0 && v1Plottable) || (boxesV2.length > 0 && v2Plottable);
@@ -316,7 +289,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   }
 
   // If neither asset nor dimensions exist at all
-  if (!hasValidAsset && !dimsV1 && !dimsV2) {
+  if (!resolvedUrlV1 && !resolvedUrlV2 && !dimsV1 && !dimsV2) {
     return (
       <div
         style={{
@@ -339,7 +312,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
           Spatial Geometry Unavailable
         </div>
         <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', maxWidth: '280px', lineHeight: 1.4 }}>
-          Media asset and intrinsic dimensions are not recorded for record {recordId.slice(0, 8)}. Exact bounding coordinates cannot be accurately projected.
+          Media assets and intrinsic dimensions are not recorded for record {recordId.slice(0, 8)}. Exact bounding coordinates cannot be accurately projected.
         </div>
         <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
           Baseline: {boxesV1.length} box{boxesV1.length === 1 ? '' : 'es'} · Target: {boxesV2.length} box{boxesV2.length === 1 ? '' : 'es'}
@@ -348,9 +321,47 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     );
   }
 
-  const activeDimsDisplay = dimsV2 || dimsV1;
-
   if (viewMode === 'overlay') {
+    // If versions reference different source assets, shared overlay is prohibited to avoid misleading placement
+    if (!areAssetsCompatible) {
+      return (
+        <div
+          style={{
+            width: '100%',
+            minHeight: '140px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--bg-surface)',
+            border: '1px dashed var(--border-hairline)',
+            borderRadius: '4px',
+            padding: '1rem',
+            textAlign: 'center',
+            gap: '0.4rem',
+          }}
+        >
+          <AlertCircle size={20} style={{ color: 'var(--amber)' }} />
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Shared Overlay Unavailable
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
+            Versions reference different source media assets ({assetIdV1 ? `v1: ${assetIdV1.slice(0, 8)}` : 'v1 asset'} vs {assetIdV2 ? `v2: ${assetIdV2.slice(0, 8)}` : 'v2 asset'}). Bounding boxes cannot be truthfully co-projected onto a single image frame.
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+            Use Side-by-Side view to inspect each version's imagery and geometry independently.
+          </div>
+          <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Baseline (v1): {boxesV1.length} box{boxesV1.length === 1 ? '' : 'es'} · Target (v2): {boxesV2.length} box{boxesV2.length === 1 ? '' : 'es'}
+          </div>
+        </div>
+      );
+    }
+
+    const overlayUrl = resolvedUrlV2 || resolvedUrlV1;
+    const hasValidOverlayAsset = Boolean(overlayUrl && !imgErrorV1 && !imgErrorV2);
+    const activeDimsDisplay = dimsV2 || dimsV1;
+
     return (
       <div
         ref={containerRef}
@@ -364,18 +375,22 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
           border: '1px solid var(--border-hairline)',
         }}
       >
-        {hasValidAsset ? (
+        {hasValidOverlayAsset ? (
           <img
-            src={assetUrl!}
+            src={overlayUrl!}
             alt={`Record ${recordId} asset canvas`}
             style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
             onLoad={(e) => {
               const img = e.currentTarget;
               if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                setNaturalDims({ width: img.naturalWidth, height: img.naturalHeight });
+                setNaturalDimsV1({ width: img.naturalWidth, height: img.naturalHeight });
+                setNaturalDimsV2({ width: img.naturalWidth, height: img.naturalHeight });
               }
             }}
-            onError={() => setImgError(true)}
+            onError={() => {
+              setImgErrorV1(true);
+              setImgErrorV2(true);
+            }}
           />
         ) : (
           <div
@@ -461,12 +476,15 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     );
   }
 
-  // Side-by-side mode
+  // Side-by-side mode: Each version uses its OWN asset URL, its OWN natural dimensions, and its OWN plottable state
+  const hasValidV1 = Boolean(resolvedUrlV1 && !imgErrorV1);
+  const hasValidV2 = Boolean(resolvedUrlV2 && !imgErrorV2);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
       <div>
         <div style={{ fontSize: '0.7rem', color: 'var(--rose)', fontWeight: 600, marginBottom: '0.2rem' }}>
-          v1 Baseline ({boxesV1.length} boxes)
+          v1 Baseline ({boxesV1.length} boxes){assetIdV1 ? ` · Asset ${assetIdV1.slice(0, 6)}` : ''}
         </div>
         <div
           ref={containerRef}
@@ -479,18 +497,18 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
             border: '1px solid var(--border-hairline)',
           }}
         >
-          {hasValidAsset ? (
+          {hasValidV1 ? (
             <img
-              src={assetUrl!}
+              src={resolvedUrlV1!}
               alt={`Record ${recordId} v1 canvas`}
               style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
               onLoad={(e) => {
                 const img = e.currentTarget;
                 if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                  setNaturalDims({ width: img.naturalWidth, height: img.naturalHeight });
+                  setNaturalDimsV1({ width: img.naturalWidth, height: img.naturalHeight });
                 }
               }}
-              onError={() => setImgError(true)}
+              onError={() => setImgErrorV1(true)}
             />
           ) : (
             <div
@@ -533,7 +551,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
 
       <div>
         <div style={{ fontSize: '0.7rem', color: 'var(--emerald)', fontWeight: 600, marginBottom: '0.2rem' }}>
-          v2 Target ({boxesV2.length} boxes)
+          v2 Target ({boxesV2.length} boxes){assetIdV2 ? ` · Asset ${assetIdV2.slice(0, 6)}` : ''}
         </div>
         <div
           style={{
@@ -545,12 +563,18 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
             border: '1px solid var(--border-hairline)',
           }}
         >
-          {hasValidAsset ? (
+          {hasValidV2 ? (
             <img
-              src={assetUrl!}
+              src={resolvedUrlV2!}
               alt={`Record ${recordId} v2 canvas`}
               style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
-              onError={() => setImgError(true)}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  setNaturalDimsV2({ width: img.naturalWidth, height: img.naturalHeight });
+                }
+              }}
+              onError={() => setImgErrorV2(true)}
             />
           ) : (
             <div
@@ -1037,6 +1061,12 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                         const rawAssetUrl = item.asset_url
                           ? item.asset_url.replace('/file', '/raw')
                           : null;
+                        const rawAssetUrlV1 = item.asset_url_v1
+                          ? item.asset_url_v1.replace('/file', '/raw')
+                          : rawAssetUrl;
+                        const rawAssetUrlV2 = item.asset_url_v2
+                          ? item.asset_url_v2.replace('/file', '/raw')
+                          : rawAssetUrl;
 
                         return (
                           <div
@@ -1057,13 +1087,17 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
 
                             <SpatialDiffViewer
                               assetUrl={rawAssetUrl}
+                              assetUrlV1={rawAssetUrlV1}
+                              assetUrlV2={rawAssetUrlV2}
+                              assetIdV1={item.asset_id_v1}
+                              assetIdV2={item.asset_id_v2}
+                              sameAsset={item.same_asset}
                               boxesV1={item.boxes_v1 || []}
                               boxesV2={item.boxes_v2 || []}
                               coordinateSystemV1={item.coordinate_system_v1}
                               coordinateSystemV2={item.coordinate_system_v2}
                               imageDimensionsV1={item.image_dimensions_v1}
                               imageDimensionsV2={item.image_dimensions_v2}
-                              assetDimensions={item.asset_dimensions}
                               assetDimensionsV1={item.asset_dimensions_v1}
                               assetDimensionsV2={item.asset_dimensions_v2}
                               viewMode={viewMode}

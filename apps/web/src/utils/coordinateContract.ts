@@ -39,25 +39,20 @@ export function identifyCoordinateSystem(
 }
 
 /**
- * Checks whether an annotation is demonstrably calibrated.
- * Returns true if explicitly declared as pixel-intrinsic or normalized,
- * or if there are no existing boxes (fresh annotation).
+ * Checks whether an annotation coordinate system is demonstrably calibrated.
+ * Returns true strictly if declared as pixel-intrinsic or normalized.
+ * Missing metadata is NEVER treated as calibrated, even with an empty box list.
  */
 export function isCoordinateSystemCalibrated(
-  declaredSystem?: string | null,
-  boxes?: BoundingBox[]
+  declaredSystem?: string | null
 ): boolean {
-  if (declaredSystem === 'pixel-intrinsic' || declaredSystem === 'normalized') {
-    return true;
-  }
-  if (!boxes || boxes.length === 0) {
-    return true;
-  }
-  return false;
+  return declaredSystem === 'pixel-intrinsic' || declaredSystem === 'normalized';
 }
 
 /**
  * Determines whether geometry can be truthfully and reliably plotted on an image.
+ * Both pixel-intrinsic and normalized geometry strictly require valid source dimensions
+ * (width > 0, height > 0) to ensure accurate aspect-ratio letterboxing.
  * Historical uncalibrated boxes MUST NOT be plotted at arbitrary or guessed scales.
  */
 export function shouldPlotVersionGeometry(
@@ -66,14 +61,35 @@ export function shouldPlotVersionGeometry(
   dimensions: { width: number; height: number } | null | undefined
 ): boolean {
   if (!boxes || boxes.length === 0) return false;
-  if (declaredSystem === 'pixel-intrinsic') {
-    return Boolean(dimensions && dimensions.width > 0 && dimensions.height > 0);
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) {
+    return false;
   }
-  if (declaredSystem === 'normalized') {
+  if (declaredSystem === 'pixel-intrinsic' || declaredSystem === 'normalized') {
     return true;
   }
-  // Historical annotations without explicit coordinate-space metadata cannot be plotted reliably
   return false;
+}
+
+/**
+ * Safely converts an array of normalized bounding boxes [0, 1] into intrinsic source-image pixels [0, W_src] x [0, H_src].
+ * Preserves id, label, confidence, and all existing metadata fields.
+ * Throws an Error if dimensions are missing or invalid.
+ */
+export function convertNormalizedToPixelIntrinsic(
+  boxes: BoundingBox[],
+  dimensions: { width: number; height: number } | null | undefined
+): BoundingBox[] {
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) {
+    throw new Error('Valid source image dimensions (width and height > 0) are required to convert normalized coordinates.');
+  }
+  const { width: W, height: H } = dimensions;
+  return boxes.map((box) => ({
+    ...box,
+    x: Math.max(0, Math.min(W, Math.round(box.x * W))),
+    y: Math.max(0, Math.min(H, Math.round(box.y * H))),
+    w: Math.max(1, Math.min(W, Math.round(box.w * W))),
+    h: Math.max(1, Math.min(H, Math.round(box.h * H))),
+  }));
 }
 
 /**
@@ -110,7 +126,7 @@ export function sourceToDisplayBox(
   srcH: number,
   isNormalized = false
 ): { left: string; top: string; width: string; height: string } | null {
-  if (dispW <= 0 || dispH <= 0) {
+  if (dispW <= 0 || dispH <= 0 || srcW <= 0 || srcH <= 0) {
     return null;
   }
 
@@ -125,10 +141,6 @@ export function sourceToDisplayBox(
       width: `${Math.round(w)}px`,
       height: `${Math.round(h)}px`,
     };
-  }
-
-  if (srcW <= 0 || srcH <= 0) {
-    return null;
   }
 
   const scaleX = dispW / srcW;
