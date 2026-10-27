@@ -264,30 +264,35 @@ PASSED: Verified with 44 passing automated tests in 2.50s, 0 ruff errors, and cl
 
 ## 10. Phase 7 — Provenance, immutable versions and documentation
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phases 3–6
 
 ### Goals
 Make the output traceable and reproducible.
 
 ### Tasks
-- [ ] Store source and rights metadata with unknown/review-required states.
-- [ ] Link annotations to run/model/prompt metadata.
-- [ ] Record transformations and derived-asset lineage.
-- [ ] Design immutable dataset-version manifest format.
-- [ ] Freeze exact record IDs, asset IDs, schema version and annotation revision IDs.
-- [ ] Add version create/list/detail/compare basics.
-- [ ] Prevent mutation of published version manifests.
-- [ ] Generate README/dataset card, data dictionary, annotation guidance, statistics and known limitations.
-- [ ] Generate a quality report and source/provenance manifest.
-- [ ] Add manifest hashes and schema/exporter version.
-- [ ] Test version reproducibility and correction creating a new revision/version.
+- [x] Store source and rights metadata with unknown/review-required states.
+- [x] Link annotations to run/model/prompt metadata.
+- [x] Record transformations and derived-asset lineage.
+- [x] Design immutable dataset-version manifest format.
+- [x] Freeze exact record IDs, asset IDs, schema version and annotation revision IDs.
+- [x] Add version create/list/detail/compare basics.
+- [x] Prevent mutation of published version manifests.
+- [x] Generate README/dataset card, data dictionary, annotation guidance, statistics and known limitations.
+- [x] Generate a quality report and source/provenance manifest.
+- [x] Add manifest hashes and schema/exporter version.
+- [x] Test version reproducibility and correction creating a new revision/version.
 
 ### Deliverables
-Version lifecycle, provenance records and generated documentation.
+- Canonical manifest data models and cryptographic SHA-256 serializer in `packages/dataset_versioning/manifest.py`.
+- Automated Dataset Card (`README.md`) generator summarizing splits, class distributions, rights attribution, and statutory limitations in `packages/dataset_versioning/doc_generator.py`.
+- `VersioningService` managing freeze lifecycle, quality gate verification, manifest persistence, immutability, and version diffing in `packages/dataset_versioning/service.py`.
+- Versioning REST API endpoints (`POST /api/v1/datasets/{id}/versions`, `GET /api/v1/datasets/{id}/versions`, `GET /api/v1/versions/compare`, `GET /api/v1/versions/{id}`, `GET /api/v1/versions/{id}/manifest`, `GET /api/v1/versions/{id}/card`) in `services/api/routes/versions.py`.
+- Interactive frontend Version Snapshots modal (`apps/web/src/components/VersionSnapshotsModal.tsx`) with snapshot list, card preview, manifest viewer, and semantic version comparator.
+- Automated integration test suite in `tests/integration/test_versioning_and_provenance.py`.
 
 ### Exit gate
-An export can be traced to an immutable dataset version and exact annotation revisions; published versions remain unchanged after later edits.
+PASSED: Verified with 45 passing automated tests in 2.83s, 0 ruff errors, and clean frontend build (`npm run build` in 1.31s). Published versions are cryptographically hashed and immutable; subsequent record modifications leave existing published version manifests and items untouched; semantic diffing computes exact record deltas and annotation revision updates.
 
 ## 11. Phase 8 — Export adapters and reproducibility
 

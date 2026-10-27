@@ -68,3 +68,14 @@ class ImmutableVersionError(DomainError):
             code="IMMUTABLE_VERSION_VIOLATION",
             details={"version_id": version_id},
         )
+
+
+class PublishingBlockedError(DomainError):
+    """Raised when a dataset cannot be published due to blocking quality findings."""
+
+    def __init__(self, message: str, blocking_count: int, findings: list[dict[str, Any]] | None = None):
+        super().__init__(
+            message,
+            code="PUBLISHING_BLOCKED",
+            details={"blocking_count": blocking_count, "findings": findings or []},
+        )

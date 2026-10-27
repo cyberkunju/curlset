@@ -163,3 +163,41 @@ export interface QualityReport {
   disclaimer: string;
 }
 
+export interface DatasetVersion {
+  id: string;
+  dataset_id: string;
+  version_number: number;
+  version_tag: string;
+  manifest_hash: string;
+  manifest_storage_key: string;
+  parent_version_id?: string;
+  record_count: number;
+  schema_version: number;
+  quality_summary: Record<string, any>;
+  documentation_markdown?: string;
+  is_published: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+export interface VersionDiff {
+  version_a: {
+    id: string;
+    tag: string;
+    version_number: number;
+    record_count: number;
+    manifest_hash: string;
+  };
+  version_b: {
+    id: string;
+    tag: string;
+    version_number: number;
+    record_count: number;
+    manifest_hash: string;
+  };
+  records_added: string[];
+  records_removed: string[];
+  annotations_updated: string[];
+  net_record_change: number;
+}
+

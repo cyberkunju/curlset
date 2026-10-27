@@ -5,6 +5,7 @@ import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { AIAnnotationModal } from './AIAnnotationModal';
 import { ImportModal } from './ImportModal';
 import { QualityDashboardModal } from './QualityDashboardModal';
+import { VersionSnapshotsModal } from './VersionSnapshotsModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -19,6 +20,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [isQualityOpen, setIsQualityOpen] = useState(false);
+  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -176,7 +178,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsQualityOpen(true)} title="Run Quality Checks (Phase 6)">
             <span>🛡️</span> Quality Engine
           </button>
-          <button className="btn btn-secondary" title="Publish Dataset Version (Phase 7)">
+          <button className="btn btn-secondary" onClick={() => setIsVersionsOpen(true)} title="Publish Dataset Version (Phase 7)">
             <span>📌</span> Publish Snapshot
           </button>
           <button className="btn btn-secondary" title="Export Dataset Package (Phase 8)">
@@ -204,6 +206,15 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         isOpen={isQualityOpen}
         onClose={() => {
           setIsQualityOpen(false);
+          loadData();
+        }}
+      />
+
+      <VersionSnapshotsModal
+        datasetId={datasetId}
+        isOpen={isVersionsOpen}
+        onClose={() => {
+          setIsVersionsOpen(false);
           loadData();
         }}
       />

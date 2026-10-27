@@ -202,4 +202,43 @@ export async function fetchValidationSummary(datasetId: string): Promise<any> {
   return handleResponse(res);
 }
 
+export async function fetchDatasetVersions(datasetId: string): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/versions`);
+  return handleResponse<any[]>(res);
+}
+
+export async function createDatasetVersion(
+  datasetId: string,
+  versionTag?: string,
+  force = false
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/versions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version_tag: versionTag, force }),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchVersionDetail(versionId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/versions/${versionId}`);
+  return handleResponse(res);
+}
+
+export async function fetchVersionManifest(versionId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/versions/${versionId}/manifest`);
+  return handleResponse(res);
+}
+
+export async function fetchVersionCard(versionId: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/versions/${versionId}/card`);
+  if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+  return res.text();
+}
+
+export async function compareVersions(versionAId: string, versionBId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/versions/compare?version_a_id=${versionAId}&version_b_id=${versionBId}`);
+  return handleResponse(res);
+}
+
 

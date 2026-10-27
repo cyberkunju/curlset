@@ -18,6 +18,7 @@ from packages.dataset_core.exceptions import (
     ImmutableVersionError,
     InvalidStateTransitionError,
     ProjectOwnershipError,
+    PublishingBlockedError,
     ResourceNotFoundError,
 )
 from services.api.config import settings
@@ -30,6 +31,7 @@ from services.api.routes import (
     projects,
     records,
     validation,
+    versions,
 )
 
 START_TIME = time.time()
@@ -104,6 +106,14 @@ async def immutable_version_handler(request: Request, exc: ImmutableVersionError
     )
 
 
+@app.exception_handler(PublishingBlockedError)
+async def publishing_blocked_handler(request: Request, exc: PublishingBlockedError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+    )
+
+
 @app.exception_handler(DomainError)
 async def generic_domain_error_handler(request: Request, exc: DomainError):
     return JSONResponse(
@@ -121,6 +131,7 @@ app.include_router(annotations.router)
 app.include_router(assets.router)
 app.include_router(inference.router)
 app.include_router(validation.router)
+app.include_router(versions.router)
 
 
 
