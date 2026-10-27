@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UploadCloud, CheckCircle2, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 
@@ -94,7 +95,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '620px' }}>
         <div className="modal-header">
           <h2 className="modal-title">Import Data & Media Assets</h2>
-          <button className="modal-close" onClick={resetAndClose}>&times;</button>
+          <button className="modal-close" onClick={resetAndClose} aria-label="Close dialog" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={18} />
+          </button>
         </div>
 
         {error && (
@@ -125,7 +128,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   disabled={uploading}
                 />
                 <label htmlFor="fileUploadInput" style={{ cursor: 'pointer', display: 'block' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📁</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <UploadCloud size={36} className="text-blue-500" />
+                  </div>
                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
                     {file ? file.name : 'Click or Drag file to upload'}
                   </div>
@@ -175,7 +180,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         ) : (
           <div>
             <div style={{ textAlign: 'center', margin: '1rem 0 1.5rem 0' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>✅</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                <CheckCircle2 size={40} style={{ color: 'var(--emerald)' }} />
+              </div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Ingestion Completed</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                 Run ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{report.run_id}</code>

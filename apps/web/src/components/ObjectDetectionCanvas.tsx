@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Magnet, Sparkles } from 'lucide-react';
+import { Magnet, Sparkles, Trash2 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { magneticSnapBoxToEdges } from '../utils/magneticBoxSnap';
 
@@ -320,9 +320,9 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                 <button
                   className="btn btn-secondary"
                   onClick={() => handleDeleteBox(idx)}
-                  style={{ padding: '0.15rem 0.45rem', fontSize: '0.75rem', color: 'var(--rose)' }}
+                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: 'var(--rose)', display: 'inline-flex', alignItems: 'center' }}
                 >
-                  ✕ Remove
+                  <Trash2 size={13} style={{ marginRight: '4px' }} /> Remove
                 </button>
               </div>
             ))}

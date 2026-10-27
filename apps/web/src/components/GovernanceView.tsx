@@ -152,7 +152,9 @@ export const GovernanceView: React.FC = () => {
         </div>
       ) : projects.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🛡️</div>
+          <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+            <ShieldCheck size={36} style={{ color: 'var(--text-muted)' }} />
+          </div>
           <h3 className="empty-title">No projects available</h3>
           <p className="empty-desc">Create a project workspace first to configure governance and quotas.</p>
         </div>
@@ -212,8 +214,9 @@ export const GovernanceView: React.FC = () => {
 
           <div style={{ padding: '1.5rem' }}>
             {error && (
-              <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', color: '#fca5a5', fontSize: '0.85rem' }}>
-                ⚠️ {error}
+              <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', color: '#fca5a5', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <span>{error}</span>
               </div>
             )}
 

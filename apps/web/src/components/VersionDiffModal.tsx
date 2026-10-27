@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitCompare, Layers, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { GitCompare, Layers, CheckCircle, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { fetchDatasetVersions } from '../api';
 import { DatasetVersion } from '../types';
@@ -76,8 +76,8 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
               Cryptographic release comparison, class delta distributions, and spatial IoU shifts
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 

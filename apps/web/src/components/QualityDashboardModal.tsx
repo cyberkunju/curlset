@@ -1,4 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import {
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  Tag,
+  BarChart2,
+  Layers,
+  X,
+} from 'lucide-react';
 import { fetchValidationSummary, runDatasetValidation } from '../api';
 import { QualityReport, ValidationFinding } from '../types';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
@@ -60,14 +70,14 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>🛡️</span> Quality & Publication Readiness Engine
+              <ShieldCheck size={20} className="text-blue-500" /> Quality & Publication Readiness Engine
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               Phase 6 automated integrity audits, split leakage detection, and distribution analysis
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -103,7 +113,11 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                  <span style={{ fontSize: '1.2rem' }}>{report.is_publishable ? '✅' : '🚫'}</span>
+                  {report.is_publishable ? (
+                    <CheckCircle2 size={18} style={{ color: 'var(--emerald)' }} />
+                  ) : (
+                    <AlertTriangle size={18} style={{ color: 'var(--rose)' }} />
+                  )}
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: report.is_publishable ? 'var(--emerald)' : 'var(--rose)' }}>
                     {report.is_publishable ? 'Publication Ready' : 'Publication Blocked'}
                   </h3>
@@ -119,9 +133,10 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
                 variant="primary"
                 onClick={handleRunAudit}
                 disabled={running}
-                style={{ whiteSpace: 'nowrap' }}
+                style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
               >
-                {running ? 'Running Diagnostics...' : '🔄 Re-run Quality Audit'}
+                <RefreshCw size={14} className={running ? 'animate-spin' : ''} />
+                {running ? 'Running Diagnostics...' : 'Re-run Quality Audit'}
               </SpringButton>
             </div>
 
@@ -159,8 +174,8 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
               {/* Class Balance */}
               <div className="card" style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                  🏷️ Class Distribution
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Tag size={15} /> Class Distribution
                 </h4>
                 {Object.keys(report.class_distribution).length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No approved class labels recorded yet.</p>
@@ -178,8 +193,8 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
 
               {/* Split Distribution */}
               <div className="card" style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                  📊 Split Balance
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <BarChart2 size={15} /> Split Balance
                 </h4>
                 {Object.keys(report.split_distribution).length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No splits assigned.</p>
@@ -197,8 +212,8 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
 
               {/* Origin Distribution */}
               <div className="card" style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                  🧬 Annotation Provenance
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Layers size={15} /> Annotation Provenance
                 </h4>
                 {Object.keys(report.origin_distribution).length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No annotations present.</p>
@@ -221,8 +236,8 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
                 Diagnostic Findings ({report.findings.length})
               </h4>
               {report.findings.length === 0 ? (
-                <div style={{ padding: '1.5rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--emerald)', fontSize: '0.9rem' }}>
-                  🎉 Clean Bill of Health! No structural issues, missing assets, split leakage, or unreviewed records detected.
+                <div style={{ padding: '1.5rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--emerald)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={18} /> Clean Bill of Health! No structural issues, missing assets, split leakage, or unreviewed records detected.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -284,9 +299,12 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
             </div>
 
             {/* Mandatory AGENTS.md Compliance Disclaimer */}
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              <strong>⚠️ Integrity Policy Notice: </strong>
-              {report.disclaimer}
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--amber)' }} />
+              <div>
+                <strong>Integrity Policy Notice: </strong>
+                {report.disclaimer}
+              </div>
             </div>
           </div>
         ) : null}

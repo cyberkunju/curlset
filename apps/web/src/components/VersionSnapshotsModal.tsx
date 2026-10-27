@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
+  GitBranch,
+  History,
+  Plus,
+  GitCompare,
+  Lock,
+  FileText,
+  FileCode,
+  X,
+} from 'lucide-react';
+import {
   compareVersions,
   createDatasetVersion,
   fetchDatasetVersions,
@@ -132,14 +142,14 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>📌</span> Immutable Dataset Versions & Provenance
+              <GitBranch size={20} className="text-blue-500" /> Immutable Dataset Versions & Provenance
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               Phase 7 cryptographic snapshot manifests, automated dataset cards, and semantic version diffs
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -148,24 +158,24 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
           <button
             className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => { setActiveTab('list'); setViewingCard(null); setViewingManifest(null); }}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            📋 Published Versions ({versions.length})
+            <History size={15} /> Published Versions ({versions.length})
           </button>
           <button
             className={`btn ${activeTab === 'publish' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => { setActiveTab('publish'); setViewingCard(null); setViewingManifest(null); }}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            ➕ Freeze New Snapshot
+            <Plus size={15} /> Freeze New Snapshot
           </button>
           <button
             className={`btn ${activeTab === 'compare' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => { setActiveTab('compare'); setViewingCard(null); setViewingManifest(null); }}
             disabled={versions.length < 2}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            🔍 Compare Versions
+            <GitCompare size={15} /> Compare Versions
           </button>
         </div>
 
@@ -205,7 +215,9 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
               </div>
             ) : versions.length === 0 ? (
               <div className="empty-state" style={{ padding: '3rem' }}>
-                <div className="empty-icon">📌</div>
+                <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>
+                  <GitBranch size={32} />
+                </div>
                 <h3 className="empty-title">No Version Snapshots Created</h3>
                 <p className="empty-desc">
                   This dataset has not yet been frozen into an immutable version.
@@ -238,7 +250,9 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                         </span>
                         <span className="badge badge-blue">v{ver.version_number}</span>
                         <span className="badge badge-cyan">{ver.record_count} Records Frozen</span>
-                        <span className="badge badge-emerald">🔒 Immutable</span>
+                        <span className="badge badge-emerald" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Lock size={11} /> Immutable
+                        </span>
                       </div>
                       <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                         <span>Published: {new Date(ver.created_at).toLocaleString()}</span>
@@ -256,17 +270,17 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                         className="btn btn-secondary"
                         onClick={() => handleViewCard(ver)}
                         title="View generated Dataset Card (README.md)"
-                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                       >
-                        📄 Dataset Card
+                        <FileText size={13} /> Dataset Card
                       </button>
                       <button
                         className="btn btn-secondary"
                         onClick={() => handleViewManifest(ver)}
                         title="View cryptographic JSON manifest"
-                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                       >
-                        🧬 Manifest JSON
+                        <FileCode size={13} /> Manifest JSON
                       </button>
                     </div>
                   </div>
@@ -279,10 +293,13 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
         {/* Tab 2: Publish Form */}
         {activeTab === 'publish' && (
           <form onSubmit={handlePublish}>
-            <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <strong>🔒 Immutability Notice: </strong>
-              Publishing a snapshot freezes exact record IDs, asset content hashes, and annotation revision IDs.
-              Once published, a version can never be edited in-place. Further adjustments create a new sequential version.
+            <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+              <Lock size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-interactive)' }} />
+              <div>
+                <strong>Immutability Notice: </strong>
+                Publishing a snapshot freezes exact record IDs, asset content hashes, and annotation revision IDs.
+                Once published, a version can never be edited in-place. Further adjustments create a new sequential version.
+              </div>
             </div>
 
             {publishError && (
@@ -330,7 +347,7 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={publishing}>
-                {publishing ? 'Freezing Snapshot & Generating Card...' : '📌 Publish Immutable Version'}
+                {publishing ? 'Freezing Snapshot & Generating Card...' : 'Publish Immutable Version'}
               </button>
             </div>
           </form>

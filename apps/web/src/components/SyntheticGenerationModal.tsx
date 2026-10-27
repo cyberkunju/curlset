@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkles, ShieldCheck, CheckCircle2, X } from 'lucide-react';
 import { triggerSyntheticGeneration, fetchSyntheticLineage } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
@@ -94,7 +95,7 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🧬</span>
+            <Sparkles size={22} className="text-blue-500" />
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Synthetic Data Generation & Lineage</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -102,8 +103,8 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
               </p>
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -121,7 +122,7 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
           gap: '0.5rem',
           alignItems: 'flex-start',
         }}>
-          <span style={{ color: 'var(--accent-interactive)' }}>🛡️</span>
+          <ShieldCheck size={16} style={{ color: 'var(--accent-interactive)', flexShrink: 0, marginTop: '2px' }} />
           <div>
             <strong style={{ color: 'var(--text-primary)' }}>Integrity Policy:</strong> Synthetic records are never confused with real samples.
             Every sample is tagged <code>origin: synthetic</code>, linked to its prompt version and seed,
@@ -288,8 +289,8 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
 
           {lastResult && (
             <div className="card" style={{ padding: '1rem', border: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--emerald)' }}>
-                ✓ Last Run Summary ({lastResult.run_id})
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--emerald)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <CheckCircle2 size={15} /> Last Run Summary ({lastResult.run_id})
               </h4>
               <div style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
                 <div><strong>Target Class:</strong> {lastResult.target_class}</div>

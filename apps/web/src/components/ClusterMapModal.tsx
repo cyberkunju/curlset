@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Target, Sparkles, Layers, Info } from 'lucide-react';
+import { Target, Sparkles, Layers, Info, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 
 interface ClusterMapModalProps {
@@ -62,8 +62,8 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
               High-dimensional SVD projection with automated data-desert coverage gap discovery
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 

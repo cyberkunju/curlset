@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlipHorizontal, FlipVertical, RotateCw, Sparkles, CheckCircle2 } from 'lucide-react';
+import { FlipHorizontal, FlipVertical, RotateCw, Sparkles, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 
@@ -62,8 +62,8 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
               Simultaneously transforms image assets and spatial bounding boxes with origin tracking
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.65rem' }}>
+            <X size={16} />
           </button>
         </div>
 
@@ -143,7 +143,8 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
 
             {/* Safety Invariant Notice */}
             <div style={{ padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              🛡️ <strong>Safety Guarantee:</strong> All resulting bounding boxes are clipped to valid boundaries. Degenerate boxes (&lt;5px) are purged. All output records are tagged with <code>origin="augmented"</code> and routed to <code>pending_review</code>.
+              <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: '-2px', color: 'var(--accent-interactive)', marginRight: '4px' }} />
+              <strong>Safety Guarantee:</strong> All resulting bounding boxes are clipped to valid boundaries. Degenerate boxes (&lt;5px) are purged. All output records are tagged with <code>origin="augmented"</code> and routed to <code>pending_review</code>.
             </div>
 
             {loading && (
@@ -155,7 +156,7 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
                 Cancel
               </SpringButton>
               <SpringButton variant="primary" onClick={handleApply} disabled={loading}>
-                {loading ? 'Transforming Dataset Records...' : '🚀 Execute Augmentation Run'}
+                {loading ? 'Transforming Dataset Records...' : 'Execute Augmentation Run'}
               </SpringButton>
             </div>
           </div>

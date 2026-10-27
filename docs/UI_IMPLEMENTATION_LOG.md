@@ -196,3 +196,101 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
 - **Backend Test Suite**: `.venv\Scripts\pytest tests/`: **104 passed** (100% pass rate).
 - **Linting & Code Quality**: `.venv\Scripts\ruff check .`: **All checks passed** (0 errors).
 
+---
+
+## 7. Project-Wide UI Icon Audit & Standardization
+
+**Date:** October 26, 2026 (Icon Standardization Pass)  
+**Standard Specification:** `docs/UI_ICON_STANDARD.md`
+
+### 7.1 Objective & Scope
+- Audited the entire repository and purged all decorative emojis, AI-generated-looking emojis, and ad hoc Unicode characters across the user interface.
+- Standardized 100% of interface icons on `lucide-react` outline vector components with standard sizing (`12px`-`36px`), consistent stroke width (`1.75`), neutral-first palette, and semantic coloring for state only.
+
+### 7.2 Files Audited & Standardized
+1. `apps/web/src/components/ProjectSettingsModal.tsx`:
+   - Replaced `🛡️` header icon with `<ShieldCheck size={22} className="text-blue-500" />`.
+   - Replaced raw `✕` close button with `<X size={18} />`.
+   - Replaced tab emojis `📊`, `👥`, `📜` with `<BarChart2 size={16} />`, `<Users size={16} />`, `<FileText size={16} />`.
+   - Replaced quota card emojis `💾` Storage Consumption and `📑` Record Volume Quota with `<HardDrive size={16} />` and `<Layers size={16} />`.
+   - Replaced warning emoji `⚠️` with `<AlertTriangle size={15} />`.
+   - Replaced rate limit emoji `🛡️` with `<ShieldAlert size={15} />`.
+2. `apps/web/src/components/AugmentationModal.tsx`:
+   - Replaced close button `✕` with `<X size={16} />`.
+   - Replaced `🛡️` safety notice with `<ShieldCheck size={14} />`.
+   - Replaced `🚀 Execute Augmentation Run` with standard button text.
+3. `apps/web/src/components/EvaluationModal.tsx`:
+   - Replaced header `🧠` with `<Brain size={20} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced tabs `🎯`, `📊`, `🗺️` with `<Target size={15} />`, `<BarChart2 size={15} />`, `<Compass size={15} />`.
+   - Replaced `🔄 Refresh` with `<RefreshCw size={14} /> Refresh`.
+   - Replaced `🚀 Run Evaluation` with standard button text.
+   - Replaced `⚠️ Statistical Limitations` with `<AlertTriangle size={15} />`.
+   - Replaced legend emoji `🔴` with CSS circle dot indicator.
+   - Replaced blind spot gap `🎯` with `<Target size={14} />`.
+   - Replaced `⚡ Synthesize` with `<Sparkles size={13} />`.
+4. `apps/web/src/components/ExportModal.tsx`:
+   - Replaced header `📦` with `<Package size={20} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced immutable snapshot required `🔒` with `<Lock size={32} />`.
+   - Replaced format emojis `📄`, `🧬`, `🖼️`, `🎯`, `⚡`, `🪓`, `🏭`, `🎙️` with `<FileText size={16} />`, `<Database size={16} />`, `<Image size={16} />`, `<Crosshair size={16} />`, `<Sparkles size={16} />`, `<Terminal size={16} />`, `<Layers size={16} />`, `<Mic size={16} />`.
+   - Replaced context simulator `🔍` with `<Sliders size={16} />`.
+   - Replaced checkmark `✓` with `<CheckCircle2 size={14} />`.
+   - Replaced contents `📦` with `<Package size={16} />`.
+   - Replaced download button `⬇️ Download ZIP` with `<Download size={14} /> Download ZIP`.
+   - Replaced submit button `🚀` with clean action text.
+5. `apps/web/src/components/QualityDashboardModal.tsx`:
+   - Replaced header `🛡️` with `<ShieldCheck size={20} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced readiness icons `✅` / `🚫` with `<CheckCircle2 size={18} />` / `<AlertTriangle size={18} />`.
+   - Replaced `🔄 Re-run Quality Audit` with `<RefreshCw size={14} />`.
+   - Replaced distribution headers `🏷️`, `📊`, `🧬` with `<Tag size={15} />`, `<BarChart2 size={15} />`, `<Layers size={15} />`.
+   - Replaced celebration `🎉` with `<CheckCircle2 size={18} />`.
+   - Replaced notice `⚠️` with `<AlertTriangle size={15} />`.
+6. `apps/web/src/components/VersionSnapshotsModal.tsx`:
+   - Replaced header `📌` with `<GitBranch size={20} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced tabs `📋`, `➕`, `🔍` with `<History size={15} />`, `<Plus size={15} />`, `<GitCompare size={15} />`.
+   - Replaced empty snapshot icon `📌` with `<GitBranch size={32} />`.
+   - Replaced badge `🔒 Immutable` with `<Lock size={11} /> Immutable`.
+   - Replaced card actions `📄` and `🧬` with `<FileText size={13} />` and `<FileCode size={13} />`.
+   - Replaced notice `🔒` with `<Lock size={15} />`.
+   - Replaced publish button `📌` with clean action text.
+7. `apps/web/src/components/SourceDiscoveryModal.tsx`:
+   - Replaced header `🌐` with `<Globe size={22} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced legal alert `⚖️` with `<Scale size={16} />`.
+   - Replaced tabs `📚`, `🛡️`, `📜` with `<BookOpen size={15} />`, `<ShieldCheck size={15} />`, `<FileText size={15} />`.
+   - Replaced action button `⚖️ Review Rights` with `<Scale size={14} /> Review Rights`.
+8. `apps/web/src/components/SyntheticGenerationModal.tsx`:
+   - Replaced header `🧬` with `<Sparkles size={22} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced policy notice `🛡️` with `<ShieldCheck size={16} />`.
+   - Replaced summary checkmark `✓` with `<CheckCircle2 size={15} />`.
+9. `apps/web/src/components/AIAnnotationModal.tsx`:
+   - Replaced header `🤖` with `<Bot size={22} className="text-blue-500" />`.
+   - Replaced close button `✕` with `<X size={18} />`.
+   - Replaced batch completed `✓` with `<CheckCircle2 size={18} />`.
+   - Replaced safety guarantee `🔒` with `<Lock size={15} />`.
+   - Replaced submit button `🚀` with clean action text.
+10. `apps/web/src/components/ImportModal.tsx`:
+    - Replaced close button `&times;` with `<X size={18} />`.
+    - Replaced upload dropzone `📁` with `<UploadCloud size={36} />`.
+    - Replaced completion `✅` with `<CheckCircle2 size={40} />`.
+11. `apps/web/src/components/ClusterMapModal.tsx` & `VersionDiffModal.tsx`:
+    - Replaced raw unicode `✕` close buttons with `<X size={18} />`.
+12. `apps/web/src/components/GovernanceView.tsx`:
+    - Replaced empty state icon `🛡️` with `<ShieldCheck size={36} />`.
+    - Replaced error alert `⚠️` with `<AlertCircle size={15} />`.
+13. `apps/web/src/components/ObjectDetectionCanvas.tsx`:
+    - Replaced raw unicode `✕ Remove` with `<Trash2 size={13} /> Remove`.
+14. `apps/web/src/components/AnnotationWorkspace.tsx`:
+    - Replaced empty state icon `📁` with `<Inbox size={36} />`.
+
+### 7.3 Verification & Quality Gate Results
+- **Unicode-Aware Codebase Scan**: `0` emojis remaining in `apps/web/src` and `services`.
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, 6.42s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/`: **104 passed, 0 failures**.
+- **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
+
+

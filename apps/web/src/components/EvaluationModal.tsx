@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Brain,
+  Target,
+  BarChart2,
+  Compass,
+  RefreshCw,
+  AlertTriangle,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import {
   fetchActiveLearningQueue,
   runEvaluation,
   fetchClusterMap,
@@ -101,8 +111,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-              🧠 Active Learning & Baseline Evaluation
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Brain size={20} className="text-blue-500" /> Active Learning & Baseline Evaluation
             </h2>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               Explainable review queue prioritization, gold-standard confusion metrics, and 2D semantic cluster exploration.
@@ -110,15 +120,19 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             style={{
               background: 'transparent',
               border: 'none',
               color: 'var(--text-muted)',
-              fontSize: '1.5rem',
+              fontSize: '1.25rem',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0.25rem',
             }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -127,23 +141,23 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <button
             onClick={() => setActiveTab('queue')}
             className={`btn ${activeTab === 'queue' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem' }}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            🎯 Active Learning Queue
+            <Target size={15} /> Active Learning Queue
           </button>
           <button
             onClick={() => setActiveTab('evaluation')}
             className={`btn ${activeTab === 'evaluation' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem' }}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            📊 Baseline Evaluation & F1
+            <BarChart2 size={15} /> Baseline Evaluation & F1
           </button>
           <button
             onClick={() => setActiveTab('clusters')}
             className={`btn ${activeTab === 'clusters' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem' }}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            🗺️ 2D Semantic Cluster Map
+            <Compass size={15} /> 2D Semantic Cluster Map
           </button>
         </div>
 
@@ -186,8 +200,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
 
               <div style={{ alignSelf: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={loadQueue} disabled={loadingQueue}>
-                  {loadingQueue ? 'Refreshing...' : '🔄 Refresh'}
+                <button className="btn btn-secondary" onClick={loadQueue} disabled={loadingQueue} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <RefreshCw size={14} className={loadingQueue ? 'animate-spin' : ''} /> {loadingQueue ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
             </div>
@@ -265,7 +279,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
               <div style={{ alignSelf: 'flex-end' }}>
                 <button className="btn btn-primary" onClick={handleRunEvaluation} disabled={loadingEval}>
-                  {loadingEval ? 'Evaluating...' : '🚀 Run Evaluation'}
+                  {loadingEval ? 'Evaluating...' : 'Run Evaluation'}
                 </button>
               </div>
             </div>
@@ -309,7 +323,9 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                 {/* Warnings / Limitations */}
                 {evalReport.warnings && evalReport.warnings.length > 0 && (
                   <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--amber)' }}>
-                    <div style={{ fontWeight: 700, marginBottom: '0.3rem' }}>⚠️ Statistical Limitations & Caveats</div>
+                    <div style={{ fontWeight: 700, marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <AlertTriangle size={15} /> Statistical Limitations & Caveats
+                    </div>
                     <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
                       {evalReport.warnings.map((w, idx) => (
                         <li key={idx}>{w}</li>
@@ -420,8 +436,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                       </circle>
                     ))}
                   </svg>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    {clusterData.total_points} records mapped • 🔴 Red rings indicate identified coverage gaps
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>{clusterData.total_points} records mapped</span>
+                    <span>•</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--rose)' }} />
+                      Red rings indicate identified coverage gaps
+                    </span>
                   </div>
                 </div>
 
@@ -446,8 +467,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                           fontSize: '0.8rem',
                         }}
                       >
-                        <div style={{ fontWeight: 700, color: 'var(--rose)', marginBottom: '0.2rem' }}>
-                          🎯 {gap.gap_id.toUpperCase()}
+                        <div style={{ fontWeight: 700, color: 'var(--rose)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Target size={14} /> {gap.gap_id.toUpperCase()}
                         </div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
                           {gap.suggested_focus}
@@ -456,13 +477,13 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', width: '100%', justifyContent: 'center' }}
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                             onClick={() => {
                               onClose();
                               onOpenSynthesize();
                             }}
                           >
-                            ⚡ Synthesize Edge Cases Here
+                            <Sparkles size={13} /> Synthesize Edge Cases Here
                           </button>
                         )}
                       </div>

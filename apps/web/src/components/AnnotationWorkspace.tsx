@@ -26,6 +26,7 @@ import {
   Pause,
   Plus,
   Trash2,
+  Inbox,
 } from 'lucide-react';
 
 interface AnnotationWorkspaceProps {
@@ -595,7 +596,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           ) : !currentRecord ? (
             <div className="empty-state" style={{ flex: 1 }}>
-              <div className="empty-icon">📁</div>
+              <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                <Inbox size={36} style={{ color: 'var(--text-muted)' }} />
+              </div>
               <h3 className="empty-title">No Record Selected</h3>
               <p className="empty-desc">Choose a record from the queue to start labeling.</p>
             </div>

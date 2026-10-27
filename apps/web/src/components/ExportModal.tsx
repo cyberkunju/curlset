@@ -1,5 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Package,
+  Lock,
+  FileText,
+  Database,
+  Image as ImageIcon,
+  Crosshair,
+  Sparkles,
+  Terminal,
+  Layers,
+  Mic,
+  Sliders,
+  CheckCircle2,
+  Download,
+  X,
+} from 'lucide-react';
+import {
   fetchDatasetVersions,
   fetchVersionExports,
   getExportDownloadUrl,
@@ -91,14 +107,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>📦</span> Training-Ready Dataset Exporter
+              <Package size={20} className="text-blue-500" /> Training-Ready Dataset Exporter
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               Phase 8 reproducible CSV and JSONL distribution bundles bound to immutable version snapshots
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -115,7 +131,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
         ) : versions.length === 0 ? (
           <div className="empty-state" style={{ padding: '2.5rem' }}>
-            <div className="empty-icon" style={{ color: 'var(--amber)' }}>🔒</div>
+            <div className="empty-icon" style={{ color: 'var(--amber)', display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+              <Lock size={32} />
+            </div>
             <h3 className="empty-title">Immutable Snapshot Required</h3>
             <p className="empty-desc">
               Per platform data governance rules, exports cannot be generated against mutable live queries.
@@ -174,7 +192,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>📄 Standard CSV</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <FileText size={16} /> Standard CSV
+                      </span>
                       {format === 'csv' && <span style={{ color: 'var(--accent-interactive)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -194,7 +214,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🧬 Structured JSONL</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Database size={16} /> Structured JSONL
+                      </span>
                       {format === 'jsonl' && <span style={{ color: 'var(--cyan)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -214,7 +236,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🖼️ MS-COCO JSON</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <ImageIcon size={16} /> MS-COCO JSON
+                      </span>
                       {format === 'coco' && <span style={{ color: 'var(--emerald)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -234,7 +258,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🎯 Ultralytics YOLO</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Crosshair size={16} /> Ultralytics YOLO
+                      </span>
                       {format === 'yolo' && <span style={{ color: 'var(--amber)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -255,7 +281,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>⚡ Unsloth VLM</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Sparkles size={16} /> Unsloth VLM
+                      </span>
                       {format === ('unsloth_sharegpt_vlm' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -275,7 +303,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🪓 Axolotl ChatML</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Terminal size={16} /> Axolotl ChatML
+                      </span>
                       {format === ('axolotl_alpaca_chatml' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -295,7 +325,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🏭 LLaMA-Factory</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Layers size={16} /> LLaMA-Factory
+                      </span>
                       {format === ('llama_factory_bundle' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -315,7 +347,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🎙️ WebVTT Subtitles</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Mic size={16} /> WebVTT Subtitles
+                      </span>
                       {format === 'webvtt' && <span style={{ color: 'var(--rose)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
@@ -329,7 +363,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <div style={{ padding: '1rem', background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>🔍 Live Token & Context Simulator</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Sliders size={16} /> Live Token & Context Simulator
+                    </span>
                     <span style={{ fontSize: '0.75rem', padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
                       Zero Truncation Guarantee
                     </span>
@@ -348,21 +384,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', alignItems: 'center' }}>
                   <span>Estimated Text Tokens: <strong>~142 / sample</strong></span>
                   <span>ViT Patches (28x28): <strong>256 tokens / image</strong></span>
                   <span>Mean Total: <strong>~398 tokens</strong></span>
-                  <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>✓ 100% fits within 4,096 context</span>
+                  <span style={{ color: 'var(--emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <CheckCircle2 size={14} /> 100% fits within 4,096 context
+                  </span>
                 </div>
               </div>
 
 
               {/* Package Composition Info */}
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <strong>📦 Package Contents: </strong>
-                Each exported package is bundled as a self-contained ZIP archive containing the formatted data file,
-                the cryptographic version <code>manifest.json</code>, the generated <code>README.md</code> dataset card,
-                and associated media assets.
+              <div style={{ padding: '0.75rem 1rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <Package size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-secondary)' }} />
+                <div>
+                  <strong>Package Contents: </strong>
+                  Each exported package is bundled as a self-contained ZIP archive containing the formatted data file,
+                  the cryptographic version <code>manifest.json</code>, the generated <code>README.md</code> dataset card,
+                  and associated media assets.
+                </div>
               </div>
 
               {exporting && (
@@ -376,7 +417,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   Cancel
                 </SpringButton>
                 <SpringButton type="submit" variant="primary" disabled={exporting}>
-                  {exporting ? 'Compiling Export Archive...' : '🚀 Generate Export Package'}
+                  {exporting ? 'Compiling Export Archive...' : 'Generate Export Package'}
                 </SpringButton>
               </div>
             </form>
@@ -433,9 +474,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         href={getExportDownloadUrl(art.id)}
                         className="btn btn-primary"
                         download
-                        style={{ fontSize: '0.825rem', padding: '0.4rem 0.85rem', textDecoration: 'none' }}
+                        style={{ fontSize: '0.825rem', padding: '0.4rem 0.85rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        ⬇️ Download ZIP
+                        <Download size={14} /> Download ZIP
                       </a>
                     </div>
                   ))}

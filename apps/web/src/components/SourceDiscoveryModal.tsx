@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Globe,
+  Scale,
+  BookOpen,
+  ShieldCheck,
+  FileText,
+  X,
+} from 'lucide-react';
+import {
   searchCandidateSources,
   inspectSourceUrl,
   importCandidateSource,
@@ -161,7 +169,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🌐</span>
+            <Globe size={22} className="text-blue-500" />
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Source Discovery & Provenance Rights Review</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -169,8 +177,8 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
               </p>
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={onClose} style={{ padding: '0.35rem 0.75rem' }}>
-            ✕
+          <button className="btn btn-secondary" onClick={onClose} aria-label="Close dialog" style={{ padding: '0.35rem 0.5rem', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
           </button>
         </div>
 
@@ -188,7 +196,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
           gap: '0.5rem',
           alignItems: 'flex-start',
         }}>
-          <span>⚖️</span>
+          <Scale size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
             <strong>Legal & Compliance Invariant (AGENTS.md Rule 8):</strong> Public accessibility does NOT imply permission
             for AI training or redistribution. All external sources require explicit licensing review and recorded auditable evidence.
@@ -213,27 +221,27 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
         <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
           <button
             className={`btn ${activeTab === 'catalog' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             onClick={() => setActiveTab('catalog')}
           >
-            📚 Catalog Discovery
+            <BookOpen size={15} /> Catalog Discovery
           </button>
           <button
             className={`btn ${activeTab === 'url' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             onClick={() => setActiveTab('url')}
           >
-            🛡️ SSRF-Protected URL Inspector
+            <ShieldCheck size={15} /> SSRF-Protected URL Inspector
           </button>
           <button
             className={`btn ${activeTab === 'provenance' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             onClick={() => {
               setActiveTab('provenance');
               loadProvenance();
             }}
           >
-            📜 Dataset Rights Audit ({provenanceList.length})
+            <FileText size={15} /> Dataset Rights Audit ({provenanceList.length})
           </button>
         </div>
 
@@ -436,7 +444,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
 
                         <button
                           className="btn btn-secondary"
-                          style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                          style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                           onClick={() => {
                             setReviewingRecordId(item.record_id);
                             setReviewStatus(item.license_status);
@@ -444,7 +452,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
                             setReviewAttribution(item.creator_attribution || '');
                           }}
                         >
-                          ⚖️ Review Rights
+                          <Scale size={14} /> Review Rights
                         </button>
                       </div>
 

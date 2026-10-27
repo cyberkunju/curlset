@@ -7,6 +7,7 @@ import {
   fetchProjectAuditLogs,
 } from '../api';
 import { Project, ProjectMember, ProjectQuotaUsage, AuditLogEntry } from '../types';
+import { ShieldCheck, BarChart2, Users, FileText, HardDrive, Layers, ShieldAlert, AlertTriangle, X } from 'lucide-react';
 
 interface ProjectSettingsModalProps {
   project: Project;
@@ -98,19 +99,19 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-[#161c27]">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">🛡️</span>
+              <ShieldCheck size={22} className="text-blue-500" />
               Project Settings & Governance
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               Workspace: <span className="text-slate-200 font-semibold">{project.name}</span> (Owner:{' '}
-              <span className="text-indigo-300 font-mono">{project.owner_id}</span>)
+              <span className="text-slate-300 font-mono">{project.owner_id}</span>)
             </p>
           </div>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -120,31 +121,31 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
             onClick={() => setActiveTab('quotas')}
             className={`py-3 px-4 font-medium text-sm border-b-2 transition flex items-center gap-2 ${
               activeTab === 'quotas'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            📊 Quotas & Limits
+            <BarChart2 size={16} /> Quotas & Limits
           </button>
           <button
             onClick={() => setActiveTab('team')}
             className={`py-3 px-4 font-medium text-sm border-b-2 transition flex items-center gap-2 ${
               activeTab === 'team'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            👥 Team & Access Control
+            <Users size={16} /> Team & Access Control
           </button>
           <button
             onClick={() => setActiveTab('audit')}
             className={`py-3 px-4 font-medium text-sm border-b-2 transition flex items-center gap-2 ${
               activeTab === 'audit'
-                ? 'border-indigo-500 text-indigo-400'
+                ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            📜 Audit Trail
+            <FileText size={16} /> Audit Trail
           </button>
         </div>
 
@@ -152,7 +153,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
         <div className="p-6 overflow-y-auto flex-1">
           {error && (
             <div className="mb-4 p-3 bg-red-950/60 border border-red-800/80 rounded-lg text-red-200 text-xs flex items-center gap-2">
-              <span>⚠️</span>
+              <AlertTriangle size={15} />
               <span>{error}</span>
             </div>
           )}
@@ -164,7 +165,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
               <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                    💾 Storage Consumption
+                    <HardDrive size={16} className="text-blue-500" /> Storage Consumption
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
                     {formatBytes(usage?.storage_bytes_used || 0)} / {formatBytes(usage?.storage_quota_bytes || 0)} (
@@ -178,7 +179,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                         ? 'bg-red-500'
                         : (usage?.storage_percentage || 0) > 70
                         ? 'bg-amber-500'
-                        : 'bg-indigo-500'
+                        : 'bg-blue-600'
                     }`}
                     style={{ width: `${Math.min(usage?.storage_percentage || 0, 100)}%` }}
                   />
@@ -191,7 +192,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
               <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                    📑 Record Volume Quota
+                    <Layers size={16} className="text-blue-500" /> Record Volume Quota
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
                     {(usage?.records_used || 0).toLocaleString()} / {(usage?.records_quota || 0).toLocaleString()} (
@@ -215,8 +216,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                 </p>
               </div>
 
-              <div className="p-4 bg-indigo-950/20 border border-indigo-900/40 rounded-xl text-xs text-indigo-300 space-y-1">
-                <div className="font-semibold text-indigo-200">🛡️ Rate Limiting & Abuse Defense Active:</div>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl text-xs text-slate-300 space-y-1">
+                <div className="font-semibold text-slate-100 flex items-center gap-1.5">
+                  <ShieldAlert size={15} className="text-blue-500" /> Rate Limiting & Abuse Defense Active:
+                </div>
                 <div>• General API: 300 requests / 60 seconds rolling window per tenant.</div>
                 <div>• AI Model Batch Annotation: 30 requests / 60 seconds rolling window.</div>
                 <div>• Synthetic Generation: 25 batches / 60 seconds rolling window.</div>

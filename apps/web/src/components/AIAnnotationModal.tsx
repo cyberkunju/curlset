@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Bot, CheckCircle2, Lock, X } from 'lucide-react';
 import { fetchProviders, triggerAIAnnotation } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
@@ -78,14 +79,15 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
       <div className="modal-card" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🤖</span>
+            <Bot size={22} className="text-blue-500" />
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>AI Model Assisted Annotation</h2>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
+            aria-label="Close dialog"
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -100,8 +102,8 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 marginBottom: '1.5rem',
               }}
             >
-              <h3 style={{ color: 'var(--emerald)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                ✓ AI Annotation Batch Completed
+              <h3 style={{ color: 'var(--emerald)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CheckCircle2 size={18} /> AI Annotation Batch Completed
               </h3>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
                 All generated model outputs have been registered as <strong>pending review</strong> proposals.
@@ -158,11 +160,17 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 fontSize: '0.85rem',
                 color: 'var(--text-secondary)',
                 lineHeight: 1.5,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
               }}
             >
-              🔒 <strong>Audit & Safety Guarantee:</strong> Model outputs will never be silently marked as ground truth.
-              All proposals are saved with status <code style={{ color: 'var(--text-accent)' }}>pending_review</code> and
-              attached model provenance for human verification.
+              <Lock size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-interactive)' }} />
+              <div>
+                <strong>Audit & Safety Guarantee:</strong> Model outputs will never be silently marked as ground truth.
+                All proposals are saved with status <code style={{ color: 'var(--text-accent)' }}>pending_review</code> and
+                attached model provenance for human verification.
+              </div>
             </div>
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
@@ -254,7 +262,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 Cancel
               </SpringButton>
               <SpringButton type="submit" variant="primary" disabled={loading}>
-                {loading ? 'Running Inference...' : '🚀 Start AI Inference'}
+                {loading ? 'Running Inference...' : 'Start AI Inference'}
               </SpringButton>
             </div>
           </form>
