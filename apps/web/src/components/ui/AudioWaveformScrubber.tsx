@@ -1,4 +1,5 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Volume2, AlertCircle } from 'lucide-react';
 
 interface AudioSegment {
   start_time: number;
@@ -13,41 +14,149 @@ interface AudioWaveformScrubberProps {
   segments: AudioSegment[];
   onSeek: (timeSeconds: number) => void;
   assetId?: string;
+  audioSrc?: string;
 }
+
+// In-memory module cache for decoded waveforms to prevent redundant processing
+const waveformCache = new Map<string, number[]>();
 
 export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
   currentTime,
   duration,
   segments,
   onSeek,
-  assetId = 'default_audio',
+  assetId,
+  audioSrc,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
 
-  // Generate deterministic, realistic acoustic amplitude envelope bars for the audio asset
-  const bars = useMemo(() => {
-    const numBars = 96;
-    const generated: number[] = [];
-    let seed = 0;
-    for (let i = 0; i < assetId.length; i++) {
-      seed = (seed << 5) - seed + assetId.charCodeAt(i);
-      seed |= 0;
+  // Sample-derived waveform state
+  const [bars, setBars] = useState<number[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [decodeError, setDecodeError] = useState<string | null>(null);
+
+  const effectiveSrc = audioSrc || (assetId ? `/api/v1/assets/${assetId}/raw` : null);
+
+  // Decode audio data using browser Web Audio API to calculate true sample amplitude envelope
+  useEffect(() => {
+    if (!effectiveSrc || !assetId) {
+      setBars(null);
+      setDecodeError(null);
+      return;
     }
-    const pseudoRandom = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
+
+    // Check memory cache first
+    if (waveformCache.has(assetId)) {
+      setBars(waveformCache.get(assetId)!);
+      setLoading(false);
+      setDecodeError(null);
+      return;
+    }
+
+    const abortController = new AbortController();
+    let isCancelled = false;
+
+    const decodeWaveform = async () => {
+      setLoading(true);
+      setDecodeError(null);
+      setBars(null);
+
+      try {
+        const response = await fetch(effectiveSrc, { signal: abortController.signal });
+        if (!response.ok) {
+          throw new Error(`Failed to load audio asset (HTTP ${response.status})`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        if (isCancelled) return;
+
+        // Verify AudioContext availability
+        const AudioContextClass =
+          window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+        if (!AudioContextClass) {
+          throw new Error('Web Audio API is not supported in this browser.');
+        }
+
+        const audioCtx = new AudioContextClass();
+        let audioBuffer: AudioBuffer;
+
+        try {
+          // Decode audio file into raw PCM audio buffer
+          audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        } catch {
+          throw new Error('Unable to decode audio samples (unsupported codec or corrupt audio).');
+        } finally {
+          try {
+            await audioCtx.close();
+          } catch {
+            // Context cleanup
+          }
+        }
+
+        if (isCancelled) return;
+
+        // Read primary audio channel PCM samples
+        const channelData = audioBuffer.getChannelData(0);
+        const sampleCount = channelData.length;
+
+        if (sampleCount === 0) {
+          throw new Error('Audio recording contains no playable audio samples.');
+        }
+
+        // Bounded processing: downsample into 96 representative time-window bins
+        const numBars = 96;
+        const blockSize = Math.floor(sampleCount / numBars);
+        const amplitudes: number[] = [];
+
+        for (let i = 0; i < numBars; i++) {
+          const start = i * blockSize;
+          const end = i === numBars - 1 ? sampleCount : start + blockSize;
+          let peak = 0;
+          let sumSquares = 0;
+          const count = end - start;
+
+          for (let j = start; j < end; j++) {
+            const val = channelData[j];
+            const abs = Math.abs(val);
+            if (abs > peak) peak = abs;
+            sumSquares += val * val;
+          }
+
+          const rms = count > 0 ? Math.sqrt(sumSquares / count) : 0;
+          // Combine peak (70%) and RMS (30%) for an expressive, accurate acoustic envelope
+          amplitudes.push(peak * 0.7 + rms * 0.3);
+        }
+
+        // Normalize amplitudes to [0.06, 0.95] for consistent, readable visual representation
+        const maxAmp = Math.max(...amplitudes, 0.001);
+        const normalizedBars = amplitudes.map((amp) =>
+          Math.min(1.0, Math.max(0.06, (amp / maxAmp) * 0.95))
+        );
+
+        if (!isCancelled) {
+          waveformCache.set(assetId, normalizedBars);
+          setBars(normalizedBars);
+          setLoading(false);
+        }
+      } catch (err: unknown) {
+        if (!isCancelled) {
+          const message = err instanceof Error ? err.message : 'Audio decode failed';
+          setDecodeError(message);
+          setBars(null);
+          setLoading(false);
+        }
+      }
     };
 
-    for (let i = 0; i < numBars; i++) {
-      // Natural envelope with peaks and pauses
-      const base = 0.25 + 0.65 * Math.sin((i / numBars) * Math.PI);
-      const noise = pseudoRandom() * 0.45;
-      const height = Math.min(1.0, Math.max(0.12, base * 0.7 + noise * 0.3));
-      generated.push(height);
-    }
-    return generated;
-  }, [assetId]);
+    decodeWaveform();
+
+    return () => {
+      isCancelled = true;
+      abortController.abort();
+    };
+  }, [effectiveSrc, assetId]);
 
   const effectiveDuration = duration > 0 ? duration : 10;
   const progressPercent = Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100));
@@ -97,38 +206,111 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
         }}
         title="Click to seek playback position"
       >
-        {/* Waveform Amplitude Bars */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            height: '100%',
-            gap: '2px',
-          }}
-        >
-          {bars.map((amplitude, i) => {
-            const barPosPercent = (i / bars.length) * 100;
-            const isPlayed = barPosPercent <= progressPercent;
+        {/* State A: Loading Acoustic Samples */}
+        {loading && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              color: 'var(--text-muted)',
+              fontSize: '0.78rem',
+              zIndex: 5,
+            }}
+          >
+            <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+            <span>Decoding acoustic sample envelope...</span>
+          </div>
+        )}
 
-            return (
+        {/* State B: Sample-Derived Acoustic Waveform Bars */}
+        {bars && !loading && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              height: '100%',
+              gap: '2px',
+            }}
+          >
+            {bars.map((amplitude, i) => {
+              const barPosPercent = (i / bars.length) * 100;
+              const isPlayed = barPosPercent <= progressPercent;
+
+              return (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: `${amplitude * 80}%`,
+                    borderRadius: '2px',
+                    backgroundColor: isPlayed ? 'var(--accent-interactive)' : 'var(--border-strong)',
+                    transition: 'background-color 0.1s ease',
+                    minWidth: '2px',
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* State C: Standard Usable Timeline (when decode is unavailable or failed) */}
+        {!bars && !loading && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '0 1rem',
+            }}
+          >
+            {/* Horizontal timeline track */}
+            <div
+              style={{
+                width: '100%',
+                height: '8px',
+                background: 'var(--bg-canvas)',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                border: '1px solid var(--border-hairline)',
+                position: 'relative',
+              }}
+            >
               <div
-                key={i}
                 style={{
-                  flex: 1,
-                  height: `${amplitude * 80}%`,
-                  borderRadius: '2px',
-                  backgroundColor: isPlayed ? 'var(--accent-interactive)' : 'var(--border-strong)',
-                  transition: 'background-color 0.1s ease',
-                  minWidth: '2px',
+                  width: `${progressPercent}%`,
+                  height: '100%',
+                  background: 'var(--accent-interactive)',
+                  transition: 'width 0.1s ease',
                 }}
               />
-            );
-          })}
-        </div>
+            </div>
+            {decodeError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                  marginTop: '0.4rem',
+                }}
+              >
+                <AlertCircle size={12} style={{ color: 'var(--amber)' }} />
+                <span>Standard Timeline ({decodeError})</span>
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Timed Segment Markers Overlay */}
+        {/* Timed Segment Markers Overlay (Always rendered with accurate stored timestamps) */}
         {segments.map((seg, idx) => {
           const startPct = (seg.start_time / effectiveDuration) * 100;
           const endPct = (seg.end_time / effectiveDuration) * 100;
@@ -206,11 +388,12 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
         )}
       </div>
 
-      {/* Scrubber Time Labels */}
+      {/* Scrubber Time Labels & Status Note */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
           fontSize: '0.75rem',
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)',
@@ -218,6 +401,11 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
         }}
       >
         <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatSeconds(currentTime)}</span>
+        {bars && (
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>
+            Sample-Derived Waveform
+          </span>
+        )}
         <span>{formatSeconds(effectiveDuration)}</span>
       </div>
     </div>

@@ -463,3 +463,36 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Coordinate Integrity**: Bounding box coordinates remain strictly non-negative image-relative integer values conforming to `packages/dataset_core/task_schemas.py`.
 
+---
+
+## 12. Phase R4.1: Audio Waveform Integrity & Sample-Derived Envelope
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 12.1 Defect Identified
+The initial R4 implementation of `AudioWaveformScrubber.tsx` generated decorative amplitude bars using a pseudo-random hash of `assetId`. This violated the architectural mandate that all displayed waveforms must strictly represent actual audio samples without fabricated visualizations.
+
+### 12.2 Corrective Implementation Delivered
+
+1. **Web Audio API Sample-Derived Decoding (`apps/web/src/components/ui/AudioWaveformScrubber.tsx`):**
+   - **Local Asset Streaming**: Fetches raw audio bytes through the existing local asset streaming endpoint (`/api/v1/assets/${assetId}/raw`) using an `AbortController` for clean cancellation when switching records.
+   - **Native Sample Decoding**: Decodes the array buffer into an `AudioBuffer` via the browser's native `AudioContext.decodeAudioData()`.
+   - **Peak & RMS Acoustic Envelope**: Reads primary channel PCM samples and computes peak (70%) and RMS (30%) amplitude across 96 discrete time-window bins, normalizing values to `[0.06, 0.95]` for an accurate, readable waveform.
+   - **Context Cleanup**: Closes the `AudioContext` immediately after decoding to prevent browser audio context exhaustion.
+   - **Module Memory Cache**: Implemented in-memory `waveformCache` to prevent redundant network requests and audio decoding when revisiting previously decoded records.
+
+2. **Graceful Fallback & Zero Fabrication Mandate:**
+   - If an asset is missing, empty, or uses an unsupported codec, the scrubber strictly does **not** render fabricated bars.
+   - Instead, it seamlessly renders a clean, accessible standard playback timeline with an informative note (`Standard Timeline (Acoustic decode unavailable)`).
+   - Playhead seeking, duration counters, hover tooltips, and timed segment cue markers remain 100% interactive and accurate.
+
+3. **Workspace Integration (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - Passed explicit `audioSrc` parameter (`/api/v1/assets/${activeAsset.id}/raw`) to `AudioWaveformScrubber`.
+   - Preserved all playback speed options (0.75x–1.5x), play/pause shortcut (`Space`), seeking synchronization, segment cue creation, and editing.
+
+### 12.3 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 11.26s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 13.03s.
+- **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Check**: Documented environment constraint: Playwright browser binary download failed due to sandbox offline environment (`404 Not Found`). Verified code-level Web Audio API implementation, TypeScript typing, and local asset endpoint compatibility.
