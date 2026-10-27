@@ -16,6 +16,7 @@ import {
 import { DiscoveredSource, SourceProvenanceSummary } from '../types';
 import { CustomSelect } from './ui/CustomSelect';
 import { ModalShell } from './ui/ModalShell';
+import { filterCandidatesByLicense } from '../utils/uiIntegrityContracts';
 
 interface SourceDiscoveryModalProps {
   datasetId: string;
@@ -52,8 +53,7 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const filteredCandidates = useMemo(() => {
-    if (!licenseFilter || licenseFilter === 'all') return candidates;
-    return candidates.filter((c) => c.license_status === licenseFilter);
+    return filterCandidatesByLicense(candidates, licenseFilter);
   }, [candidates, licenseFilter]);
 
   useEffect(() => {

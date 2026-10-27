@@ -55,15 +55,86 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   bodyStyle,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2, 9)}`).current;
+  const descId = useRef(`modal-desc-${Math.random().toString(36).slice(2, 9)}`).current;
 
-  // Keyboard Escape listener
+  // Track and restore focus
   useEffect(() => {
-    if (!isOpen || !closeOnEsc) return;
+    if (isOpen) {
+      previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+
+      // Focus first focusable element inside the modal once mounted
+      const focusTimer = setTimeout(() => {
+        if (contentRef.current) {
+          const focusable = contentRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable.length > 0) {
+            focusable[0].focus();
+          } else {
+            contentRef.current.focus();
+          }
+        }
+      }, 50);
+
+      return () => clearTimeout(focusTimer);
+    } else {
+      if (previouslyFocusedElementRef.current && typeof previouslyFocusedElementRef.current.focus === 'function') {
+        previouslyFocusedElementRef.current.focus();
+        previouslyFocusedElementRef.current = null;
+      }
+    }
+  }, [isOpen]);
+
+  // Restore focus if modal unmounts while open
+  useEffect(() => {
+    return () => {
+      if (previouslyFocusedElementRef.current && typeof previouslyFocusedElementRef.current.focus === 'function') {
+        previouslyFocusedElementRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Keyboard Escape listener and Focus Trap
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && closeOnEsc) {
         e.stopPropagation();
         onClose();
+        return;
+      }
+
+      // Focus trap for Tab and Shift+Tab
+      if (e.key === 'Tab' && contentRef.current) {
+        const focusable = Array.from(
+          contentRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const firstElement = focusable[0];
+        const lastElement = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement || !contentRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement || !contentRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
 
@@ -81,8 +152,17 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     };
   }, [isOpen]);
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mouseDownTargetRef.current = e.target;
+  };
+
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (closeOnBackdropClick && e.target === e.currentTarget) {
+    // Dismiss strictly when mousedown AND mouseup occurred on the backdrop overlay
+    if (
+      closeOnBackdropClick &&
+      e.target === e.currentTarget &&
+      mouseDownTargetRef.current === e.currentTarget
+    ) {
       onClose();
     }
   };
@@ -95,9 +175,12 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       {isOpen && (
         <div
           className="modal-overlay"
+          onMouseDown={handleBackdropMouseDown}
           onClick={handleBackdropClick}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={description ? descId : undefined}
           aria-label={typeof title === 'string' ? title : ariaLabel || 'Dialog'}
           style={{
             position: 'fixed',
@@ -114,6 +197,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         >
           <motion.div
             ref={contentRef}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -133,6 +217,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               color: 'var(--text-primary)',
               overflow: 'hidden',
               position: 'relative',
+              outline: 'none',
               ...contentStyle,
             }}
           >
@@ -166,6 +251,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                 )}
                 <div style={{ minWidth: 0 }}>
                   <h2
+                    id={titleId}
                     style={{
                       fontSize: '1.15rem',
                       fontWeight: 700,
@@ -182,6 +268,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                   </h2>
                   {description && (
                     <p
+                      id={descId}
                       style={{
                         margin: '0.2rem 0 0',
                         fontSize: '0.82rem',

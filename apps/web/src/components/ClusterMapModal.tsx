@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Target, Sparkles, Layers, Info, ZoomIn, ZoomOut, RotateCcw, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Target, Sparkles, Layers, Info, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Move } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { ModalShell } from './ui/ModalShell';
+import { clampClusterPan, computeClusterTransform } from '../utils/uiIntegrityContracts';
 
 interface ClusterMapModalProps {
   datasetId: string;
@@ -22,6 +23,10 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
   const [selectedGap, setSelectedGap] = useState<any>(null);
   const [hoveredPoint, setHoveredPoint] = useState<any>(null);
   const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     if (isOpen) {
@@ -52,9 +57,70 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
     return 250 + clamped * 220;
   };
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(2.5, +(prev + 0.25).toFixed(2)));
-  const handleZoomOut = () => setZoom((prev) => Math.max(1, +(prev - 0.25).toFixed(2)));
-  const handleZoomReset = () => setZoom(1);
+  const handleZoomIn = () => {
+    setZoom((prev) => {
+      const next = Math.min(2.5, +(prev + 0.25).toFixed(2));
+      setPan((p) => clampClusterPan(p.x, p.y, next));
+      return next;
+    });
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => {
+      const next = Math.max(1, +(prev - 0.25).toFixed(2));
+      setPan((p) => clampClusterPan(p.x, p.y, next));
+      return next;
+    });
+  };
+
+  const handleResetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    panStartRef.current = { ...pan };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPan(clampClusterPan(panStartRef.current.x + dx, panStartRef.current.y + dy, zoom));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleCanvasKeyDown = (e: React.KeyboardEvent) => {
+    const step = 20;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setPan((prev) => clampClusterPan(prev.x + step, prev.y, zoom));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setPan((prev) => clampClusterPan(prev.x - step, prev.y, zoom));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPan((prev) => clampClusterPan(prev.x, prev.y + step, zoom));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPan((prev) => clampClusterPan(prev.x, prev.y - step, zoom));
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      handleZoomIn();
+    } else if (e.key === '-' || e.key === '_') {
+      e.preventDefault();
+      handleZoomOut();
+    } else if (e.key === 'r' || e.key === 'R' || e.key === '0') {
+      e.preventDefault();
+      handleResetView();
+    }
+  };
 
   return (
     <ModalShell
@@ -130,15 +196,25 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
           >
             {/* Interactive SVG Projection Canvas */}
             <div
+              tabIndex={0}
+              role="region"
+              aria-label="Interactive 2D Semantic Cluster Map canvas. Use +/- to zoom, arrow keys to pan, R to reset view."
+              onKeyDown={handleCanvasKeyDown}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
               style={{
                 background: '#09090B',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-hairline)',
                 overflow: 'hidden',
                 position: 'relative',
+                cursor: isDragging ? 'grabbing' : zoom > 1 ? 'grab' : 'default',
+                userSelect: 'none',
               }}
             >
-              {/* Zoom Controls HUD */}
+              {/* Zoom & Pan Controls HUD */}
               <div
                 style={{
                   position: 'absolute',
@@ -151,7 +227,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                   backdropFilter: 'blur(4px)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: 'var(--radius-sm)',
-                  padding: '0.25rem',
+                  padding: '0.25rem 0.4rem',
                   zIndex: 2,
                 }}
               >
@@ -160,7 +236,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                   onClick={handleZoomIn}
                   disabled={zoom >= 2.5}
                   aria-label="Zoom in"
-                  title="Zoom in"
+                  title="Zoom in (+ key)"
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -182,6 +258,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                     minWidth: '2.5rem',
                     textAlign: 'center',
                   }}
+                  title={`Zoom scale: ${zoom.toFixed(1)}x`}
                 >
                   {zoom.toFixed(1)}x
                 </span>
@@ -190,7 +267,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                   onClick={handleZoomOut}
                   disabled={zoom <= 1}
                   aria-label="Zoom out"
-                  title="Zoom out"
+                  title="Zoom out (- key)"
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -204,12 +281,26 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                 >
                   <ZoomOut size={14} />
                 </button>
-                {zoom !== 1 && (
+                {zoom > 1 && (
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      color: 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                      padding: '0 0.25rem',
+                      borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+                    }}
+                    title="Current pan offset"
+                  >
+                    Pan: {pan.x},{pan.y}
+                  </span>
+                )}
+                {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
                   <button
                     type="button"
-                    onClick={handleZoomReset}
-                    aria-label="Reset zoom"
-                    title="Reset zoom to 1.0x"
+                    onClick={handleResetView}
+                    aria-label="Reset pan and zoom"
+                    title="Reset zoom to 1.0x and center view (R key)"
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -219,6 +310,8 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       borderRadius: '3px',
+                      borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+                      marginLeft: '0.2rem',
                     }}
                   >
                     <RotateCcw size={13} />
@@ -232,7 +325,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                 aria-label="2D SVD Semantic Cluster Map projection canvas"
                 role="img"
               >
-                <g transform={`scale(${zoom})`} style={{ transformOrigin: '250px 250px', transition: 'transform 0.15s ease-out' }}>
+                <g transform={computeClusterTransform(zoom, pan)} style={{ transformOrigin: '250px 250px', transition: isDragging ? 'none' : 'transform 0.15s ease-out' }}>
                   {/* Center grid axes */}
                   <line x1="250" y1="10" x2="250" y2="490" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="4 4" />
                   <line x1="10" y1="250" x2="490" y2="250" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" strokeDasharray="4 4" />

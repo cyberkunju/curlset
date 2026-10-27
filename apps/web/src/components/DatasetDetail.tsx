@@ -34,19 +34,20 @@ import {
 import { fetchDatasetDetail, fetchDatasetQueue, fetchRecordDetail } from '../api';
 import { DatasetDetailResponse, RecordQueueItem } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
-import { AIAnnotationModal } from './AIAnnotationModal';
-import { ImportModal } from './ImportModal';
-import { QualityDashboardModal } from './QualityDashboardModal';
-import { VersionSnapshotsModal } from './VersionSnapshotsModal';
-import { ExportModal } from './ExportModal';
-import { SourceDiscoveryModal } from './SourceDiscoveryModal';
-import { SyntheticGenerationModal } from './SyntheticGenerationModal';
-import { EvaluationModal } from './EvaluationModal';
-import { AugmentationModal } from './AugmentationModal';
-import { VersionDiffModal } from './VersionDiffModal';
-import { ClusterMapModal } from './ClusterMapModal';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+
+const AIAnnotationModal = React.lazy(() => import('./AIAnnotationModal').then(m => ({ default: m.AIAnnotationModal })));
+const ImportModal = React.lazy(() => import('./ImportModal').then(m => ({ default: m.ImportModal })));
+const QualityDashboardModal = React.lazy(() => import('./QualityDashboardModal').then(m => ({ default: m.QualityDashboardModal })));
+const VersionSnapshotsModal = React.lazy(() => import('./VersionSnapshotsModal').then(m => ({ default: m.VersionSnapshotsModal })));
+const ExportModal = React.lazy(() => import('./ExportModal').then(m => ({ default: m.ExportModal })));
+const SourceDiscoveryModal = React.lazy(() => import('./SourceDiscoveryModal').then(m => ({ default: m.SourceDiscoveryModal })));
+const SyntheticGenerationModal = React.lazy(() => import('./SyntheticGenerationModal').then(m => ({ default: m.SyntheticGenerationModal })));
+const EvaluationModal = React.lazy(() => import('./EvaluationModal').then(m => ({ default: m.EvaluationModal })));
+const AugmentationModal = React.lazy(() => import('./AugmentationModal').then(m => ({ default: m.AugmentationModal })));
+const VersionDiffModal = React.lazy(() => import('./VersionDiffModal').then(m => ({ default: m.VersionDiffModal })));
+const ClusterMapModal = React.lazy(() => import('./ClusterMapModal').then(m => ({ default: m.ClusterMapModal })));
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -1197,112 +1198,114 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
       </div>
 
       {/* 12 Preserved Modals */}
-      <ImportModal
-        datasetId={datasetId}
-        isOpen={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        onImportComplete={() => {
-          loadData();
-          loadRecords(page, splitFilter, statusFilter);
-        }}
-      />
+      <React.Suspense fallback={null}>
+        <ImportModal
+          datasetId={datasetId}
+          isOpen={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
+          onImportComplete={() => {
+            loadData();
+            loadRecords(page, splitFilter, statusFilter);
+          }}
+        />
 
-      <AIAnnotationModal
-        datasetId={datasetId}
-        taskType={dataset.task_type}
-        labelSchema={dataset.label_schema}
-        isOpen={isAIOpen}
-        onClose={() => setIsAIOpen(false)}
-        onRunComplete={() => {
-          loadData();
-          loadRecords(page, splitFilter, statusFilter);
-        }}
-        onOpenWorkspace={() => setIsWorkspaceOpen(true)}
-      />
+        <AIAnnotationModal
+          datasetId={datasetId}
+          taskType={dataset.task_type}
+          labelSchema={dataset.label_schema}
+          isOpen={isAIOpen}
+          onClose={() => setIsAIOpen(false)}
+          onRunComplete={() => {
+            loadData();
+            loadRecords(page, splitFilter, statusFilter);
+          }}
+          onOpenWorkspace={() => setIsWorkspaceOpen(true)}
+        />
 
-      <QualityDashboardModal
-        datasetId={datasetId}
-        isOpen={isQualityOpen}
-        onClose={() => {
-          setIsQualityOpen(false);
-          loadData();
-        }}
-        onFilterRecords={handleLocateRecord}
-        onOpenWorkspace={() => {
-          setIsQualityOpen(false);
-          setIsWorkspaceOpen(true);
-        }}
-      />
+        <QualityDashboardModal
+          datasetId={datasetId}
+          isOpen={isQualityOpen}
+          onClose={() => {
+            setIsQualityOpen(false);
+            loadData();
+          }}
+          onFilterRecords={handleLocateRecord}
+          onOpenWorkspace={() => {
+            setIsQualityOpen(false);
+            setIsWorkspaceOpen(true);
+          }}
+        />
 
-      <VersionSnapshotsModal
-        datasetId={datasetId}
-        isOpen={isVersionsOpen}
-        onClose={() => {
-          setIsVersionsOpen(false);
-          loadData();
-        }}
-      />
+        <VersionSnapshotsModal
+          datasetId={datasetId}
+          isOpen={isVersionsOpen}
+          onClose={() => {
+            setIsVersionsOpen(false);
+            loadData();
+          }}
+        />
 
-      <VersionDiffModal
-        datasetId={datasetId}
-        isOpen={isDiffOpen}
-        onClose={() => setIsDiffOpen(false)}
-      />
+        <VersionDiffModal
+          datasetId={datasetId}
+          isOpen={isDiffOpen}
+          onClose={() => setIsDiffOpen(false)}
+        />
 
-      <ExportModal
-        datasetId={datasetId}
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        onOpenVersions={() => setIsVersionsOpen(true)}
-      />
+        <ExportModal
+          datasetId={datasetId}
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          onOpenVersions={() => setIsVersionsOpen(true)}
+        />
 
-      <AugmentationModal
-        datasetId={datasetId}
-        isOpen={isAugmentationOpen}
-        onClose={() => setIsAugmentationOpen(false)}
-        onAugmentationComplete={() => {
-          loadData();
-          loadRecords(page, splitFilter, statusFilter);
-        }}
-      />
+        <AugmentationModal
+          datasetId={datasetId}
+          isOpen={isAugmentationOpen}
+          onClose={() => setIsAugmentationOpen(false)}
+          onAugmentationComplete={() => {
+            loadData();
+            loadRecords(page, splitFilter, statusFilter);
+          }}
+        />
 
-      <ClusterMapModal
-        datasetId={datasetId}
-        isOpen={isClusterMapOpen}
-        onClose={() => setIsClusterMapOpen(false)}
-        onSynthesizeGap={() => setIsSynthesisOpen(true)}
-      />
+        <ClusterMapModal
+          datasetId={datasetId}
+          isOpen={isClusterMapOpen}
+          onClose={() => setIsClusterMapOpen(false)}
+          onSynthesizeGap={() => setIsSynthesisOpen(true)}
+        />
 
-      <SourceDiscoveryModal
-        datasetId={datasetId}
-        isOpen={isSourcesOpen}
-        onClose={() => setIsSourcesOpen(false)}
-        onImportComplete={() => {
-          loadData();
-          loadRecords(page, splitFilter, statusFilter);
-        }}
-      />
+        <SourceDiscoveryModal
+          datasetId={datasetId}
+          isOpen={isSourcesOpen}
+          onClose={() => setIsSourcesOpen(false)}
+          onImportComplete={() => {
+            loadData();
+            loadRecords(page, splitFilter, statusFilter);
+          }}
+        />
 
-      <SyntheticGenerationModal
-        datasetId={datasetId}
-        labels={labels}
-        taskType={dataset.task_type}
-        labelSchema={dataset.label_schema}
-        isOpen={isSynthesisOpen}
-        onClose={() => setIsSynthesisOpen(false)}
-        onGenerationComplete={() => {
-          loadData();
-          loadRecords(page, splitFilter, statusFilter);
-        }}
-        onOpenWorkspace={() => setIsWorkspaceOpen(true)}
-      />
+        <SyntheticGenerationModal
+          datasetId={datasetId}
+          labels={labels}
+          taskType={dataset.task_type}
+          labelSchema={dataset.label_schema}
+          isOpen={isSynthesisOpen}
+          onClose={() => setIsSynthesisOpen(false)}
+          onGenerationComplete={() => {
+            loadData();
+            loadRecords(page, splitFilter, statusFilter);
+          }}
+          onOpenWorkspace={() => setIsWorkspaceOpen(true)}
+        />
 
-      <EvaluationModal
-        datasetId={datasetId}
-        isOpen={isEvaluationOpen}
-        onClose={() => setIsEvaluationOpen(false)}
-        onOpenSynthesize={() => setIsSynthesisOpen(true)}
-      />
+        <EvaluationModal
+          datasetId={datasetId}
+          isOpen={isEvaluationOpen}
+          onClose={() => setIsEvaluationOpen(false)}
+          onOpenSynthesize={() => setIsSynthesisOpen(true)}
+        />
+      </React.Suspense>
     </div>
   );
 };

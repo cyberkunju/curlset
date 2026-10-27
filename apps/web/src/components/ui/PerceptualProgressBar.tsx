@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { resolveProgressDisplayState } from '../../utils/uiIntegrityContracts';
 
 export interface PerceptualProgressProps {
   /** Whether the operation is actively running */
@@ -87,12 +88,18 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
     }
   }, [completed, onComplete]);
 
-  // Do not render if not active, not completed, and no error
-  if (!active && !completed && !error) return null;
+  const displayState = resolveProgressDisplayState({
+    active,
+    backendPercent,
+    completed,
+    error,
+  });
+
+  // Do not render if the resolved state is hidden
+  if (displayState.kind === 'hidden') return null;
 
   const messages = STAGE_MESSAGES[taskType];
-  const hasValidBackendPercent =
-    typeof backendPercent === 'number' && !isNaN(backendPercent) && backendPercent >= 0 && backendPercent <= 100;
+  const hasValidBackendPercent = displayState.clampedPercent !== null;
 
   return (
     <div
@@ -108,7 +115,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={hasValidBackendPercent ? Math.round(backendPercent) : undefined}
+      aria-valuenow={hasValidBackendPercent ? Math.round(displayState.clampedPercent!) : undefined}
       aria-label={messages[stageIndex]}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
@@ -164,7 +171,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {Math.round(backendPercent)}%
+            {Math.round(displayState.clampedPercent!)}%
           </span>
         ) : active ? (
           <span

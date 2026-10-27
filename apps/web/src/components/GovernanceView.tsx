@@ -26,6 +26,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
+import { filterAuditLogs, isDateRangeValid, RATE_LIMIT_POLICIES } from '../utils/uiIntegrityContracts';
 
 export const GovernanceView: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -146,53 +147,14 @@ export const GovernanceView: React.FC = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const isDateRangeInvalid = Boolean(auditStartDate && auditEndDate && auditStartDate > auditEndDate);
+  const isDateRangeInvalid = !isDateRangeValid(auditStartDate, auditEndDate);
 
   // Filter audit logs client-side over loaded data
   const filteredAuditLogs = useMemo(() => {
-    if (auditStartDate && auditEndDate && auditStartDate > auditEndDate) {
-      return [];
-    }
-
-    return auditLogs.filter((log) => {
-      // 1. Keyword search
-      if (auditSearchQuery.trim()) {
-        const q = auditSearchQuery.toLowerCase();
-        const actionMatch = log.action?.toLowerCase().includes(q);
-        const userMatch = log.user_id?.toLowerCase().includes(q);
-        const resourceTypeMatch = log.resource_type?.toLowerCase().includes(q);
-        const resourceIdMatch = log.resource_id?.toLowerCase().includes(q);
-        const detailsMatch = JSON.stringify(log.details || {}).toLowerCase().includes(q);
-        if (!actionMatch && !userMatch && !resourceTypeMatch && !resourceIdMatch && !detailsMatch) {
-          return false;
-        }
-      }
-
-      // 2. Date filters
-      const hasDateFilter = Boolean(auditStartDate || auditEndDate);
-      if (hasDateFilter) {
-        if (!log.created_at) {
-          // Exclude records with missing timestamps when a date filter is active
-          return false;
-        }
-        const logDate = new Date(log.created_at);
-        if (isNaN(logDate.getTime())) {
-          // Exclude records with invalid timestamps when a date filter is active
-          return false;
-        }
-        if (auditStartDate) {
-          const start = new Date(auditStartDate);
-          start.setHours(0, 0, 0, 0);
-          if (logDate < start) return false;
-        }
-        if (auditEndDate) {
-          const end = new Date(auditEndDate);
-          end.setHours(23, 59, 59, 999);
-          if (logDate > end) return false;
-        }
-      }
-
-      return true;
+    return filterAuditLogs(auditLogs, {
+      searchQuery: auditSearchQuery,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
     });
   }, [auditLogs, auditSearchQuery, auditStartDate, auditEndDate]);
 
@@ -528,18 +490,36 @@ export const GovernanceView: React.FC = () => {
                   }}
                 >
                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ShieldAlert size={16} style={{ color: 'var(--accent-interactive)' }} /> Active Rate Limiting & Resource Throttling Rules
+                    <ShieldAlert size={16} style={{ color: 'var(--accent-interactive)' }} /> Rate Limiting & Resource Throttling Rules
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.65rem', marginTop: '0.5rem' }}>
-                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>API Ingestion:</strong> 300 requests / 60s per client token
-                    </div>
-                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>Batch AI Inference:</strong> 30 requests / 60s window
-                    </div>
-                    <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>Synthetic Sample Generation:</strong> 25 requests / 60s window
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+                    {RATE_LIMIT_POLICIES.map((policy) => (
+                      <div
+                        key={policy.name}
+                        style={{
+                          padding: '0.65rem 0.85rem',
+                          background: 'var(--bg-surface)',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-hairline)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong style={{ color: 'var(--text-primary)' }}>{policy.name}</strong>
+                          <span className={`badge ${policy.isEnforced ? 'badge-blue' : ''}`} style={{ fontSize: '0.7rem' }}>
+                            {policy.tier}
+                          </span>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                          {policy.limit}
+                        </div>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                          {policy.source}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -14,6 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { fetchProviders } from '../api';
+import { parseHealthProbeResult } from '../utils/uiIntegrityContracts';
 
 interface HealthData {
   status?: string;
@@ -55,15 +56,13 @@ export const SystemHealthView: React.FC = () => {
     try {
       const res = await fetch(url);
       const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error(`Expected JSON response but received ${contentType || 'non-JSON payload'}`);
-      }
-      const data = await res.json();
-      if (!res.ok && res.status !== 503) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      const text = await res.text();
+      const parsed = parseHealthProbeResult(res.status, contentType, text);
       const latency = Math.round(performance.now() - start);
-      return { data, latency };
+      if (!parsed.ok) {
+        return { data: { status: res.status === 503 ? 'degraded' : 'unreachable', error: parsed.error }, latency };
+      }
+      return { data: parsed.data as T, latency };
     } catch (err: any) {
       const latency = Math.round(performance.now() - start);
       return { data: { status: 'unreachable', error: err?.message || 'Probe request failed' }, latency };

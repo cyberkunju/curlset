@@ -7,11 +7,16 @@ import { LandingPage } from './components/LandingPage';
 import { ProjectDetail } from './components/ProjectDetail';
 import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
-import { SystemHealthView } from './components/SystemHealthView';
-import { GovernanceView } from './components/GovernanceView';
 import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { Project } from './types';
+
+const SystemHealthView = React.lazy(() =>
+  import('./components/SystemHealthView').then((m) => ({ default: m.SystemHealthView }))
+);
+const GovernanceView = React.lazy(() =>
+  import('./components/GovernanceView').then((m) => ({ default: m.GovernanceView }))
+);
 
 type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance';
 
@@ -286,8 +291,16 @@ export const App: React.FC = () => {
               />
             )}
 
-            {currentView === 'health' && <SystemHealthView />}
-            {currentView === 'governance' && <GovernanceView />}
+            {currentView === 'health' && (
+              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading health diagnostics...</div>}>
+                <SystemHealthView />
+              </React.Suspense>
+            )}
+            {currentView === 'governance' && (
+              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading governance console...</div>}>
+                <GovernanceView />
+              </React.Suspense>
+            )}
           </DirectionalPageTransition>
         </main>
       </div>

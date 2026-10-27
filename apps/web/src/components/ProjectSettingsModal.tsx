@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { CustomSelect } from './ui/CustomSelect';
 import { ModalShell } from './ui/ModalShell';
+import { filterAuditLogs, isDateRangeValid } from '../utils/uiIntegrityContracts';
 
 interface ProjectSettingsModalProps {
   project: Project;
@@ -125,53 +126,14 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const isDateRangeInvalid = Boolean(auditStartDate && auditEndDate && auditStartDate > auditEndDate);
+  const isDateRangeInvalid = !isDateRangeValid(auditStartDate, auditEndDate);
 
   // Filter audit logs client-side over loaded data
   const filteredAuditLogs = useMemo(() => {
-    if (auditStartDate && auditEndDate && auditStartDate > auditEndDate) {
-      return [];
-    }
-
-    return auditLogs.filter((log) => {
-      // 1. Keyword search
-      if (auditSearchQuery.trim()) {
-        const q = auditSearchQuery.toLowerCase();
-        const actionMatch = log.action?.toLowerCase().includes(q);
-        const userMatch = log.user_id?.toLowerCase().includes(q);
-        const resourceTypeMatch = log.resource_type?.toLowerCase().includes(q);
-        const resourceIdMatch = log.resource_id?.toLowerCase().includes(q);
-        const detailsMatch = JSON.stringify(log.details || {}).toLowerCase().includes(q);
-        if (!actionMatch && !userMatch && !resourceTypeMatch && !resourceIdMatch && !detailsMatch) {
-          return false;
-        }
-      }
-
-      // 2. Date filters
-      const hasDateFilter = Boolean(auditStartDate || auditEndDate);
-      if (hasDateFilter) {
-        if (!log.created_at) {
-          // Exclude records with missing timestamps when a date filter is active
-          return false;
-        }
-        const logDate = new Date(log.created_at);
-        if (isNaN(logDate.getTime())) {
-          // Exclude records with invalid timestamps when a date filter is active
-          return false;
-        }
-        if (auditStartDate) {
-          const start = new Date(auditStartDate);
-          start.setHours(0, 0, 0, 0);
-          if (logDate < start) return false;
-        }
-        if (auditEndDate) {
-          const end = new Date(auditEndDate);
-          end.setHours(23, 59, 59, 999);
-          if (logDate > end) return false;
-        }
-      }
-
-      return true;
+    return filterAuditLogs(auditLogs, {
+      searchQuery: auditSearchQuery,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
     });
   }, [auditLogs, auditSearchQuery, auditStartDate, auditEndDate]);
 
