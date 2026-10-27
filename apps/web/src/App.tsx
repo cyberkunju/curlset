@@ -161,12 +161,16 @@ export const App: React.FC = () => {
     breadcrumbs.push({ label: 'Dataset Overview' });
   }
 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   return (
     <div className="app-container">
       <Sidebar
         currentView={currentView}
         onNavigate={handleNavigate}
         systemHealth={systemHealth}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       <div className="main-wrapper">
@@ -174,6 +178,7 @@ export const App: React.FC = () => {
           breadcrumbs={breadcrumbs}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
 
         <main className="content-body">

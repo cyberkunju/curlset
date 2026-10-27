@@ -349,7 +349,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontWeight: 700, fontSize: '1rem' }}>{dataset.name}</span>
-              <span className="badge badge-indigo">{dataset.task_type}</span>
+              <span className="badge badge-blue">{dataset.task_type}</span>
             </div>
           </div>
         </div>
@@ -480,7 +480,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       </span>
                     </div>
                     {item.annotation_payload?.label && (
-                      <span className="badge badge-indigo" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}>
+                      <span className="badge badge-blue" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}>
                         {item.annotation_payload.label}
                       </span>
                     )}
@@ -554,7 +554,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   justifyContent: 'center',
                   padding: '1.5rem',
                   overflow: 'auto',
-                  background: 'radial-gradient(circle, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  backgroundColor: 'var(--bg-canvas)',
                 }}
               >
                 {dataset.task_type === 'image_classification' && activeAsset ? (
@@ -583,7 +583,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                     style={{
                       width: '100%',
                       maxWidth: '720px',
-                      background: 'rgba(15, 23, 42, 0.85)',
+                      backgroundColor: 'var(--bg-surface)',
                       padding: '2rem',
                       borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-subtle)',
@@ -675,7 +675,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                               title="Click to seek and play"
                             >
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
+                                <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
                                   {seg.start_time.toFixed(2)}s - {seg.end_time.toFixed(2)}s
                                 </span>
                                 {seg.speaker && <strong style={{ color: 'var(--text-accent)' }}>{seg.speaker}:</strong>}
@@ -794,7 +794,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       gap: '0.3rem',
                       padding: '0.5rem',
                       marginBottom: '0.4rem',
-                      background: 'rgba(30, 41, 59, 0.4)',
+                      backgroundColor: 'var(--bg-subtle)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-subtle)',
                     }}
@@ -883,9 +883,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           justifyContent: 'space-between',
                           padding: '0.6rem 0.85rem',
                           borderRadius: 'var(--radius-sm)',
-                          background: isSelected ? 'var(--primary)' : 'rgba(30, 41, 59, 0.6)',
+                          backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
                           border: isSelected ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
-                          color: 'var(--text-primary)',
+                          color: isSelected ? '#ffffff' : 'var(--text-primary)',
                           fontWeight: isSelected ? 700 : 500,
                           cursor: 'pointer',
                           textAlign: 'left',

@@ -169,7 +169,7 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
                     {Object.entries(report.class_distribution).map(([cls, count]) => (
                       <div key={cls} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{cls}</span>
-                        <span className="badge badge-indigo">{count}</span>
+                        <span className="badge badge-blue">{count}</span>
                       </div>
                     ))}
                   </div>

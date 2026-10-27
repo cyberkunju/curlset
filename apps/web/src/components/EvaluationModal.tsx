@@ -225,7 +225,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                           <span className="badge badge-cyan">{item.review_status}</span>
                         </td>
                         <td style={{ padding: '0.6rem 0.8rem' }}>
-                          {item.label ? <span className="badge badge-indigo">{item.label}</span> : '—'}
+                          {item.label ? <span className="badge badge-blue">{item.label}</span> : '—'}
                         </td>
                         <td style={{ padding: '0.6rem 0.8rem' }}>
                           {item.confidence !== undefined && item.confidence !== null

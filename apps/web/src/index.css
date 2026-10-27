@@ -27,8 +27,8 @@
   --bg-card: var(--bg-surface);
   --bg-card-hover: var(--bg-surface);
   --bg-modal: var(--bg-surface);
-  --bg-glass: rgba(255, 255, 255, 0.96);
-  --glass-blur: blur(12px);
+  --bg-glass: rgba(255, 255, 255, 0.98);
+  --glass-blur: none;
   --text-accent: var(--accent-interactive);
   --primary: var(--accent-primary);
   --primary-hover: #27272A;
@@ -79,7 +79,7 @@
   --primary: var(--accent-primary);
   --primary-hover: #E4E4E7;
   --primary-gradient: var(--accent-primary);
-  --bg-glass: rgba(17, 17, 20, 0.95);
+  --bg-glass: rgba(17, 17, 20, 0.98);
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
@@ -103,11 +103,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Accessibility Focus Indicator */
+:focus-visible {
+  outline: 2px solid var(--accent-interactive);
+  outline-offset: 2px;
+}
+
 /* App Layout Shell */
 .app-container {
   display: flex;
   min-height: 100vh;
   background-color: var(--bg-canvas);
+  position: relative;
 }
 
 .sidebar {
@@ -121,6 +128,7 @@ body {
   top: 0;
   height: 100vh;
   z-index: 20;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
 
 .sidebar-header {
@@ -225,6 +233,43 @@ body {
   background-color: var(--emerald);
 }
 
+/* Mobile Sidebar Drawer */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+    z-index: 50;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    animation: fadeIn 0.15s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .content-body {
+    padding: 1rem !important;
+  }
+
+  .top-header {
+    padding: 0 1rem !important;
+  }
+}
+
 /* Main Content Area */
 .main-wrapper {
   flex: 1;
@@ -235,7 +280,7 @@ body {
 }
 
 .top-header {
-  height: 58px;
+  height: 56px;
   border-bottom: 1px solid var(--border-hairline);
   background: var(--bg-surface);
   display: flex;
@@ -394,6 +439,67 @@ body {
   color: var(--text-muted);
 }
 
+/* Data Table Component */
+.data-table-container {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-top: 1.25rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  background: var(--bg-elevated);
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.data-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover td {
+  background-color: var(--bg-subtle-hover);
+  cursor: pointer;
+}
+
+/* Progress Bars */
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-interactive);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
 /* Badges (Minimal & Functional) */
 .badge {
   display: inline-flex;
@@ -412,25 +518,25 @@ body {
   border-color: var(--border-hairline);
 }
 
-.badge-indigo, .badge-cyan {
+.badge-blue, .badge-indigo, .badge-cyan {
   background: rgba(37, 99, 235, 0.08);
   color: var(--accent-interactive);
   border-color: rgba(37, 99, 235, 0.2);
 }
 
-.badge-emerald {
+.badge-emerald, .badge-success {
   background: rgba(16, 185, 129, 0.08);
   color: var(--emerald);
   border-color: rgba(16, 185, 129, 0.25);
 }
 
-.badge-amber {
+.badge-amber, .badge-warning {
   background: rgba(245, 158, 11, 0.08);
   color: var(--amber);
   border-color: rgba(245, 158, 11, 0.25);
 }
 
-.badge-rose {
+.badge-rose, .badge-danger, .badge-error {
   background: rgba(239, 68, 68, 0.08);
   color: var(--rose);
   border-color: rgba(239, 68, 68, 0.25);
@@ -440,8 +546,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,6 +565,8 @@ body {
   position: relative;
   animation: modalIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--text-primary);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 @keyframes modalIn {

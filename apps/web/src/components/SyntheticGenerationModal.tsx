@@ -311,7 +311,7 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <span style={{ fontWeight: 700 }}>Run: <code>{r.run_id}</code></span>
-                        <span className="badge badge-indigo" style={{ marginLeft: '0.5rem' }}>{r.status}</span>
+                        <span className="badge badge-blue" style={{ marginLeft: '0.5rem' }}>{r.status}</span>
                       </div>
                       <span style={{ color: 'var(--text-muted)' }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</span>
                     </div>

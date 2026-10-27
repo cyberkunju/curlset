@@ -408,7 +408,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     >
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                          <span className={`badge ${art.format === 'csv' ? 'badge-indigo' : 'badge-cyan'}`} style={{ textTransform: 'uppercase' }}>
+                          <span className={`badge ${art.format === 'csv' ? 'badge-blue' : 'badge-cyan'}`} style={{ textTransform: 'uppercase' }}>
                             {art.format}
                           </span>
                           <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>

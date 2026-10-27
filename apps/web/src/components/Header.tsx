@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Sun, Moon } from 'lucide-react';
+import { Search, Sun, Moon, Menu } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 
 interface BreadcrumbItem {
@@ -11,9 +11,15 @@ interface HeaderProps {
   breadcrumbs: BreadcrumbItem[];
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onToggleMobileSidebar?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ breadcrumbs, searchQuery, onSearchChange }) => {
+export const Header: React.FC<HeaderProps> = ({
+  breadcrumbs,
+  searchQuery,
+  onSearchChange,
+  onToggleMobileSidebar,
+}) => {
   const [isDark, setIsDark] = useState<boolean>(() => {
     return document.documentElement.classList.contains('dark');
   });
@@ -40,30 +46,43 @@ export const Header: React.FC<HeaderProps> = ({ breadcrumbs, searchQuery, onSear
 
   return (
     <header className="top-header">
-      <div className="breadcrumbs">
-        {breadcrumbs.map((item, idx) => {
-          const isLast = idx === breadcrumbs.length - 1;
-          return (
-            <React.Fragment key={idx}>
-              {idx > 0 && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>/</span>}
-              {isLast ? (
-                <span className="breadcrumb-active">{item.label}</span>
-              ) : (
-                <button
-                  onClick={item.onClick}
-                  className="breadcrumb-link"
-                  style={{ background: 'none', border: 'none', font: 'inherit', padding: 0 }}
-                >
-                  {item.label}
-                </button>
-              )}
-            </React.Fragment>
-          );
-        })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        {onToggleMobileSidebar && (
+          <SpringButton
+            variant="ghost"
+            onClick={onToggleMobileSidebar}
+            aria-label="Toggle Navigation Sidebar"
+            style={{ width: '32px', height: '32px', padding: 0 }}
+          >
+            <Menu size={18} strokeWidth={2} />
+          </SpringButton>
+        )}
+
+        <div className="breadcrumbs">
+          {breadcrumbs.map((item, idx) => {
+            const isLast = idx === breadcrumbs.length - 1;
+            return (
+              <React.Fragment key={idx}>
+                {idx > 0 && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>/</span>}
+                {isLast ? (
+                  <span className="breadcrumb-active">{item.label}</span>
+                ) : (
+                  <button
+                    onClick={item.onClick}
+                    className="breadcrumb-link"
+                    style={{ background: 'none', border: 'none', font: 'inherit', padding: 0 }}
+                  >
+                    {item.label}
+                  </button>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-        <div style={{ position: 'relative', width: '220px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ position: 'relative', width: '200px' }}>
           <input
             type="text"
             placeholder="Search & filter..."

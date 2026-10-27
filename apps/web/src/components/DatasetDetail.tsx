@@ -8,11 +8,6 @@ import {
   Download,
   PenTool,
   Bot,
-  ShieldAlert,
-  Layers,
-  Sparkles,
-  Maximize2,
-  PieChart,
   Tag,
   FileText,
 } from 'lucide-react';
@@ -98,6 +93,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const { dataset, stats } = data;
   const labels = dataset.label_schema?.labels || dataset.label_schema?.classes || [];
 
+  const reviewedCount = stats.approved + stats.needs_correction;
+  const reviewPct = stats.total_records > 0 ? Math.round((reviewedCount / stats.total_records) * 100) : 0;
+
   if (isWorkspaceOpen) {
     return (
       <AnnotationWorkspace
@@ -119,7 +117,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
               {dataset.name}
             </h1>
-            <span className="badge badge-indigo">{dataset.task_type.replace(/_/g, ' ')}</span>
+            <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
             <span className="badge badge-neutral">Schema v{dataset.schema_version}</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '720px', lineHeight: 1.5 }}>
@@ -180,7 +178,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
               {labels.map((lbl: string, idx: number) => (
-                <span key={idx} className="badge badge-indigo" style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}>
+                <span key={idx} className="badge badge-blue" style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}>
                   {lbl}
                 </span>
               ))}
@@ -206,7 +204,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             Dataset Engineering Lifecycle Hub
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Execute structured engineering operations through the 5 stages from raw ingest to production fine-tuning.
+            Step through the 5 structured engineering stages with real-time pipeline telemetry.
           </p>
         </div>
 
@@ -214,10 +212,17 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           {/* Stage 1 */}
           <div className="pipeline-stage-card">
             <div>
-              <div className="pipeline-stage-header">
-                <span className="pipeline-stage-num">01</span>
-                <HardDrive size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ingestion & Sources</h3>
+              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span className="pipeline-stage-num">01</span>
+                  <HardDrive size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ingestion & Sources</h3>
+                </div>
+                {stats.total_records > 0 ? (
+                  <span className="badge badge-emerald">{stats.total_records} Ingested</span>
+                ) : (
+                  <span className="badge badge-amber">No Records</span>
+                )}
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                 Import local files, ZIP archives, URL feeds with SSRF defense, and document source rights & license attribution.
@@ -236,14 +241,26 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           {/* Stage 2 */}
           <div className="pipeline-stage-card">
             <div>
-              <div className="pipeline-stage-header">
-                <span className="pipeline-stage-num">02</span>
-                <PenTool size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Annotation & AI</h3>
+              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span className="pipeline-stage-num">02</span>
+                  <PenTool size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Annotation & AI</h3>
+                </div>
+                <span className="badge badge-blue">{reviewPct}% Reviewed</span>
               </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
                 Label bounding boxes with <strong>Sobel magnetic edge-snap</strong>, transcribe audio, or run local Ollama auto-labeling.
               </p>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
+                  <span>Human/Model Reviewed</span>
+                  <span>{reviewedCount}/{stats.total_records} records</span>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${reviewPct}%` }} />
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <SpringButton variant="primary" onClick={() => setIsWorkspaceOpen(true)}>
@@ -259,10 +276,17 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           {/* Stage 3 */}
           <div className="pipeline-stage-card">
             <div>
-              <div className="pipeline-stage-header">
-                <span className="pipeline-stage-num">03</span>
-                <FileCheck2 size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Quality & Invariants</h3>
+              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span className="pipeline-stage-num">03</span>
+                  <FileCheck2 size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Quality & Invariants</h3>
+                </div>
+                {stats.rejected > 0 ? (
+                  <span className="badge badge-rose">{stats.rejected} Flagged</span>
+                ) : (
+                  <span className="badge badge-emerald">Invariants Healthy</span>
+                )}
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                 Detect train/val split leakage, apply geometry-aware spatial transforms, and generate diverse synthetic samples.
@@ -284,10 +308,17 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           {/* Stage 4 */}
           <div className="pipeline-stage-card">
             <div>
-              <div className="pipeline-stage-header">
-                <span className="pipeline-stage-num">04</span>
-                <GitCompare size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Versioning & Diff</h3>
+              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span className="pipeline-stage-num">04</span>
+                  <GitCompare size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Versioning & Diff</h3>
+                </div>
+                {stats.approved > 0 ? (
+                  <span className="badge badge-emerald">{stats.approved} Verified</span>
+                ) : (
+                  <span className="badge badge-neutral">Draft State</span>
+                )}
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                 Publish frozen SHA-256 manifests, compare visual bounding-box deltas ($v_1$ vs $v_2$), and evaluate baseline models.
@@ -312,10 +343,17 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           {/* Stage 5 */}
           <div className="pipeline-stage-card" style={{ borderLeft: '3px solid var(--accent-primary)' }}>
             <div>
-              <div className="pipeline-stage-header">
-                <span className="pipeline-stage-num">05</span>
-                <Download size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Framework Exports</h3>
+              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span className="pipeline-stage-num">05</span>
+                  <Download size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Framework Exports</h3>
+                </div>
+                {stats.approved > 0 ? (
+                  <span className="badge badge-blue">Ready for Export</span>
+                ) : (
+                  <span className="badge badge-neutral">Requires Approvals</span>
+                )}
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                 Export 1-click bundles for Unsloth, Axolotl, LLaMA-Factory, or Ultralytics YOLO with live multimodal token simulation.

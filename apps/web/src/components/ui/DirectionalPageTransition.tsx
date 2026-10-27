@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 export interface DirectionalTransitionProps {
   activeKey: string;
@@ -7,29 +7,31 @@ export interface DirectionalTransitionProps {
   children: React.ReactNode;
 }
 
-const variants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 24 : -24,
-    opacity: 0,
-    filter: 'blur(2px)',
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-    filter: 'blur(0px)',
-  },
-  exit: (direction: number) => ({
-    x: direction > 0 ? -18 : 18,
-    opacity: 0,
-    filter: 'blur(1px)',
-  }),
-};
-
 export const DirectionalPageTransition: React.FC<DirectionalTransitionProps> = ({
   activeKey,
   direction,
   children,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
+
+  const variants = {
+    enter: (dir: number) => ({
+      x: shouldReduceMotion ? 0 : dir > 0 ? 20 : -20,
+      opacity: 0,
+      filter: shouldReduceMotion ? 'none' : 'blur(2px)',
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      filter: 'none',
+    },
+    exit: (dir: number) => ({
+      x: shouldReduceMotion ? 0 : dir > 0 ? -16 : 16,
+      opacity: 0,
+      filter: shouldReduceMotion ? 'none' : 'blur(1px)',
+    }),
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
       <AnimatePresence custom={direction} initial={false} mode="wait">
@@ -40,11 +42,15 @@ export const DirectionalPageTransition: React.FC<DirectionalTransitionProps> = (
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{
-            x: { type: 'spring', stiffness: 420, damping: 34, mass: 0.8 },
-            opacity: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
-            filter: { duration: 0.16 },
-          }}
+          transition={
+            shouldReduceMotion
+              ? { duration: 0.15, ease: 'linear' }
+              : {
+                  x: { type: 'spring', stiffness: 420, damping: 34, mass: 0.8 },
+                  opacity: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
+                  filter: { duration: 0.15 },
+                }
+          }
           style={{ width: '100%' }}
         >
           {children}

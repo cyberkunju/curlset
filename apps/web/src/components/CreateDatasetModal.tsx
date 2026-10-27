@@ -116,7 +116,7 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
               {parsedLabels.map((lbl, idx) => (
-                <span key={idx} className="badge badge-indigo">{lbl}</span>
+                <span key={idx} className="badge badge-blue">{lbl}</span>
               ))}
             </div>
           </div>

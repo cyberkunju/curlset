@@ -236,7 +236,7 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                         <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-accent)' }}>
                           {ver.version_tag}
                         </span>
-                        <span className="badge badge-indigo">v{ver.version_number}</span>
+                        <span className="badge badge-blue">v{ver.version_number}</span>
                         <span className="badge badge-cyan">{ver.record_count} Records Frozen</span>
                         <span className="badge badge-emerald">🔒 Immutable</span>
                       </div>

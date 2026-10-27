@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, FolderPlus, FolderKanban } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, FolderPlus, FolderKanban, LayoutGrid, List, ArrowUpDown, ChevronRight } from 'lucide-react';
 import { Project } from '../types';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
@@ -23,14 +23,23 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   onToggleArchived,
   searchQuery,
 }) => {
-  const filtered = projects.filter((p) => {
-    const q = searchQuery.toLowerCase();
-    return p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q));
-  });
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'name'>('date_desc');
+
+  const filtered = projects
+    .filter((p) => {
+      const q = searchQuery.toLowerCase();
+      return p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
@@ -39,11 +48,68 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <span className="badge badge-neutral">{filtered.length} total</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Isolated workspaces organizing datasets, media assets, review rules, and cryptographic versions.
+            Workspaces organizing training tasks, multimodal records, invariant checks, and immutable versions.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {/* View mode toggle */}
+          <div
+            style={{
+              display: 'inline-flex',
+              backgroundColor: 'var(--bg-elevated)',
+              padding: '2px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-hairline)',
+            }}
+          >
+            <button
+              onClick={() => setViewMode('grid')}
+              style={{
+                background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: viewMode === 'grid' ? 'var(--shadow-sm)' : 'none',
+              }}
+              title="Card Grid View"
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              style={{
+                background: viewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: viewMode === 'table' ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: viewMode === 'table' ? 'var(--shadow-sm)' : 'none',
+              }}
+              title="Structured Table View"
+            >
+              <List size={15} />
+            </button>
+          </div>
+
+          {/* Sort order */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <ArrowUpDown size={14} style={{ color: 'var(--text-muted)' }} />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="form-select"
+              style={{ height: '32px', fontSize: '0.8rem', padding: '0 0.5rem', width: 'auto' }}
+            >
+              <option value="date_desc">Newest First</option>
+              <option value="date_asc">Oldest First</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+          </div>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -114,23 +180,78 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           </div>
         }
       >
-        {(items) => (
-          <div className="cards-grid">
-            {items.map((proj) => (
-              <div key={proj.id} className="card" onClick={() => onSelectProject(proj.id)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem' }}>
-                  <h3 className="card-title">{proj.name}</h3>
-                  {proj.is_archived && <span className="badge badge-amber">Archived</span>}
+        {(items) =>
+          viewMode === 'grid' ? (
+            <div className="cards-grid">
+              {items.map((proj) => (
+                <div key={proj.id} className="card" onClick={() => onSelectProject(proj.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem' }}>
+                    <h3 className="card-title">{proj.name}</h3>
+                    {proj.is_archived ? (
+                      <span className="badge badge-amber">Archived</span>
+                    ) : (
+                      <span className="badge badge-emerald">Active</span>
+                    )}
+                  </div>
+                  <p className="card-desc">{proj.description || 'No description provided.'}</p>
+                  <div className="card-footer">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{proj.id}</span>
+                    <span>{new Date(proj.created_at).toLocaleDateString()}</span>
+                  </div>
                 </div>
-                <p className="card-desc">{proj.description || 'No description provided.'}</p>
-                <div className="card-footer">
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{proj.id}</span>
-                  <span>{new Date(proj.created_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="data-table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Project Name & Description</th>
+                    <th>Identifier</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((proj) => (
+                    <tr key={proj.id} onClick={() => onSelectProject(proj.id)}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{proj.name}</div>
+                        {proj.description && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {proj.description}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {proj.id}
+                        </code>
+                      </td>
+                      <td>
+                        {proj.is_archived ? (
+                          <span className="badge badge-amber">Archived</span>
+                        ) : (
+                          <span className="badge badge-emerald">Active</span>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(proj.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-interactive)' }}>
+                          <span>Open</span>
+                          <ChevronRight size={14} />
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
       </TriStateView>
     </div>
   );

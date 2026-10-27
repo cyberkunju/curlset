@@ -325,7 +325,7 @@ export const GovernanceView: React.FC = () => {
                             )}
                           </td>
                           <td style={{ padding: '0.75rem 1rem' }}>
-                            <span className={m.role === 'owner' ? 'badge badge-amber' : m.role === 'editor' ? 'badge badge-indigo' : 'badge'}>
+                            <span className={m.role === 'owner' ? 'badge badge-amber' : m.role === 'editor' ? 'badge badge-blue' : 'badge'}>
                               {m.role}
                             </span>
                           </td>
@@ -377,7 +377,7 @@ export const GovernanceView: React.FC = () => {
                               {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                             </td>
                             <td style={{ padding: '0.65rem 0.75rem' }}>
-                              <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>{log.action}</span>
+                              <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{log.action}</span>
                             </td>
                             <td style={{ padding: '0.65rem 0.75rem', fontFamily: 'var(--font-mono)' }}>{log.user_id}</td>
                             <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)' }}>

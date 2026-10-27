@@ -59,7 +59,7 @@ export const SystemHealthView: React.FC = () => {
         <div className="card" style={{ cursor: 'default' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Privacy Mode</h3>
-            <span className="badge badge-indigo">
+            <span className="badge badge-blue">
               {health?.privacy_mode || 'local_only'}
             </span>
           </div>
