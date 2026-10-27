@@ -204,3 +204,92 @@ UI-6 (Modals, Presets, Cluster Map & Verification)
    - Selecting a dataset navigates to `#dataset/:id`.
    - Stage-based lifecycle hub cleanly opens Import, Workbench, Quality, Diff, Export, and Augment without overlapping or breaking focus.
    - Light/Dark mode toggle transitions all tokens smoothly.
+
+---
+
+## 5. Master Multimodal UI Redesign Roadmap (Phases R0 to R7)
+
+The initial UI-0 through UI-6 iterations established design tokens, icon standardization, and foundational components, but left important gaps in layout density, modal containers, and modality-specific workspaces.
+
+The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_AUDIT.md`) and organized into strict, independently verifiable vertical phases.
+
+### Phase Status Overview
+
+| Phase | Description | Status | Verification & Deliverables |
+|---|---|---|---|
+| **R0** | **Repository & UI Coverage Audit** | **COMPLETE** | `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`, 0 build/test regressions. |
+| **R1** | **Design System & Global Icon Standardization** | PENDING AUTHORIZATION | Shared modal shell primitive, table tokens, input field wrappers, icon sizing guidelines. |
+| **R2** | **Application Shell & Landing Page** | PENDING AUTHORIZATION | Responsive sidebar drawer/rail, interactive breadcrumbs, command palette search, tightened landing page. |
+| **R3** | **Projects & Dataset Management** | PENDING AUTHORIZATION | Compact table/grid views, split distribution meters, quick-action menus. |
+| **R4** | **Annotation Workbench (Modality Workspaces)** | PENDING AUTHORIZATION | Modality-tailored canvases (Object Detection, Text Spans, Audio Waveform scrubber), hotkey inspector drawer. |
+| **R5** | **Generation, Quality, Versioning & Exports** | PENDING AUTHORIZATION | High-density quality scorecard, synthetic data diff preview, visual Git-diff canvas overlay, preset export simulator. |
+| **R6** | **Governance, Diagnostics, Settings & Modals** | PENDING AUTHORIZATION | Standardized modal containers, audit log table filtering, real-time health telemetry console. |
+| **R7** | **Full Application Visual QA & Verification** | PENDING AUTHORIZATION | Cross-viewport testing (1440px, 1280px, 768px, 390px), responsive regression testing, final sign-off. |
+
+---
+
+### Detailed Phase Specifications
+
+#### Phase R0: Repository & UI Coverage Audit (COMPLETED)
+- **Objective:** Exhaustive audit of all 6 views, 14 modals, and 6 shared UI components. Identify visual and layout gaps, document functional contracts, and establish verifiable roadmap.
+- **Deliverables:** `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`.
+- **Exit Gate:** Clean build, 104/104 tests passing, Git commit and push of R0 documentation.
+
+#### Phase R1: Design System & Global Icon Standardization
+- **Objective:** Establish reusable shared UI primitives so all subsequent phase screens share identical padding, borders, typography, and modal structures.
+- **Tasks:**
+  - Build `<ModalShell>` dialog primitive with fixed header, scrollable body, responsive width tokens (`sm`, `md`, `lg`, `xl`, `full`), and keyboard `Esc` dismiss.
+  - Define table design tokens and reusable `<DataTable>` or standardized CSS table classes.
+  - Audit and enforce uniform icon stroke (`strokeWidth={1.75}`) and spacing across all remaining views.
+- **Exit Gate:** `npm run build` passes; `<ModalShell>` tested with light and dark themes.
+
+#### Phase R2: Application Shell & Landing Page
+- **Objective:** Modernize global navigation and product front-door.
+- **Tasks:**
+  - Make `Sidebar.tsx` responsive with an auto-collapsing rail for tablet viewports (<1024px) and slide-out overlay for mobile (<768px).
+  - Enhance `Header.tsx` with interactive deep breadcrumbs and `Cmd+K`/`Ctrl+K` quick search shortcut.
+  - Refactor `LandingPage.tsx` to tighten vertical hero padding, format 5-stage lifecycle cards into a compact developer-tool overview, and add quick-start sample dataset preview chips.
+- **Exit Gate:** Landing page renders cleanly across 1440px, 1280px, 768px, and 390px viewports without layout overflow.
+
+#### Phase R3: Projects & Dataset Management
+- **Objective:** Elevate project and dataset discovery into dense, professional developer views.
+- **Tasks:**
+  - In `ProjectList.tsx`: Add view toggle (Cards vs Dense Table), project summary metrics, and task type filters.
+  - In `ProjectDetail.tsx`: Restructure dataset inventory into a structured tabular list with split distribution meters (`train`/`val`/`test`) and quick-launch action buttons.
+  - In `DatasetDetail.tsx`: Replace heavy vertical stage cards with a compact lifecycle action bar or tabbed toolbar so records take primary focus; add tokenized filter pills.
+- **Exit Gate:** Projects and datasets list, filter, and navigate seamlessly with clear data density and zero layout clipping.
+
+#### Phase R4: Annotation Workbench (Modality Workspaces)
+- **Objective:** Transform `AnnotationWorkspace.tsx` into a high-performance, modality-tailored labeling environment.
+- **Tasks:**
+  - Object Detection: Enhance `ObjectDetectionCanvas.tsx` with full-height canvas, zoom/pan controls, class color-coding, and magnetic edge snap.
+  - Text Classification / NER: Introduce span/token highlighting controls with reading typography.
+  - Audio Transcription: Introduce interactive waveform scrubber with timestamped segment markers.
+  - Universal Workbench Polish: Standardize inspector panel spacing, confidence controls, and add a toggleable keyboard shortcut drawer.
+- **Exit Gate:** All supported modalities render with appropriate canvas controls; annotations save with coordinate integrity.
+
+#### Phase R5: Generation, Quality, Versioning & Exports
+- **Objective:** Refactor remaining core dataset engineering workflows.
+- **Tasks:**
+  - `QualityDashboardModal.tsx`: High-density quality scorecard, interactive class balance charts, 1-click filter deep-links for failing invariants.
+  - `SyntheticGenerationModal.tsx` & `AIAnnotationModal.tsx`: Live schema preview, split configuration panel, step-by-step generation logs with perceptual progress bars.
+  - `VersionDiffModal.tsx`: Split-screen / onion-skin slider for visual bounding box diffs ($v_1$ vs $v_2$).
+  - `ExportModal.tsx`: Framework preset selector tabs with live format code previews and token simulator context tick markers.
+- **Exit Gate:** Generation jobs, quality checks, diff calculations, and exports execute cleanly with informative visual feedback.
+
+#### Phase R6: Governance, Diagnostics, Settings & Modals
+- **Objective:** Standardize remaining secondary views and dialogs.
+- **Tasks:**
+  - `GovernanceView.tsx`: Compact metric meters, filterable audit event log table with search and date range filters, clean team role management.
+  - `SystemHealthView.tsx`: Real-time diagnostics console with ping latency meter, service dependency matrix, and model provider status indicators.
+  - Standardize `CreateProjectModal.tsx`, `CreateDatasetModal.tsx`, `ProjectSettingsModal.tsx`, and `ClusterMapModal.tsx` using the Phase R1 modal shell.
+- **Exit Gate:** All secondary screens adhere to the neutral design system; 0 broken links or unstyled modals.
+
+#### Phase R7: Full Application Visual QA & Verification
+- **Objective:** Comprehensive visual, responsive, and functional regression testing across the entire platform.
+- **Tasks:**
+  - Test and verify all major workflows at 1440×900, 1280×800, 768×1024, and 390×844.
+  - Verify WCAG AAA contrast, keyboard focus indicators, and reduced-motion compliance.
+  - Run full test suite (`pytest tests/`, `npm run build`, `ruff check .`).
+  - Capture visual verification evidence and update `docs/EXECUTION_PLAN.md`.
+- **Exit Gate:** 100% passing tests, 0 lint errors, clean production build, and all screens verified against target blueprint.
