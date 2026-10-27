@@ -3,6 +3,7 @@ import { Sparkles, ShieldCheck, CheckCircle2, X } from 'lucide-react';
 import { triggerSyntheticGeneration, fetchSyntheticLineage } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface SyntheticGenerationModalProps {
   datasetId: string;
@@ -181,18 +182,13 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                   Target Minority Class
                 </label>
-                <select
-                  className="input-text"
+                <CustomSelect
                   value={targetClass}
-                  onChange={(e) => setTargetClass(e.target.value)}
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                >
-                  {labels.map((lbl) => (
-                    <option key={lbl} value={lbl}>
-                      {lbl}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setTargetClass(val)}
+                  options={labels.map((lbl) => ({ value: lbl, label: lbl }))}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select target minority class"
+                />
               </div>
 
               <div>
@@ -258,16 +254,17 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                   Destination Split
                 </label>
-                <select
-                  className="input-text"
+                <CustomSelect
                   value={split}
-                  onChange={(e) => setSplit(e.target.value)}
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                >
-                  <option value="train">train</option>
-                  <option value="validation">validation</option>
-                  <option value="test">test</option>
-                </select>
+                  onChange={(val) => setSplit(val)}
+                  options={[
+                    { value: 'train', label: 'train' },
+                    { value: 'validation', label: 'validation' },
+                    { value: 'test', label: 'test' },
+                  ]}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select destination split"
+                />
               </div>
             </div>
 

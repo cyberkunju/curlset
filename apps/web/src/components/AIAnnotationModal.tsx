@@ -3,6 +3,7 @@ import { Bot, CheckCircle2, Lock, X } from 'lucide-react';
 import { fetchProviders, triggerAIAnnotation } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface AIAnnotationModalProps {
   datasetId: string;
@@ -175,47 +176,51 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
               <label className="label">Inference Provider</label>
-              <select
-                className="input"
+              <CustomSelect
                 value={selectedProvider}
-                onChange={(e) => {
-                  setSelectedProvider(e.target.value);
-                  const p = providers.find((prov) => prov.name === e.target.value);
+                onChange={(val) => {
+                  setSelectedProvider(val);
+                  const p = providers.find((prov) => prov.name === val);
                   if (p?.models?.length > 0) setSelectedModel(p.models[0]);
                 }}
-              >
-                {providers.map((p) => (
-                  <option key={p.name} value={p.name}>
-                    {p.name === 'fake' ? 'Deterministic Local Fake (Offline/Zero Cost)' : p.name.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                options={providers.map((p) => ({
+                  value: p.name,
+                  label: p.name === 'fake' ? 'Deterministic Local Fake (Offline/Zero Cost)' : p.name.toUpperCase(),
+                }))}
+                style={{ width: '100%' }}
+                ariaLabel="Select inference provider"
+              />
             </div>
 
             <div className="form-group" style={{ marginBottom: '1rem' }}>
               <label className="label">Model Identifier</label>
-              <select
-                className="input"
+              <CustomSelect
                 value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-              >
-                {availableModels.map((m: string) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedModel(val)}
+                options={availableModels.map((m: string) => ({
+                  value: m,
+                  label: m,
+                }))}
+                style={{ width: '100%' }}
+                ariaLabel="Select model identifier"
+              />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div className="form-group">
                 <label className="label">Target Split</label>
-                <select className="input" value={targetSplit} onChange={(e) => setTargetSplit(e.target.value)}>
-                  <option value="">All Splits</option>
-                  <option value="train">Train</option>
-                  <option value="val">Val</option>
-                  <option value="test">Test</option>
-                </select>
+                <CustomSelect
+                  value={targetSplit}
+                  onChange={(val) => setTargetSplit(val)}
+                  options={[
+                    { value: '', label: 'All Splits' },
+                    { value: 'train', label: 'Train' },
+                    { value: 'val', label: 'Val' },
+                    { value: 'test', label: 'Test' },
+                  ]}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select target split"
+                />
               </div>
 
               <div className="form-group">

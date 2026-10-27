@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UploadCloud, CheckCircle2, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ImportReport {
   run_id: string;
@@ -148,18 +149,20 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
             <div className="form-group">
               <label className="form-label" htmlFor="splitSelect">Target Split</label>
-              <select
+              <CustomSelect
                 id="splitSelect"
-                className="form-select"
                 value={split}
-                onChange={(e) => setSplit(e.target.value)}
+                onChange={(val) => setSplit(val)}
                 disabled={uploading}
-              >
-                <option value="train">Train</option>
-                <option value="val">Validation</option>
-                <option value="test">Test</option>
-                <option value="unassigned">Unassigned</option>
-              </select>
+                options={[
+                  { value: 'train', label: 'Train' },
+                  { value: 'val', label: 'Validation' },
+                  { value: 'test', label: 'Test' },
+                  { value: 'unassigned', label: 'Unassigned' },
+                ]}
+                style={{ width: '100%' }}
+                ariaLabel="Select target split"
+              />
             </div>
 
             {uploading && (

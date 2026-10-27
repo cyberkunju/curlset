@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Magnet, Sparkles, Trash2 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 import { magneticSnapBoxToEdges } from '../utils/magneticBoxSnap';
 
 export interface BoundingBox {
@@ -300,18 +301,14 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 700, color: 'var(--text-accent)' }}>#{idx + 1}</span>
-                  <select
-                    className="input"
+                  <CustomSelect
                     value={box.label}
-                    onChange={(e) => handleBoxClassChange(idx, e.target.value)}
-                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                  >
-                    {classes.map((cls) => (
-                      <option key={cls} value={cls}>
-                        {cls}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleBoxClassChange(idx, val)}
+                    options={classes.map((cls) => ({ value: cls, label: cls }))}
+                    size="sm"
+                    style={{ minWidth: '100px' }}
+                    ariaLabel={`Class for box ${idx + 1}`}
+                  />
                   <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                     x:{box.x} y:{box.y} w:{box.w} h:{box.h}
                   </span>

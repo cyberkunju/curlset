@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { GitCompare, Layers, CheckCircle, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 import { fetchDatasetVersions } from '../api';
 import { DatasetVersion } from '../types';
 
@@ -97,21 +98,19 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                   Baseline Release (v1)
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={v1Id}
-                  onChange={(e) => {
-                    setV1Id(e.target.value);
-                    fetchDiff(e.target.value, v2Id);
+                  onChange={(val) => {
+                    setV1Id(val);
+                    fetchDiff(val, v2Id);
                   }}
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.version_tag} ({v.record_count} items)
-                    </option>
-                  ))}
-                </select>
+                  options={versions.map((v) => ({
+                    value: v.id,
+                    label: `${v.version_tag} (${v.record_count} items)`,
+                  }))}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select baseline release"
+                />
               </div>
 
               <ArrowRight size={18} style={{ color: 'var(--text-muted)' }} />
@@ -120,21 +119,19 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                   Target Release (v2)
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={v2Id}
-                  onChange={(e) => {
-                    setV2Id(e.target.value);
-                    fetchDiff(v1Id, e.target.value);
+                  onChange={(val) => {
+                    setV2Id(val);
+                    fetchDiff(v1Id, val);
                   }}
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.version_tag} ({v.record_count} items)
-                    </option>
-                  ))}
-                </select>
+                  options={versions.map((v) => ({
+                    value: v.id,
+                    label: `${v.version_tag} (${v.record_count} items)`,
+                  }))}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select target release"
+                />
               </div>
 
               <SpringButton

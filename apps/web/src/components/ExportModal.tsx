@@ -23,6 +23,7 @@ import {
 } from '../api';
 import { DatasetVersion, ExportArtifact } from '../types';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { CustomSelect } from './ui/CustomSelect';
 import { SpringButton } from './ui/SpringButton';
 
 interface ExportModalProps {
@@ -45,6 +46,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [targetContext, setTargetContext] = useState<string>('4096');
 
   const loadVersions = async () => {
     setLoadingVersions(true);
@@ -78,8 +80,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   }, [isOpen, datasetId]);
 
-  const handleVersionChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const vId = e.target.value;
+  const handleVersionChange = async (vId: string) => {
     setSelectedVersionId(vId);
     await loadArtifacts(vId);
   };
@@ -160,18 +161,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                   Select Target Version Snapshot
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={selectedVersionId}
                   onChange={handleVersionChange}
+                  options={versions.map((v) => ({
+                    value: v.id,
+                    label: `${v.version_tag} (${v.record_count} records, published ${new Date(v.created_at).toLocaleDateString()})`,
+                  }))}
                   style={{ width: '100%' }}
-                >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.version_tag} ({v.record_count} records, published {new Date(v.created_at).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Select target version snapshot"
+                />
               </div>
 
               {/* Format Selector Cards */}
@@ -372,16 +371,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Target Context:</span>
-                    <select
-                      className="input"
-                      defaultValue="4096"
-                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
-                    >
-                      <option value="2048">2,048 tokens</option>
-                      <option value="4096">4,096 tokens (Default)</option>
-                      <option value="8192">8,192 tokens</option>
-                      <option value="32768">32,768 tokens</option>
-                    </select>
+                    <CustomSelect
+                      value={targetContext}
+                      onChange={(val) => setTargetContext(val)}
+                      options={[
+                        { value: '2048', label: '2,048 tokens' },
+                        { value: '4096', label: '4,096 tokens (Default)' },
+                        { value: '8192', label: '8,192 tokens' },
+                        { value: '32768', label: '32,768 tokens' },
+                      ]}
+                      size="sm"
+                      style={{ minWidth: '175px' }}
+                      ariaLabel="Select target context window"
+                    />
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', alignItems: 'center' }}>

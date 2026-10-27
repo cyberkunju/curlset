@@ -20,6 +20,7 @@ import {
   ClusterMapResponse,
   CoverageGap,
 } from '../types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface EvaluationModalProps {
   datasetId: string;
@@ -166,37 +167,39 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                   Prioritization Strategy
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={strategy}
-                  onChange={(e) => setStrategy(e.target.value)}
-                  style={{ width: '100%', marginTop: '0.2rem' }}
-                >
-                  <option value="least_confidence">Least Confident (lowest model confidence first)</option>
-                  <option value="label_noise">Confident Label Errors (detected label noise first)</option>
-                  <option value="disagreement">Disagreement (divergent model/human revisions)</option>
-                  <option value="unreviewed_first">Unreviewed First (pending review proposals)</option>
-                </select>
+                  onChange={(val) => setStrategy(val)}
+                  options={[
+                    { value: 'least_confidence', label: 'Least Confident (lowest model confidence first)' },
+                    { value: 'label_noise', label: 'Confident Label Errors (detected label noise first)' },
+                    { value: 'disagreement', label: 'Disagreement (divergent model/human revisions)' },
+                    { value: 'unreviewed_first', label: 'Unreviewed First (pending review proposals)' },
+                  ]}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select prioritization strategy"
+                />
               </div>
 
-              <div style={{ width: '140px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+              <div style={{ width: '160px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                   Split
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={queueSplit}
-                  onChange={(e) => setQueueSplit(e.target.value)}
-                  style={{ width: '100%', marginTop: '0.2rem' }}
-                >
-                  <option value="">All Splits</option>
-                  <option value="train">Train</option>
-                  <option value="val">Val</option>
-                  <option value="test">Test</option>
-                </select>
+                  onChange={(val) => setQueueSplit(val)}
+                  options={[
+                    { value: '', label: 'All Splits' },
+                    { value: 'train', label: 'Train' },
+                    { value: 'val', label: 'Val' },
+                    { value: 'test', label: 'Test' },
+                  ]}
+                  style={{ width: '100%' }}
+                  ariaLabel="Select queue split"
+                />
               </div>
 
               <div style={{ alignSelf: 'flex-end' }}>
@@ -263,18 +266,19 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
                   Evaluation Split
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={evalSplit}
-                  onChange={(e) => setEvalSplit(e.target.value)}
-                  style={{ width: '130px', marginTop: '0.2rem' }}
-                >
-                  <option value="test">Test Split</option>
-                  <option value="val">Val Split</option>
-                </select>
+                  onChange={(val) => setEvalSplit(val)}
+                  options={[
+                    { value: 'test', label: 'Test Split' },
+                    { value: 'val', label: 'Val Split' },
+                  ]}
+                  style={{ minWidth: '140px' }}
+                  ariaLabel="Select evaluation split"
+                />
               </div>
 
               <div style={{ alignSelf: 'flex-end' }}>

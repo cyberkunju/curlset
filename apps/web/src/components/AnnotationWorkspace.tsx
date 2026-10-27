@@ -10,6 +10,7 @@ import { Dataset, RecordQueueItem, RecordDetail } from '../types';
 import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
 import { ProgressiveAssetImage } from './ui/ProgressiveAssetImage';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 import {
   ArrowLeft,
   Copy,
@@ -401,32 +402,36 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         </div>
 
         {/* Center: Filters & Progress Meter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <select
-            className="input"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <CustomSelect
             value={selectedSplit}
-            onChange={(e) => setSelectedSplit(e.target.value)}
-            style={{ width: '115px', padding: '0.35rem 0.55rem', fontSize: '0.825rem' }}
-          >
-            <option value="">All Splits</option>
-            <option value="train">Train</option>
-            <option value="val">Val</option>
-            <option value="test">Test</option>
-          </select>
+            onChange={(val) => setSelectedSplit(val)}
+            options={[
+              { value: '', label: 'All Splits' },
+              { value: 'train', label: 'Train' },
+              { value: 'val', label: 'Val' },
+              { value: 'test', label: 'Test' },
+            ]}
+            size="sm"
+            style={{ minWidth: '125px' }}
+            ariaLabel="Filter queue by split"
+          />
 
-          <select
-            className="input"
+          <CustomSelect
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            style={{ width: '145px', padding: '0.35rem 0.55rem', fontSize: '0.825rem' }}
-          >
-            <option value="">All Statuses</option>
-            <option value="unannotated">Unannotated</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="approved">Approved</option>
-            <option value="needs_correction">Needs Fix</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            onChange={(val) => setSelectedStatus(val)}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'unannotated', label: 'Unannotated' },
+              { value: 'pending_review', label: 'Pending Review' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'needs_correction', label: 'Needs Fix' },
+              { value: 'rejected', label: 'Rejected' },
+            ]}
+            size="sm"
+            style={{ minWidth: '150px' }}
+            ariaLabel="Filter queue by status"
+          />
 
           <div
             style={{

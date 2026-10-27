@@ -15,6 +15,7 @@ import {
   fetchDatasetSources,
 } from '../api';
 import { DiscoveredSource, SourceProvenanceSummary } from '../types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface SourceDiscoveryModalProps {
   datasetId: string;
@@ -471,21 +472,22 @@ export const SourceDiscoveryModal: React.FC<SourceDiscoveryModalProps> = ({
                             Record Rights Review Decision for {item.record_id}
                           </h5>
 
-                          <div style={{ marginBottom: '0.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>
                               Decision Status
                             </label>
-                            <select
-                              className="input-text"
+                            <CustomSelect
                               value={reviewStatus}
-                              onChange={(e) => setReviewStatus(e.target.value)}
-                              style={{ width: '100%', fontSize: '0.85rem' }}
-                            >
-                              <option value="review_required">REVIEW_REQUIRED (Default / Pending Evidence)</option>
-                              <option value="approved_for_intended_use">APPROVED_FOR_INTENDED_USE (Clearance Verified)</option>
-                              <option value="restricted">RESTRICTED (Training Disallowed)</option>
-                              <option value="rejected">REJECTED (Illegal / Incompatible Terms)</option>
-                            </select>
+                              onChange={(val) => setReviewStatus(val)}
+                              options={[
+                                { value: 'review_required', label: 'REVIEW_REQUIRED (Default / Pending Evidence)' },
+                                { value: 'approved_for_intended_use', label: 'APPROVED_FOR_INTENDED_USE (Clearance Verified)' },
+                                { value: 'restricted', label: 'RESTRICTED (Training Disallowed)' },
+                                { value: 'rejected', label: 'REJECTED (Illegal / Incompatible Terms)' },
+                              ]}
+                              style={{ width: '100%' }}
+                              ariaLabel="Select rights review decision status"
+                            />
                           </div>
 
                           <div style={{ marginBottom: '0.5rem' }}>

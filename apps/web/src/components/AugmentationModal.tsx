@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FlipHorizontal, FlipVertical, RotateCw, Sparkles, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface AugmentationModalProps {
   datasetId: string;
@@ -129,16 +130,17 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                 Destination Split
               </label>
-              <select
-                className="input"
+              <CustomSelect
                 value={targetSplit}
-                onChange={(e) => setTargetSplit(e.target.value)}
+                onChange={(val) => setTargetSplit(val)}
+                options={[
+                  { value: 'train', label: 'Training (train)' },
+                  { value: 'val', label: 'Validation (val)' },
+                  { value: 'test', label: 'Testing (test)' },
+                ]}
                 style={{ width: '100%' }}
-              >
-                <option value="train">Training (train)</option>
-                <option value="val">Validation (val)</option>
-                <option value="test">Testing (test)</option>
-              </select>
+                ariaLabel="Select destination split"
+              />
             </div>
 
             {/* Safety Invariant Notice */}

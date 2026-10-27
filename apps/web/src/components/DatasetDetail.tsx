@@ -29,6 +29,7 @@ import { AugmentationModal } from './AugmentationModal';
 import { VersionDiffModal } from './VersionDiffModal';
 import { ClusterMapModal } from './ClusterMapModal';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -406,17 +407,19 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <select
-              className="input"
+            <CustomSelect
               value={sampleSplit}
-              onChange={(e) => setSampleSplit(e.target.value)}
-              style={{ width: '130px', padding: '0.35rem 0.6rem', fontSize: '0.825rem' }}
-            >
-              <option value="">All Splits</option>
-              <option value="train">Train</option>
-              <option value="val">Val</option>
-              <option value="test">Test</option>
-            </select>
+              onChange={(val) => setSampleSplit(val)}
+              options={[
+                { value: '', label: 'All Splits' },
+                { value: 'train', label: 'Train' },
+                { value: 'val', label: 'Val' },
+                { value: 'test', label: 'Test' },
+              ]}
+              size="sm"
+              style={{ minWidth: '130px' }}
+              ariaLabel="Filter samples by split"
+            />
 
             <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.825rem', padding: '0.4rem 0.75rem' }}>
               <span>Open in Full Workbench</span>

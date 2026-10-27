@@ -17,6 +17,7 @@ import {
   fetchVersionManifest,
 } from '../api';
 import { DatasetVersion, VersionDiff } from '../types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface VersionSnapshotsModalProps {
   datasetId: string;
@@ -361,36 +362,32 @@ export const VersionSnapshotsModal: React.FC<VersionSnapshotsModalProps> = ({
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Baseline Version (A)
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={compVersionA}
-                  onChange={(e) => setCompVersionA(e.target.value)}
+                  onChange={(val) => setCompVersionA(val)}
+                  options={versions.map((v) => ({
+                    value: v.id,
+                    label: `${v.version_tag} (${v.record_count} records)`,
+                  }))}
                   style={{ width: '100%' }}
-                >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.version_tag} ({v.record_count} records)
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Select baseline version A"
+                />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Target Version (B)
                 </label>
-                <select
-                  className="input"
+                <CustomSelect
                   value={compVersionB}
-                  onChange={(e) => setCompVersionB(e.target.value)}
+                  onChange={(val) => setCompVersionB(val)}
+                  options={versions.map((v) => ({
+                    value: v.id,
+                    label: `${v.version_tag} (${v.record_count} records)`,
+                  }))}
                   style={{ width: '100%' }}
-                >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.version_tag} ({v.record_count} records)
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Select target version B"
+                />
               </div>
 
               <button

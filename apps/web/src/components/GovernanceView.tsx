@@ -9,6 +9,7 @@ import {
 } from '../api';
 import { Project, ProjectMember, ProjectQuotaUsage, AuditLogEntry } from '../types';
 import { ShieldCheck, BarChart2, Users, FileText, HardDrive, ShieldAlert, Layers, AlertCircle } from 'lucide-react';
+import { CustomSelect } from './ui/CustomSelect';
 
 export const GovernanceView: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -129,18 +130,16 @@ export const GovernanceView: React.FC = () => {
         {projects.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Project:</span>
-            <select
-              className="input"
+            <CustomSelect
               value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              style={{ minWidth: '220px', padding: '0.4rem 0.75rem' }}
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.owner_id})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedProjectId(val)}
+              options={projects.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${p.owner_id})`,
+              }))}
+              style={{ minWidth: '260px' }}
+              ariaLabel="Select project"
+            />
           </div>
         )}
       </div>
@@ -302,17 +301,19 @@ export const GovernanceView: React.FC = () => {
                       style={{ width: '100%', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
                     />
                   </div>
-                  <div style={{ width: '160px' }}>
+                  <div style={{ width: '180px' }}>
                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Role</label>
-                    <select
-                      className="input"
+                    <CustomSelect
                       value={newRole}
-                      onChange={(e) => setNewRole(e.target.value as any)}
-                      style={{ width: '100%', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                    >
-                      <option value="editor">Editor (Write)</option>
-                      <option value="viewer">Viewer (Read-only)</option>
-                    </select>
+                      onChange={(val) => setNewRole(val as any)}
+                      options={[
+                        { value: 'editor', label: 'Editor (Write)' },
+                        { value: 'viewer', label: 'Viewer (Read-only)' },
+                      ]}
+                      size="sm"
+                      style={{ width: '100%', minWidth: '160px' }}
+                      ariaLabel="Select member role"
+                    />
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={addingMember || !newUserId.trim()} style={{ padding: '0.45rem 1rem' }}>
                     {addingMember ? 'Adding...' : 'Add Member'}

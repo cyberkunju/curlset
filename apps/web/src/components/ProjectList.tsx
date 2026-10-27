@@ -3,6 +3,7 @@ import { Plus, FolderPlus, FolderKanban, LayoutGrid, List, ArrowUpDown, ChevronR
 import { Project } from '../types';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ProjectListProps {
   projects: Project[];
@@ -98,16 +99,18 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           {/* Sort order */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <ArrowUpDown size={14} style={{ color: 'var(--text-muted)' }} />
-            <select
+            <CustomSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="form-select"
-              style={{ height: '32px', fontSize: '0.8rem', padding: '0 0.5rem', width: 'auto' }}
-            >
-              <option value="date_desc">Newest First</option>
-              <option value="date_asc">Oldest First</option>
-              <option value="name">Name (A-Z)</option>
-            </select>
+              onChange={(val) => setSortBy(val as any)}
+              options={[
+                { value: 'date_desc', label: 'Newest First' },
+                { value: 'date_asc', label: 'Oldest First' },
+                { value: 'name', label: 'Name (A-Z)' },
+              ]}
+              size="sm"
+              style={{ minWidth: '135px' }}
+              ariaLabel="Sort projects"
+            />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>

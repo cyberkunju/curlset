@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createDataset } from '../api';
 import { Dataset, TaskType } from '../types';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface CreateDatasetModalProps {
   projectId: string;
@@ -89,18 +90,20 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
 
           <div className="form-group">
             <label className="form-label" htmlFor="taskType">Task Type *</label>
-            <select
+            <CustomSelect
               id="taskType"
-              className="form-select"
               value={taskType}
-              onChange={(e) => setTaskType(e.target.value as TaskType)}
+              onChange={(val) => setTaskType(val as TaskType)}
               disabled={loading}
-            >
-              <option value="image_classification">Image Classification (Single/Multi-label visual tagging)</option>
-              <option value="text_classification">Text Classification (Sentiment, topic, intent)</option>
-              <option value="object_detection">Object Detection (Bounding boxes with pixel geometry)</option>
-              <option value="paired_image_text">Paired Image-Text (Captions, VQA, instruction-tuning)</option>
-            </select>
+              options={[
+                { value: 'image_classification', label: 'Image Classification (Single/Multi-label visual tagging)' },
+                { value: 'text_classification', label: 'Text Classification (Sentiment, topic, intent)' },
+                { value: 'object_detection', label: 'Object Detection (Bounding boxes with pixel geometry)' },
+                { value: 'paired_image_text', label: 'Paired Image-Text (Captions, VQA, instruction-tuning)' },
+              ]}
+              style={{ width: '100%' }}
+              ariaLabel="Select task type"
+            />
           </div>
 
           <div className="form-group">

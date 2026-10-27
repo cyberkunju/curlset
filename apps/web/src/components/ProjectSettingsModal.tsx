@@ -8,6 +8,7 @@ import {
 } from '../api';
 import { Project, ProjectMember, ProjectQuotaUsage, AuditLogEntry } from '../types';
 import { ShieldCheck, BarChart2, Users, FileText, HardDrive, Layers, ShieldAlert, AlertTriangle, X } from 'lucide-react';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ProjectSettingsModalProps {
   project: Project;
@@ -240,16 +241,19 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                     required
                   />
                 </div>
-                <div className="w-36">
+                <div style={{ minWidth: '150px' }}>
                   <label className="block text-xs font-medium text-slate-300 mb-1">Role</label>
-                  <select
+                  <CustomSelect
                     value={newRole}
-                    onChange={(e) => setNewRole(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="editor">Editor (Write)</option>
-                    <option value="viewer">Viewer (Read)</option>
-                  </select>
+                    onChange={(val) => setNewRole(val as any)}
+                    options={[
+                      { value: 'editor', label: 'Editor (Write)' },
+                      { value: 'viewer', label: 'Viewer (Read)' },
+                    ]}
+                    size="sm"
+                    style={{ width: '100%' }}
+                    ariaLabel="Select member role"
+                  />
                 </div>
                 <button
                   type="submit"
