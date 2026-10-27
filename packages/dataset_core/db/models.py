@@ -33,6 +33,7 @@ class ProjectModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     datasets: Mapped[list["DatasetModel"]] = relationship("DatasetModel", back_populates="project", cascade="all, delete-orphan")
+    members: Mapped[list["ProjectMemberModel"]] = relationship("ProjectMemberModel", back_populates="project", cascade="all, delete-orphan")
 
 
 class DatasetModel(Base):
@@ -272,8 +273,35 @@ class ReviewEventModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class ProjectMemberModel(Base):
+    __tablename__ = "project_members"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(32), default="viewer")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="members")
+
+
+class AuditLogModel(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
 # Explicit composite indexes for high-frequency queries
 Index("idx_records_dataset_split", DatasetRecordModel.dataset_id, DatasetRecordModel.split)
 Index("idx_assets_dataset_sha256", AssetModel.dataset_id, AssetModel.sha256)
 Index("idx_annotations_dataset_status", AnnotationModel.dataset_id, AnnotationModel.status)
 Index("idx_revisions_annotation_number", AnnotationRevisionModel.annotation_id, AnnotationRevisionModel.revision_number)
+Index("idx_project_members_project_user", ProjectMemberModel.project_id, ProjectMemberModel.user_id, unique=True)

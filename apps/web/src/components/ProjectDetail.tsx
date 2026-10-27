@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { archiveProject, fetchDatasets, fetchProject } from '../api';
 import { Dataset, Project } from '../types';
 import { CreateDatasetModal } from './CreateDatasetModal';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -21,6 +22,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -111,6 +113,9 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quota Settings">
+            🛡️ Governance & Quotas
+          </button>
           {!project.is_archived && (
             <button className="btn btn-secondary" onClick={handleArchive} title="Archive project">
               Archive
@@ -170,6 +175,13 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
           setDatasets([newDs, ...datasets]);
         }}
       />
+
+      {isSettingsOpen && project && (
+        <ProjectSettingsModal
+          project={project}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 };

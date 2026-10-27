@@ -13,14 +13,18 @@ from sqlalchemy import text
 
 from packages.dataset_core.db.session import get_engine, init_database
 from packages.dataset_core.exceptions import (
+    AccessForbiddenError,
     DomainError,
     DomainValidationError,
     ImmutableVersionError,
     InvalidStateTransitionError,
     ProjectOwnershipError,
     PublishingBlockedError,
+    QuotaExceededError,
+    RateLimitExceededError,
     ResourceNotFoundError,
 )
+from packages.dataset_security.redaction import redact_sensitive_data
 from services.api.config import settings
 from services.api.routes import (
     annotations,
@@ -32,6 +36,7 @@ from services.api.routes import (
     ingestion,
     projects,
     records,
+    security,
     sources,
     synthesis,
     validation,
@@ -99,7 +104,32 @@ async def state_transition_handler(request: Request, exc: InvalidStateTransition
 async def project_ownership_handler(request: Request, exc: ProjectOwnershipError):
     return JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
-        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
+    )
+
+
+@app.exception_handler(AccessForbiddenError)
+async def access_forbidden_handler(request: Request, exc: AccessForbiddenError):
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
+    )
+
+
+@app.exception_handler(QuotaExceededError)
+async def quota_exceeded_handler(request: Request, exc: QuotaExceededError):
+    return JSONResponse(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
+    )
+
+
+@app.exception_handler(RateLimitExceededError)
+async def rate_limit_handler(request: Request, exc: RateLimitExceededError):
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        headers={"Retry-After": str(exc.retry_after)},
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
     )
 
 
@@ -107,7 +137,7 @@ async def project_ownership_handler(request: Request, exc: ProjectOwnershipError
 async def immutable_version_handler(request: Request, exc: ImmutableVersionError):
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
-        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
     )
 
 
@@ -115,7 +145,7 @@ async def immutable_version_handler(request: Request, exc: ImmutableVersionError
 async def publishing_blocked_handler(request: Request, exc: PublishingBlockedError):
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
     )
 
 
@@ -123,12 +153,13 @@ async def publishing_blocked_handler(request: Request, exc: PublishingBlockedErr
 async def generic_domain_error_handler(request: Request, exc: DomainError):
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+        content={"error": {"code": exc.code, "message": exc.message, "details": redact_sensitive_data(exc.details)}},
     )
 
 
 # Routers
 app.include_router(projects.router)
+app.include_router(security.router)
 app.include_router(datasets.router)
 app.include_router(ingestion.router)
 app.include_router(records.router)

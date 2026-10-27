@@ -12,6 +12,9 @@ from packages.dataset_core.db.models import ProcessingRunModel
 from packages.dataset_core.db.session import get_db
 from packages.dataset_core.domain_models import ProcessingRunContract
 from packages.dataset_core.exceptions import ResourceNotFoundError
+from packages.dataset_security.audit import AuditService
+from packages.dataset_security.auth import get_auth_user, verify_dataset_access
+from packages.dataset_security.rate_limiter import global_rate_limiter
 from packages.provider_gateway.gateway import ProviderGateway
 from packages.provider_gateway.orchestrator import AIAnnotationOrchestrator
 
@@ -44,11 +47,18 @@ def run_ai_annotation(
     dataset_id: str,
     req: AIAnnotateRequest,
     session: Session = Depends(get_db),
+    user_id: str = Depends(get_auth_user),
 ) -> ProcessingRunContract:
     """
     Trigger batch model annotation across dataset records.
     All outputs are saved as reviewable proposals (pending_review), never approved.
     """
+    # 1. Rate limiting
+    global_rate_limiter.check(f"inference_{user_id}", max_requests=30, window_seconds=60)
+
+    # 2. Authorization
+    dataset = verify_dataset_access(session, dataset_id, user_id, required_role="editor")
+
     run = AIAnnotationOrchestrator.run_annotation_batch(
         session=session,
         dataset_id=dataset_id,
@@ -58,6 +68,15 @@ def run_ai_annotation(
         only_unannotated=req.only_unannotated,
         limit=req.limit,
         enable_consensus=req.enable_consensus,
+    )
+    AuditService.record_event(
+        session=session,
+        project_id=dataset.project_id,
+        user_id=user_id,
+        action="AI_ANNOTATION_BATCH",
+        resource_type="ProcessingRun",
+        resource_id=run.id,
+        details={"provider": req.provider, "model": req.model, "processed_items": run.processed_items},
     )
     session.commit()
     return run

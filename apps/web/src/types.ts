@@ -331,5 +331,35 @@ export interface ClusterMapResponse {
   grid_resolution: number;
 }
 
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: 'owner' | 'editor' | 'viewer';
+  created_at?: string;
+}
+
+export interface ProjectQuotaUsage {
+  project_id: string;
+  storage_bytes_used: number;
+  storage_quota_bytes: number;
+  storage_percentage: number;
+  records_used: number;
+  records_quota: number;
+  records_percentage: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  project_id?: string;
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  details: Record<string, any>;
+  ip_address?: string;
+  created_at?: string;
+}
+
 
 

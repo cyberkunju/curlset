@@ -369,6 +369,39 @@ export async function fetchClusterMap(datasetId: string): Promise<any> {
   return handleResponse(res);
 }
 
+export async function fetchProjectMembers(projectId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/members`);
+  return handleResponse<any[]>(res);
+}
+
+export async function addProjectMember(projectId: string, userId: string, role: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function removeProjectMember(projectId: string, targetUserId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/members/${targetUserId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Failed to remove member (${res.status})`);
+  }
+}
+
+export async function fetchProjectQuotaUsage(projectId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/usage`);
+  return handleResponse<any>(res);
+}
+
+export async function fetchProjectAuditLogs(projectId: string, limit = 50) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/audit-logs?limit=${limit}`);
+  return handleResponse<any[]>(res);
+}
+
 
 
 

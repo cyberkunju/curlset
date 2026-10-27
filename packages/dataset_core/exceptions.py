@@ -102,3 +102,33 @@ class RightsViolationError(DomainError):
             details=details or {},
         )
 
+
+class QuotaExceededError(DomainError):
+    """Raised when a storage, record, or resource quota is exceeded."""
+
+    def __init__(self, resource: str, current: int, limit: int, unit: str = "bytes"):
+        super().__init__(
+            f"Quota exceeded for {resource}: current {current} {unit} exceeds limit of {limit} {unit}",
+            code="QUOTA_EXCEEDED",
+            details={"resource": resource, "current": current, "limit": limit, "unit": unit},
+        )
+
+
+class RateLimitExceededError(DomainError):
+    """Raised when request rate limit is exceeded."""
+
+    def __init__(self, retry_after: int = 60, message: str = "Rate limit exceeded. Please retry later."):
+        super().__init__(
+            message,
+            code="RATE_LIMIT_EXCEEDED",
+            details={"retry_after": retry_after},
+        )
+        self.retry_after = retry_after
+
+
+class AccessForbiddenError(DomainError):
+    """Raised when an authenticated user lacks permissions for a project resource."""
+
+    def __init__(self, message: str = "Access forbidden for this project resource", details: dict[str, Any] | None = None):
+        super().__init__(message, code="ACCESS_FORBIDDEN", details=details)
+

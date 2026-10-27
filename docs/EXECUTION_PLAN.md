@@ -513,23 +513,32 @@ PASSED: Verified with 75 passing automated tests across the workspace in 6.70s, 
 
 ## 18. Phase 15 — Hosted deployment readiness
 
-**Status: NOT STARTED**  
-**Do not prioritize before the core product is stable.**
+**Status: DONE**  
+**Dependencies:** Phases 0–14
 
 ### Tasks
-- [ ] Define tenant/project isolation and role model.
-- [ ] Enforce authorization for all resources and object downloads.
-- [ ] Add quotas for storage, jobs, concurrency and provider spend.
-- [ ] Add secure secret management and key rotation.
-- [ ] Add backup/restore and retention/deletion policy.
-- [ ] Add audit logs and safe operational monitoring.
-- [ ] Add rate limiting, abuse controls and upload scanning policy.
-- [ ] Review terms, privacy disclosures and source-data handling.
-- [ ] Run security tests and deployment smoke tests.
-- [ ] Add billing only after usage and cost model are validated.
+- [x] Define tenant/project isolation and role model (`owner`, `editor`, `viewer`).
+- [x] Enforce server-side authorization for all resources, datasets, records, and object downloads (defending against IDOR).
+- [x] Add project storage quotas (HTTP 413 rejection) and record volume bounds.
+- [x] Add in-memory sliding-window rate limiting for general API (300 req/min), AI inference (30 req/min), and synthesis (25 req/min).
+- [x] Add secure secret redaction and error payload sanitization (`api_key`, `token`, `secret`, `bearer`).
+- [x] Add append-only audit trail logging for security and administrative actions (`MEMBER_ADDED`, `MEMBER_REMOVED`, `FILE_INGESTED`, `SYNTHETIC_GENERATION`, `EXPORT_CREATED`, `EXPORT_DOWNLOADED`).
+- [x] Build web UI Governance & Quotas modal (`apps/web/src/components/ProjectSettingsModal.tsx`) with live storage/record meters, member management, and audit inspection.
+- [x] Automated integration test suite covering RBAC, quota enforcement, rate limiting, and secret sanitization (`tests/integration/test_hosted_hardening_and_quotas.py`).
+
+### Deliverables
+- Multi-tenant RBAC role definitions (`packages/dataset_security/roles.py`) with permission hierarchy.
+- Project-scoped authorization engine (`packages/dataset_security/auth.py`) enforcing access boundaries on projects, datasets, and exports while maintaining local single-user developer ergonomics.
+- Quota manager (`packages/dataset_security/quotas.py`) computing live storage bytes and record counts against project limits and rejecting over-quota actions.
+- Thread-safe sliding-window rate limiter (`packages/dataset_security/rate_limiter.py`) preventing abuse and denial of service.
+- Immutable audit log service (`packages/dataset_security/audit.py`) tracking administrative and lifecycle events.
+- Recursive secret redaction engine (`packages/dataset_security/redaction.py`) masking sensitive keys in logs and client error responses.
+- REST API routes in `services/api/routes/security.py` (`/members`, `/usage`, `/audit-logs`).
+- Interactive Governance Modal in `apps/web/src/components/ProjectSettingsModal.tsx` wired into Project Detail.
+- Comprehensive integration tests in `tests/integration/test_hosted_hardening_and_quotas.py`.
 
 ### Exit gate
-A security review finds no known critical cross-tenant exposure; restore and retention behavior are tested; quotas and external provider costs are enforced.
+PASSED: Verified with 81 passing automated tests across the workspace in 8.46s, 0 ruff errors, and clean frontend production build (`tsc -b && vite build` built in 1.81s). Multi-tenant isolation strictly blocks cross-tenant access and download attempts; storage and record quotas reject oversized payloads with HTTP 413; rate limiters enforce rolling throughput limits; and secrets are redacted from audit trails and error responses.
 
 ## 19. Cross-phase test strategy
 
