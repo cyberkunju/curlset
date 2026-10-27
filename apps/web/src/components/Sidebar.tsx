@@ -62,65 +62,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SpringButton
             variant={currentView === 'landing' ? 'primary' : 'ghost'}
             onClick={() => handleNavClick('landing')}
+            icon={<Home size={17} strokeWidth={1.75} />}
             style={{
               width: '100%',
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.65rem',
-              padding: '0.55rem 0.75rem',
+              padding: '0.6rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
             }}
           >
-            <Home size={17} strokeWidth={1.75} />
-            <span>Home / Overview</span>
+            Home / Overview
           </SpringButton>
 
           <SpringButton
             variant={currentView.startsWith('project') || currentView === 'dataset_detail' ? 'primary' : 'ghost'}
             onClick={() => handleNavClick('projects')}
+            icon={<FolderKanban size={17} strokeWidth={1.75} />}
             style={{
               width: '100%',
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.65rem',
-              padding: '0.55rem 0.75rem',
+              padding: '0.6rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
             }}
           >
-            <FolderKanban size={17} strokeWidth={1.75} />
-            <span>Projects & Datasets</span>
+            Projects & Datasets
           </SpringButton>
 
           <SpringButton
             variant={currentView === 'governance' ? 'primary' : 'ghost'}
             onClick={() => handleNavClick('governance')}
+            icon={<ShieldCheck size={17} strokeWidth={1.75} />}
             style={{
               width: '100%',
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.65rem',
-              padding: '0.55rem 0.75rem',
+              padding: '0.6rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
             }}
           >
-            <ShieldCheck size={17} strokeWidth={1.75} />
-            <span>Governance & Quotas</span>
+            Governance & Quotas
           </SpringButton>
 
           <SpringButton
             variant={currentView === 'health' ? 'primary' : 'ghost'}
             onClick={() => handleNavClick('health')}
+            icon={<Activity size={17} strokeWidth={1.75} />}
             style={{
               width: '100%',
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.65rem',
-              padding: '0.55rem 0.75rem',
+              padding: '0.6rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
             }}
           >
-            <Activity size={17} strokeWidth={1.75} />
-            <span>System Diagnostics</span>
+            System Diagnostics
           </SpringButton>
         </nav>
 

@@ -172,6 +172,15 @@ body {
   flex: 1;
 }
 
+.sidebar-nav button {
+  width: 100%;
+}
+
+.sidebar-nav button:hover {
+  background-color: var(--bg-subtle-hover);
+  color: var(--text-primary);
+}
+
 .nav-item {
   display: flex;
   align-items: center;

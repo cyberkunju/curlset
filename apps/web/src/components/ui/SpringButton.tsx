@@ -102,7 +102,7 @@ export const SpringButton: React.FC<SpringButtonProps> = ({
     >
       {icon && (
         <motion.span
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 0 }}
           whileHover={shouldReduceMotion ? undefined : { rotate: -4, scale: 1.08 }}
           whileTap={shouldReduceMotion ? undefined : { scale: 0.9 }}
           transition={shouldReduceMotion ? { duration: 0.1 } : SPRING_BUBBLE}
@@ -110,7 +110,19 @@ export const SpringButton: React.FC<SpringButtonProps> = ({
           {icon}
         </motion.span>
       )}
-      <span>{children as React.ReactNode}</span>
+      {children && (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'inherit',
+            gap: 'inherit',
+            lineHeight: 1,
+          }}
+        >
+          {children as React.ReactNode}
+        </span>
+      )}
       {shortcut && (
         <kbd
           style={{
