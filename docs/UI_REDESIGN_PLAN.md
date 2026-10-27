@@ -221,7 +221,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 | **R1** | **Design System & Global Icon Standardization** | **COMPLETE** | `<ModalShell>`, standardized CSS backdrop & form tokens, 0 raw emojis/ad-hoc glyphs, `CreateProjectModal` & `CreateDatasetModal` migrated, 0 build/test regressions. |
 | **R2** | **Application Shell & Landing Page** | **COMPLETE** | Responsive sidebar rail (64px) & mobile drawer, `CommandPalette` (`Cmd+K`/`Ctrl+K`), rich breadcrumbs with real project/dataset data, tightened landing page with quick-start summary. |
 | **R3** | **Projects & Dataset Management** | **COMPLETE** | ProjectList metrics & semantic table/grid views, ProjectDetail dataset inventory with task-type filtering, DatasetDetail layout inversion (compact 5-stage pipeline dock + primary Records Explorer with review status/split filtering & pagination). |
-| **R4** | **Annotation Workbench (Modality Workspaces)** | PENDING AUTHORIZATION | Modality-tailored canvases (Object Detection, Text Spans, Audio Waveform scrubber), hotkey inspector drawer. |
+| **R4** | **Annotation Workbench (Modality Workspaces)** | **COMPLETE** | Synchronized queue ID tracking, image classification metadata containment, ObjectDetectionCanvas with zoom/pan & 8-class color palette, audio transcription waveform scrubber & active speech cue tracking, reader typography for text classification, ShortcutHelpModal. |
 | **R5** | **Generation, Quality, Versioning & Exports** | PENDING AUTHORIZATION | High-density quality scorecard, synthetic data diff preview, visual Git-diff canvas overlay, preset export simulator. |
 | **R6** | **Governance, Diagnostics, Settings & Modals** | PENDING AUTHORIZATION | Standardized modal containers, audit log table filtering, real-time health telemetry console. |
 | **R7** | **Full Application Visual QA & Verification** | PENDING AUTHORIZATION | Cross-viewport testing (1440px, 1280px, 768px, 390px), responsive regression testing, final sign-off. |
@@ -262,15 +262,16 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - Preserved all 12 dataset modal workflows with 100% existing wiring.
 - **Exit Gate:** `npm run build` passed in 8.06s (0 errors); 104/104 pytest tests passed in 8.34s; zero promotional puffery; zero layout clipping across viewports.
 
-
-#### Phase R4: Annotation Workbench (Modality Workspaces)
+#### Phase R4: Annotation Workbench (Modality Workspaces) (COMPLETED)
 - **Objective:** Transform `AnnotationWorkspace.tsx` into a high-performance, modality-tailored labeling environment.
-- **Tasks:**
-  - Object Detection: Enhance `ObjectDetectionCanvas.tsx` with full-height canvas, zoom/pan controls, class color-coding, and magnetic edge snap.
-  - Text Classification / NER: Introduce span/token highlighting controls with reading typography.
-  - Audio Transcription: Introduce interactive waveform scrubber with timestamped segment markers.
-  - Universal Workbench Polish: Standardize inspector panel spacing, confidence controls, and add a toggleable keyboard shortcut drawer.
-- **Exit Gate:** All supported modalities render with appropriate canvas controls; annotations save with coordinate integrity.
+- **Tasks Delivered:**
+  - `AnnotationWorkspace.tsx`: Fixed index-queue disconnect by tracking strict `selectedRecordId`; synchronized counters and navigation (`J`, `K`, buttons) with `filteredQueue`. Added state leakage prevention and dirty tracking. Added panel visibility toggles (`PanelLeftClose`/`PanelLeftOpen`, `PanelRightClose`/`PanelRightOpen`) for fullscreen canvas focus.
+  - `ObjectDetectionCanvas.tsx`: Added 8-color class palette for instant visual classification, zoom controls (75%–300% with Reset), scale-normalized pointer coordinate calculations, box drag-to-move, `Delete`/`Backspace` removal, and retained Sobel magnetic edge-snapping.
+  - `AudioWaveformScrubber.tsx`: Built deterministic acoustic amplitude waveform timeline with speech cue overlays and 1-click seeking. Added live active speech cue highlight in audio player.
+  - Reader Typography: Optimal reading surface for `text_classification` (`max-width: 68ch`, 1.75 line-height, word/char counts). Supported paired image-text and document OCR presentations.
+  - `ShortcutHelpModal.tsx`: Accessible keyboard shortcut reference modal (`?` trigger, `Escape` dismiss). Strict focus guards prevent shortcut interception during text input.
+- **Exit Gate:** `npm run build` passed in 18.87s (0 errors); 104/104 pytest tests passed in 7.91s; ruff lint clean; bounding box coordinate integrity preserved.
+
 
 #### Phase R5: Generation, Quality, Versioning & Exports
 - **Objective:** Refactor remaining core dataset engineering workflows.

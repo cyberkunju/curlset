@@ -418,3 +418,48 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
 - **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 8.34s.
 - **Copy & Tone Verification**: Zero promotional puffery or marketing buzzwords; strictly neutral developer-tool tone.
 - **Responsive Inspection**: Grid columns adapt from 5 to 1 across viewports; tables provide horizontal overflow scrolling; toolbars wrap cleanly on tablet and mobile viewports.
+
+---
+
+## 11. Phase R4: Annotation Workbench & Modality-Specific Editor Redesign
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 11.1 Work Delivered
+
+1. **Filtered Queue Synchronization & State Isolation (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - **Queue ID Tracking**: Switched from vulnerable array-index navigation to strict `selectedRecordId` tracking. Navigation buttons (`Prev`, `Next`), counters, and keyboard shortcuts (`J`, `K`) now iterate directly over `filteredQueue`.
+   - **Accurate Progress Counters**: Counter displays `Record {filteredIdx + 1} of {filteredQueue.length} (Total {totalQueue})`, accurately updating when searches or split/status filters change.
+   - **State Isolation**: When switching records, all input states (`selectedLabel`, `confidence`, `notes`, `boxes`, `transcriptText`, `transcriptSegments`) are completely reset or re-hydrated from `RecordDetail.annotation`. Ongoing audio playback is automatically paused and reset to prevent cross-record leakage.
+
+2. **Modality-Specific Annotation Surfaces (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - **Image Classification**: Centered container with `ProgressiveAssetImage`, image metadata bar (dimensions, byte size, format, filename), and clean selected-class indicator.
+   - **Object Detection**: Full-height integration with upgraded `ObjectDetectionCanvas`, featuring zoom/pan controls, class-specific color swatches, Sobel magnetic edge-snapping, and detected objects inspector.
+   - **Text Classification**: Dedicated reader view with optimal typography (`max-width: 68ch`, line-height: 1.75), word and character counters, and selectable text.
+   - **Audio Transcription**: Dedicated acoustic deck with playback speed selectors (0.75x–1.5x), HTML5 audio player, interactive waveform timeline scrubber, and timed speech cue list with live active cue highlighting.
+   - **Paired Image-Text & Document OCR**: Side-by-side asset view and paired text/OCR extracted document text with copy-to-clipboard functionality.
+
+3. **Object Detection Canvas Upgrades (`apps/web/src/components/ObjectDetectionCanvas.tsx`):**
+   - **Class-Specific Color Palette**: Bounding boxes are styled using an accessible, high-contrast 8-color palette deterministically mapped to classes. Selected boxes receive an emerald boundary ring and grab cursor.
+   - **Coordinate Integrity with Zoom & Pan**: Added zoom controls (75% to 300% with Reset). Pointer coordinate calculations strictly normalize by zoom scale, guaranteeing bounding-box coordinates remain 100% image-relative regardless of viewport or zoom level.
+   - **Box Manipulation**: Added ability to drag existing boxes to adjust positions and `Delete` / `Backspace` shortcut to remove selected boxes.
+   - **Sobel Magnetic Edge-Snap**: Retained precision gradient snap with toggle button and `Shift` key shortcut modifier.
+
+4. **Interactive Audio Waveform Scrubber (`apps/web/src/components/ui/AudioWaveformScrubber.tsx`):**
+   - Built a high-performance, dependency-free audio timeline scrubber.
+   - Generates deterministic acoustic amplitude envelope bars for the audio asset.
+   - Renders colored timeline marker overlays for all timed speech cues.
+   - Supports 1-click seeking anywhere along the timeline with a live cursor needle and hover timestamp tooltip.
+
+5. **Keyboard Shortcuts & Inspector Ergonomics (`apps/web/src/components/ui/ShortcutHelpModal.tsx`):**
+   - Built accessible modal reference for keyboard shortcuts (`J`/`K` navigation, `1`–`9` class selection, `Enter` save, `A` approve, `R` reject, `C` needs fix, `N` not similar, `Shift` edge-snap, `Space` audio play/pause, `?` help).
+   - Strict input guards: Keystrokes are completely bypassed when typing inside inputs, textareas, or when modal dialogs are open.
+   - Responsive panel toggles (`PanelLeftClose`/`PanelLeftOpen`, `PanelRightClose`/`PanelRightOpen`) in top bar to collapse queue or inspector for maximum canvas focus.
+
+### 11.2 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 18.87s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 7.91s.
+- **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Coordinate Integrity**: Bounding box coordinates remain strictly non-negative image-relative integer values conforming to `packages/dataset_core/task_schemas.py`.
+

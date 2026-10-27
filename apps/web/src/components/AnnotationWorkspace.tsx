@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   fetchDatasetQueue,
   fetchRecordDetail,
@@ -9,6 +9,8 @@ import {
 import { Dataset, RecordQueueItem, RecordDetail } from '../types';
 import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
 import { ProgressiveAssetImage } from './ui/ProgressiveAssetImage';
+import { AudioWaveformScrubber } from './ui/AudioWaveformScrubber';
+import { ShortcutHelpModal } from './ui/ShortcutHelpModal';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import {
@@ -30,6 +32,18 @@ import {
   Inbox,
   ChevronUp,
   ChevronDown,
+  HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Layers,
+  Image as ImageIcon,
+  Headphones,
+  RotateCcw,
+  X,
+  Clock,
+  Eye,
 } from 'lucide-react';
 
 interface AnnotationWorkspaceProps {
@@ -48,25 +62,41 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [queueSearch, setQueueSearch] = useState<string>('');
 
-  // Active Record
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Active Record Selection by ID (eliminates index mismatch bugs)
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [currentRecord, setCurrentRecord] = useState<RecordDetail | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Annotation Editor Form
+  // Annotation Editor Form State
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(1.0);
   const [notes, setNotes] = useState<string>('');
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [transcriptText, setTranscriptText] = useState<string>('');
-  const [transcriptSegments, setTranscriptSegments] = useState<Array<{ start_time: number; end_time: number; speaker?: string; text: string }>>([]);
+  const [transcriptSegments, setTranscriptSegments] = useState<
+    Array<{ start_time: number; end_time: number; speaker?: string; text: string }>
+  >([]);
+
+  // Audio Playback State
+  const [audioCurrentTime, setAudioCurrentTime] = useState<number>(0);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // UI Panels & Modal Toggles
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [classSearch, setClassSearch] = useState('');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'queue' | 'stage' | 'inspector'>('stage');
+
+  // Operation Feedback & Safety State
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('workbench-active');
@@ -75,7 +105,6 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     };
   }, []);
 
-  // Extract allowed classes from label_schema
   const allowedClasses: string[] = dataset.label_schema?.classes || dataset.label_schema?.labels || [];
 
   const showToast = (msg: string) => {
@@ -89,7 +118,38 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Load Record Queue
+  // Filtered Queue derived memo (accurately reflects filters + search)
+  const filteredQueue = useMemo(() => {
+    return queue.filter((item) => {
+      const matchesSplit = !selectedSplit || (item.split || 'train') === selectedSplit;
+      const matchesStatus = !selectedStatus || item.review_status === selectedStatus;
+      if (!matchesSplit || !matchesStatus) return false;
+
+      if (!queueSearch.trim()) return true;
+      const q = queueSearch.toLowerCase().trim();
+      const keyMatch = item.external_key ? item.external_key.toLowerCase().includes(q) : false;
+      const idMatch = item.id.toLowerCase().includes(q);
+      const labelMatch = item.annotation_payload?.label
+        ? String(item.annotation_payload.label).toLowerCase().includes(q)
+        : false;
+      const textMatch = item.annotation_payload?.text
+        ? String(item.annotation_payload.text).toLowerCase().includes(q)
+        : false;
+      const fileMatch = item.primary_asset?.original_filename
+        ? item.primary_asset.original_filename.toLowerCase().includes(q)
+        : false;
+
+      return keyMatch || idMatch || labelMatch || textMatch || fileMatch;
+    });
+  }, [queue, selectedSplit, selectedStatus, queueSearch]);
+
+  // Current position within filtered queue
+  const currentFilteredIndex = useMemo(() => {
+    if (!selectedRecordId) return -1;
+    return filteredQueue.findIndex((item) => item.id === selectedRecordId);
+  }, [filteredQueue, selectedRecordId]);
+
+  // Load Record Queue from API
   const loadQueue = useCallback(async () => {
     setLoadingQueue(true);
     setQueueError(null);
@@ -98,12 +158,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         dataset.id,
         selectedSplit || undefined,
         selectedStatus || undefined,
-        100,
+        150,
         0
       );
       setQueue(res.items);
       setTotalQueue(res.total);
-      setCurrentIndex(0);
     } catch (err: any) {
       setQueueError(err.message || 'Failed to load record queue');
     } finally {
@@ -115,68 +174,103 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     loadQueue();
   }, [loadQueue]);
 
-  // Load Active Record Details
-  const loadActiveRecord = useCallback(async (recordId: string) => {
-    setLoadingRecord(true);
-    try {
-      const detail: RecordDetail = await fetchRecordDetail(recordId);
-      setCurrentRecord(detail);
-      // Pre-populate with existing annotation if present
-      if (detail.annotation?.payload?.label) {
-        setSelectedLabel(detail.annotation.payload.label);
-        setConfidence(detail.annotation.confidence ?? 1.0);
-        setNotes(detail.annotation.payload.notes || detail.annotation.payload.rationale || '');
-      } else {
-        setSelectedLabel(allowedClasses[0] || '');
-        setConfidence(1.0);
-        setNotes('');
-      }
-
-      if (detail.annotation?.payload?.boxes && Array.isArray(detail.annotation.payload.boxes)) {
-        setBoxes(detail.annotation.payload.boxes);
-      } else {
-        setBoxes([]);
-      }
-
-      if (detail.annotation?.payload?.text && dataset.task_type === 'audio_transcription') {
-        setTranscriptText(detail.annotation.payload.text);
-        setTranscriptSegments(detail.annotation.payload.segments || []);
-      } else if (dataset.task_type === 'audio_transcription') {
-        setTranscriptText('');
-        setTranscriptSegments([]);
-      }
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    } finally {
-      setLoadingRecord(false);
-    }
-  }, [allowedClasses, dataset.task_type]);
-
+  // Synchronize selectedRecordId with filteredQueue
   useEffect(() => {
-    if (queue.length > 0 && currentIndex < queue.length) {
-      loadActiveRecord(queue[currentIndex].id);
+    if (filteredQueue.length > 0) {
+      if (!selectedRecordId || !filteredQueue.some((item) => item.id === selectedRecordId)) {
+        setSelectedRecordId(filteredQueue[0].id);
+      }
     } else {
+      setSelectedRecordId(null);
       setCurrentRecord(null);
     }
-  }, [queue, currentIndex, loadActiveRecord]);
+  }, [filteredQueue, selectedRecordId]);
+
+  // Load Active Record Details & Reset Form (State Leakage Prevention)
+  const loadActiveRecord = useCallback(
+    async (recordId: string) => {
+      setLoadingRecord(true);
+      // Pause any ongoing audio playback
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsPlaying(false);
+      }
+
+      try {
+        const detail: RecordDetail = await fetchRecordDetail(recordId);
+        setCurrentRecord(detail);
+
+        // Populate or cleanly reset form fields
+        if (detail.annotation?.payload?.label) {
+          setSelectedLabel(detail.annotation.payload.label);
+          setConfidence(detail.annotation.confidence ?? 1.0);
+          setNotes(detail.annotation.payload.notes || detail.annotation.payload.rationale || '');
+        } else {
+          setSelectedLabel(allowedClasses[0] || '');
+          setConfidence(1.0);
+          setNotes('');
+        }
+
+        if (detail.annotation?.payload?.boxes && Array.isArray(detail.annotation.payload.boxes)) {
+          setBoxes(detail.annotation.payload.boxes);
+        } else {
+          setBoxes([]);
+        }
+
+        if (dataset.task_type === 'audio_transcription') {
+          setTranscriptText(detail.annotation?.payload?.text || '');
+          setTranscriptSegments(detail.annotation?.payload?.segments || []);
+        }
+
+        setIsDirty(false);
+      } catch (err: any) {
+        showToast(`Error loading record: ${err.message}`);
+      } finally {
+        setLoadingRecord(false);
+      }
+    },
+    [allowedClasses, dataset.task_type]
+  );
+
+  useEffect(() => {
+    if (selectedRecordId) {
+      loadActiveRecord(selectedRecordId);
+    }
+  }, [selectedRecordId, loadActiveRecord]);
+
+  // Navigation handlers through filteredQueue
+  const handleNavigateNext = () => {
+    if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
+      setSelectedRecordId(filteredQueue[currentFilteredIndex + 1].id);
+    }
+  };
+
+  const handleNavigatePrev = () => {
+    if (currentFilteredIndex > 0) {
+      setSelectedRecordId(filteredQueue[currentFilteredIndex - 1].id);
+    }
+  };
 
   // Save / Submit Annotation
   const handleSaveAnnotation = async (customLabel?: string) => {
     if (!currentRecord) return;
     const labelToSave = customLabel || selectedLabel;
+
     if (dataset.task_type === 'audio_transcription') {
       if (!transcriptText.trim() && transcriptSegments.length === 0) {
-        showToast('Please enter transcript text or add segments.');
+        showToast('Please enter transcript text or add speech segments.');
         return;
       }
     } else if (dataset.task_type !== 'object_detection' && !labelToSave) {
-      showToast('Please select or enter a label first.');
+      showToast('Please select or specify a label first.');
       return;
     }
 
     setSaving(true);
     try {
       const payload: Record<string, any> = {};
+
       if (dataset.task_type === 'audio_transcription') {
         payload.text = transcriptText;
         if (transcriptSegments.length > 0) {
@@ -198,16 +292,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       }
 
       if (currentRecord.annotation) {
-        // Update existing (creates new revision)
         await updateAnnotation(
           currentRecord.annotation.id,
           payload,
           'Human manual update',
           confidence
         );
-        showToast(`Updated to '${labelToSave}' (Revision added)`);
+        showToast(`Updated '${labelToSave || 'annotation'}' (Revision added)`);
       } else {
-        // Create initial annotation
         await createAnnotation(
           currentRecord.id,
           payload,
@@ -216,16 +308,17 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           'default_user',
           confidence
         );
-        showToast(`Created annotation '${labelToSave}'`);
+        showToast(`Created annotation '${labelToSave || 'annotation'}'`);
       }
 
-      // Refresh record and queue
+      setIsDirty(false);
+      // Refresh current record & queue
       await loadActiveRecord(currentRecord.id);
       loadQueue();
 
-      // Automatically advance to next item
-      if (currentIndex < queue.length - 1) {
-        setCurrentIndex((prev) => prev + 1);
+      // Automatically advance in filteredQueue
+      if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
+        setSelectedRecordId(filteredQueue[currentFilteredIndex + 1].id);
       }
     } catch (err: any) {
       showToast(`Failed to save: ${err.message}`);
@@ -234,8 +327,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     }
   };
 
-  // Review status transitions
-  const handleReviewAction = async (action: 'approved' | 'rejected' | 'needs_correction', comment?: string) => {
+  // Review Status Transitions
+  const handleReviewAction = async (
+    action: 'approved' | 'rejected' | 'needs_correction',
+    comment?: string
+  ) => {
     if (!currentRecord?.annotation) {
       showToast('Record must have an annotation before review transition.');
       return;
@@ -251,8 +347,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       await loadActiveRecord(currentRecord.id);
       loadQueue();
 
-      if (currentIndex < queue.length - 1) {
-        setCurrentIndex((prev) => prev + 1);
+      // Advance in filteredQueue
+      if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
+        setSelectedRecordId(filteredQueue[currentFilteredIndex + 1].id);
       }
     } catch (err: any) {
       showToast(`Transition failed: ${err.message}`);
@@ -261,7 +358,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     }
   };
 
-  // Dedicated "Not Similar / Disagree" review action
+  // "Not Similar / Disagree" Review Action
   const handleNotSimilarAction = async () => {
     if (currentRecord?.annotation) {
       await handleReviewAction('rejected', 'Marked as Not Similar / Disagreement');
@@ -283,30 +380,37 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         showToast("Marked as 'Not Similar / Disagree' (Rejected)");
         await loadActiveRecord(currentRecord.id);
         loadQueue();
-        if (currentIndex < queue.length - 1) {
-          setCurrentIndex((prev) => prev + 1);
+        if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
+          setSelectedRecordId(filteredQueue[currentFilteredIndex + 1].id);
         }
       } catch (err: any) {
-        showToast(`Failed to mark not similar: ${err.message}`);
+        showToast(`Failed: ${err.message}`);
       } finally {
         setSaving(false);
       }
     }
   };
 
-  // Keyboard navigation & hotkeys
+  // Keyboard navigation & hotkeys (with strict focus safety)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in notes or text input
+      // Never intercept when user is typing in inputs, textareas, or modal is open
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        isShortcutModalOpen
+      ) {
+        return;
+      }
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
-        if (currentIndex < queue.length - 1) setCurrentIndex((i) => i + 1);
+        handleNavigateNext();
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
-        if (currentIndex > 0) setCurrentIndex((i) => i - 1);
+        handleNavigatePrev();
       } else if (e.key === 'Enter') {
         e.preventDefault();
         handleSaveAnnotation();
@@ -322,38 +426,55 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         handleNotSimilarAction();
+      } else if (e.key === '?') {
+        e.preventDefault();
+        setIsShortcutModalOpen((prev) => !prev);
+      } else if (e.key === ' ' && dataset.task_type === 'audio_transcription' && audioRef.current) {
+        e.preventDefault();
+        if (isPlaying) {
+          audioRef.current.pause();
+        } else {
+          audioRef.current.play();
+        }
       } else if (e.key >= '1' && e.key <= '9') {
         const classIdx = parseInt(e.key, 10) - 1;
         if (classIdx < allowedClasses.length) {
           e.preventDefault();
           const chosen = allowedClasses[classIdx];
           setSelectedLabel(chosen);
-          handleSaveAnnotation(chosen);
+          setIsDirty(true);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, queue.length, allowedClasses, currentRecord]);
+  }, [
+    currentFilteredIndex,
+    filteredQueue,
+    allowedClasses,
+    currentRecord,
+    isShortcutModalOpen,
+    isPlaying,
+    dataset.task_type,
+  ]);
 
   const activeAsset = currentRecord?.assets?.[0];
 
-  // Filtered queue items
-  const filteredQueue = queue.filter((item) => {
-    if (!queueSearch.trim()) return true;
-    const q = queueSearch.toLowerCase();
-    return (
-      (item.external_key && item.external_key.toLowerCase().includes(q)) ||
-      item.id.toLowerCase().includes(q) ||
-      (item.annotation_payload?.label && item.annotation_payload.label.toLowerCase().includes(q))
-    );
-  });
-
+  // Review progress calculation based on actual queue items
   const reviewedCount = queue.filter(
-    (q) => q.review_status === 'approved' || q.review_status === 'rejected' || q.review_status === 'needs_correction'
+    (q) =>
+      q.review_status === 'approved' ||
+      q.review_status === 'rejected' ||
+      q.review_status === 'needs_correction'
   ).length;
   const reviewPct = queue.length > 0 ? Math.round((reviewedCount / queue.length) * 100) : 0;
+
+  // Filtered classes list
+  const filteredClasses = useMemo(() => {
+    if (!classSearch.trim()) return allowedClasses;
+    return allowedClasses.filter((c) => c.toLowerCase().includes(classSearch.toLowerCase().trim()));
+  }, [allowedClasses, classSearch]);
 
   return (
     <div className="workbench-viewport">
@@ -382,29 +503,31 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         </div>
       )}
 
-      {/* Top Workbench Navigation Bar */}
+      {/* Top Workbench Navigation & Control Bar */}
       <div className="workbench-top-bar">
-        {/* Left: Back & Dataset Identity */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        {/* Left: Back to Dataset & Identity */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           <button
             className="btn btn-secondary"
             onClick={onBack}
             style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem' }}
+            title="Return to Dataset Details"
           >
             <ArrowLeft size={14} style={{ marginRight: '4px' }} />
             <span>Dataset</span>
           </button>
           <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
               {dataset.name}
             </span>
             <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
+            <span className="badge badge-neutral">v{dataset.schema_version}</span>
           </div>
         </div>
 
-        {/* Center: Filters & Progress Meter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        {/* Center: Filters & Progress */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <CustomSelect
             value={selectedSplit}
             onChange={(val) => setSelectedSplit(val)}
@@ -415,7 +538,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               { value: 'test', label: 'Test' },
             ]}
             size="sm"
-            style={{ minWidth: '125px' }}
+            style={{ minWidth: '115px' }}
             ariaLabel="Filter queue by split"
           />
 
@@ -431,176 +554,261 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               { value: 'rejected', label: 'Rejected' },
             ]}
             size="sm"
-            style={{ minWidth: '150px' }}
-            ariaLabel="Filter queue by status"
+            style={{ minWidth: '140px' }}
+            ariaLabel="Filter queue by review status"
           />
 
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.3rem 0.65rem',
+              gap: '0.4rem',
+              padding: '0.25rem 0.6rem',
               background: 'var(--bg-elevated)',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-hairline)',
-              fontSize: '0.78rem',
+              fontSize: '0.75rem',
             }}
           >
             <span style={{ color: 'var(--text-secondary)' }}>Reviewed:</span>
-            <span style={{ fontWeight: 700, color: 'var(--accent-interactive)' }}>
+            <span style={{ fontWeight: 700, color: 'var(--accent-interactive)', fontFamily: 'var(--font-mono)' }}>
               {reviewedCount} / {queue.length} ({reviewPct}%)
             </span>
           </div>
         </div>
 
-        {/* Right: Quick Pagination Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        {/* Right: Record Counter, Navigation, Panel Toggles & Shortcuts Help */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {/* Navigation Controls */}
           <button
             className="btn btn-secondary"
-            disabled={currentIndex === 0 || queue.length === 0}
-            onClick={() => setCurrentIndex((i) => i - 1)}
+            disabled={currentFilteredIndex <= 0 || filteredQueue.length === 0}
+            onClick={handleNavigatePrev}
             title="Previous Record (K or Up)"
-            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+            style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
           >
-            Prev <kbd style={{ marginLeft: '4px', fontSize: '0.7rem' }}>K</kbd>
+            Prev <kbd style={{ marginLeft: '4px', fontSize: '0.68rem' }}>K</kbd>
           </button>
+
           <span
             style={{
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-secondary)',
-              minWidth: '85px',
+              minWidth: '95px',
               textAlign: 'center',
             }}
           >
-            {queue.length > 0 ? `${currentIndex + 1} of ${totalQueue}` : '0 of 0'}
+            {filteredQueue.length > 0 ? `${currentFilteredIndex + 1} of ${filteredQueue.length}` : '0 of 0'}
           </span>
+
           <button
             className="btn btn-secondary"
-            disabled={currentIndex >= queue.length - 1 || queue.length === 0}
-            onClick={() => setCurrentIndex((i) => i + 1)}
+            disabled={currentFilteredIndex >= filteredQueue.length - 1 || filteredQueue.length === 0}
+            onClick={handleNavigateNext}
             title="Next Record (J or Down)"
-            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+            style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
           >
-            Next <kbd style={{ marginLeft: '4px', fontSize: '0.7rem' }}>J</kbd>
+            Next <kbd style={{ marginLeft: '4px', fontSize: '0.68rem' }}>J</kbd>
+          </button>
+
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)', margin: '0 0.2rem' }} />
+
+          {/* Panel Visibility Toggles */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
+            title={isLeftPanelOpen ? 'Collapse Queue Panel' : 'Expand Queue Panel'}
+            style={{ padding: '0.35rem 0.5rem' }}
+          >
+            {isLeftPanelOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            title={isRightPanelOpen ? 'Collapse Inspector Panel' : 'Expand Inspector Panel'}
+            style={{ padding: '0.35rem 0.5rem' }}
+          >
+            {isRightPanelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+          </button>
+
+          {/* Shortcut Help Trigger */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsShortcutModalOpen(true)}
+            title="Keyboard Shortcuts (?)"
+            style={{ padding: '0.35rem 0.55rem' }}
+          >
+            <HelpCircle size={15} />
           </button>
         </div>
       </div>
 
       {/* Main 3-Panel Balanced Workspace Layout */}
-      <div className="workbench-body">
+      <div
+        className="workbench-body"
+        style={{
+          gridTemplateColumns: `${isLeftPanelOpen ? '280px' : '0px'} minmax(0, 1fr) ${isRightPanelOpen ? '340px' : '0px'}`,
+          transition: 'grid-template-columns 0.2s ease',
+        }}
+      >
         {/* ========================================================================= */}
         {/* Left Column: Record Queue Navigator */}
         {/* ========================================================================= */}
-        <div className="workbench-panel-left">
-          {/* Queue Header & Search */}
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-hairline)' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.5rem',
-              }}
-            >
-              <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Queue ({filteredQueue.length})
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Sorted by Index
-              </span>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Search
-                size={14}
+        {isLeftPanelOpen && (
+          <div className="workbench-panel-left">
+            {/* Queue Header & Search */}
+            <div style={{ padding: '0.75rem 0.85rem', borderBottom: '1px solid var(--border-hairline)' }}>
+              <div
                 style={{
-                  position: 'absolute',
-                  left: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.45rem',
                 }}
-              />
-              <input
-                type="text"
-                className="input"
-                placeholder="Search key, label, ID..."
-                value={queueSearch}
-                onChange={(e) => setQueueSearch(e.target.value)}
-                style={{ width: '100%', paddingLeft: '28px', fontSize: '0.8rem', padding: '0.35rem 0.5rem 0.35rem 26px' }}
-              />
-            </div>
-          </div>
-
-          {/* Queue Items List */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
-            {loadingQueue ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                Loading dataset records...
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    color: 'var(--text-secondary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Record Queue ({filteredQueue.length})
+                </span>
+                {totalQueue > filteredQueue.length && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Filtered from {totalQueue}
+                  </span>
+                )}
               </div>
-            ) : queueError ? (
-              <div style={{ padding: '1rem', color: 'var(--rose)', fontSize: '0.85rem' }}>{queueError}</div>
-            ) : filteredQueue.length === 0 ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                No records match active filters.
-              </div>
-            ) : (
-              filteredQueue.map((item, idx) => {
-                const isActive = item.id === (currentRecord?.id || queue[currentIndex]?.id);
-                const statusBadgeClass =
-                  item.review_status === 'approved'
-                    ? 'badge-emerald'
-                    : item.review_status === 'rejected'
-                    ? 'badge-rose'
-                    : item.review_status === 'needs_correction'
-                    ? 'badge-amber'
-                    : item.review_status === 'pending_review'
-                    ? 'badge-blue'
-                    : 'badge-neutral';
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      const originalIdx = queue.findIndex((q) => q.id === item.id);
-                      if (originalIdx !== -1) setCurrentIndex(originalIdx);
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={14}
+                  style={{
+                    position: 'absolute',
+                    left: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Search key, label, ID..."
+                  value={queueSearch}
+                  onChange={(e) => setQueueSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.3rem 1.6rem 0.3rem 26px',
+                    fontSize: '0.8rem',
+                    background: 'var(--bg-canvas)',
+                    border: '1px solid var(--border-hairline)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {queueSearch && (
+                  <button
+                    onClick={() => setQueueSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: 0,
                     }}
-                    className={`workbench-queue-item ${isActive ? 'active' : ''}`}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Queue Items List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
+              {loadingQueue ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <div className="spinner" style={{ margin: '0 auto 0.5rem auto' }}></div>
+                  <div>Loading records...</div>
+                </div>
+              ) : queueError ? (
+                <div style={{ padding: '1rem', color: 'var(--rose)', fontSize: '0.85rem' }}>{queueError}</div>
+              ) : filteredQueue.length === 0 ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>No matching records</p>
+                  <p style={{ fontSize: '0.78rem' }}>Adjust search or split/status filters.</p>
+                </div>
+              ) : (
+                filteredQueue.map((item, idx) => {
+                  const isActive = item.id === selectedRecordId;
+                  const statusBadgeClass =
+                    item.review_status === 'approved'
+                      ? 'badge-emerald'
+                      : item.review_status === 'rejected'
+                      ? 'badge-rose'
+                      : item.review_status === 'needs_correction'
+                      ? 'badge-amber'
+                      : item.review_status === 'pending_review'
+                      ? 'badge-blue'
+                      : 'badge-neutral';
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedRecordId(item.id)}
+                      className={`workbench-queue-item ${isActive ? 'active' : ''}`}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span
+                          style={{
+                            fontSize: '0.825rem',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: isActive ? 700 : 500,
+                            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          }}
+                        >
+                          #{idx + 1} {item.external_key || item.id.slice(0, 8)}
+                        </span>
+                        <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                          {item.review_status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+
+                      <div
                         style={{
-                          fontSize: '0.825rem',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: isActive ? 700 : 500,
-                          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.72rem',
+                          color: 'var(--text-muted)',
                         }}
                       >
-                        #{idx + 1} {item.external_key || item.id.slice(0, 8)}
-                      </span>
-                      <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                        {item.review_status.replace(/_/g, ' ')}
-                      </span>
+                        <span>Split: {item.split || 'train'}</span>
+                        {item.annotation_payload?.label && (
+                          <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
+                            {item.annotation_payload.label}
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      <span>Split: {item.split || 'train'}</span>
-                      {item.annotation_payload?.label && (
-                        <span className="badge badge-blue" style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem' }}>
-                          {item.annotation_payload.label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ========================================================================= */}
-        {/* Center Column: Media & Canvas Viewer Stage (Primary Focus) */}
+        {/* Center Column: Primary Annotation Surface */}
         {/* ========================================================================= */}
         <div className="workbench-panel-center">
           {loadingRecord ? (
@@ -618,19 +826,21 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Asset Information Header */}
+              {/* Contextual Asset Metadata Header */}
               <div
                 style={{
-                  padding: '0.65rem 1.25rem',
+                  padding: '0.55rem 1rem',
                   borderBottom: '1px solid var(--border-hairline)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   background: 'var(--bg-surface)',
                   flexShrink: 0,
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                     ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{currentRecord.external_key || currentRecord.id}</code>
                   </span>
@@ -644,41 +854,42 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                     }}
                     title="Copy full Record UUID"
                   >
-                    {copied ? <Check size={13} /> : <Copy size={13} />}
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
                     <span>{copied ? 'Copied' : 'Copy'}</span>
                   </button>
                   <span className="badge badge-neutral">Split: {currentRecord.split}</span>
                 </div>
 
                 {activeAsset && (
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     {activeAsset.original_filename && (
                       <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        {activeAsset.original_filename} •{' '}
+                        {activeAsset.original_filename} •
                       </span>
                     )}
                     {activeAsset.dimensions?.width && activeAsset.dimensions?.height && (
-                      <span>
-                        {activeAsset.dimensions.width}×{activeAsset.dimensions.height}px •{' '}
-                      </span>
+                      <span>{activeAsset.dimensions.width}×{activeAsset.dimensions.height}px •</span>
+                    )}
+                    {activeAsset.dimensions?.duration_seconds && (
+                      <span>{activeAsset.dimensions.duration_seconds}s •</span>
                     )}
                     <span>{(activeAsset.byte_size / 1024).toFixed(1)} KB</span>
                   </div>
                 )}
               </div>
 
-              {/* Viewer Stage Area */}
+              {/* Modality-Specific Viewer & Annotation Canvas */}
               <div
                 style={{
                   flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '1.5rem',
+                  padding: '1.25rem',
                   overflow: 'auto',
                   background: 'var(--bg-canvas)',
                 }}
@@ -690,6 +901,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       maxWidth: '100%',
                       maxHeight: '100%',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -701,7 +913,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       height={activeAsset.dimensions?.height || 480}
                       style={{
                         maxWidth: '100%',
-                        maxHeight: 'calc(100vh - 220px)',
+                        maxHeight: 'calc(100vh - 240px)',
                         objectFit: 'contain',
                         borderRadius: 'var(--radius-md)',
                         boxShadow: 'var(--shadow-md)',
@@ -717,31 +929,35 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       boxes={boxes}
                       classes={allowedClasses}
                       selectedClass={selectedLabel || allowedClasses[0] || 'object'}
-                      onChange={(newBoxes) => setBoxes(newBoxes)}
+                      onChange={(newBoxes) => {
+                        setBoxes(newBoxes);
+                        setIsDirty(true);
+                      }}
                     />
                   </div>
                 ) : dataset.task_type === 'audio_transcription' && activeAsset ? (
-                  /* 3. Audio Transcription Media Presentation */
+                  /* 3. Audio Transcription Media Presentation with Waveform Scrubber */
                   <div
                     style={{
                       width: '100%',
                       maxWidth: '820px',
                       background: 'var(--bg-surface)',
-                      padding: '1.75rem',
+                      padding: '1.5rem',
                       borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-hairline)',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '1.5rem',
+                      gap: '1.25rem',
                       boxShadow: 'var(--shadow-md)',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {/* Audio Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                         <div
                           style={{
-                            width: '44px',
-                            height: '44px',
+                            width: '40px',
+                            height: '40px',
                             borderRadius: 'var(--radius-sm)',
                             background: 'var(--bg-elevated)',
                             display: 'flex',
@@ -750,14 +966,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                             color: 'var(--accent-interactive)',
                           }}
                         >
-                          <Volume2 size={24} />
+                          <Volume2 size={22} />
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                             {activeAsset.original_filename || 'Audio Recording'}
                           </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            {activeAsset.dimensions?.duration_seconds ? `${activeAsset.dimensions.duration_seconds}s • ` : ''}
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {activeAsset.dimensions?.sample_rate_hz ? `${activeAsset.dimensions.sample_rate_hz} Hz • ` : ''}
                             {activeAsset.dimensions?.channels ? `${activeAsset.dimensions.channels} ch • ` : ''}
                             {(activeAsset.byte_size / 1024).toFixed(1)} KB
@@ -765,14 +980,15 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Speed:</span>
+                      {/* Playback Speed Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Speed:</span>
                         {[0.75, 1.0, 1.25, 1.5].map((rate) => (
                           <button
                             key={rate}
                             type="button"
                             className={`btn ${playbackRate === rate ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                            style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
                             onClick={() => {
                               setPlaybackRate(rate);
                               if (audioRef.current) audioRef.current.playbackRate = rate;
@@ -784,61 +1000,180 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       </div>
                     </div>
 
+                    {/* Interactive Acoustic Waveform Scrubber */}
+                    <AudioWaveformScrubber
+                      currentTime={audioCurrentTime}
+                      duration={audioDuration || activeAsset.dimensions?.duration_seconds || 10}
+                      segments={transcriptSegments}
+                      assetId={activeAsset.id}
+                      onSeek={(time) => {
+                        if (audioRef.current) {
+                          audioRef.current.currentTime = time;
+                          setAudioCurrentTime(time);
+                        }
+                      }}
+                    />
+
+                    {/* HTML5 Audio Player */}
                     <audio
                       ref={audioRef}
                       controls
                       src={`/api/v1/assets/${activeAsset.id}/raw`}
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', height: '40px' }}
+                      onTimeUpdate={() => {
+                        if (audioRef.current) setAudioCurrentTime(audioRef.current.currentTime);
+                      }}
+                      onLoadedMetadata={() => {
+                        if (audioRef.current) setAudioDuration(audioRef.current.duration);
+                      }}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
                       onEnded={() => setIsPlaying(false)}
                     />
 
-                    {/* Interactive Segments Visual Timeline */}
+                    {/* Interactive Timed Segments Cue List */}
                     {transcriptSegments.length > 0 && (
                       <div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                          Timeline Cues ({transcriptSegments.length})
+                        <div
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: 'var(--text-secondary)',
+                            marginBottom: '0.4rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          Timeline Speech Cues ({transcriptSegments.length})
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '180px', overflowY: 'auto' }}>
-                          {transcriptSegments.map((seg, idx) => (
-                            <div
-                              key={idx}
-                              onClick={() => {
-                                if (audioRef.current) {
-                                  audioRef.current.currentTime = seg.start_time;
-                                  audioRef.current.play();
-                                }
-                              }}
-                              style={{
-                                padding: '0.5rem 0.75rem',
-                                background: 'var(--bg-elevated)',
-                                border: '1px solid var(--border-hairline)',
-                                borderRadius: 'var(--radius-sm)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: '0.825rem',
-                              }}
-                              title="Click to seek and play"
-                            >
-                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-                                  {seg.start_time.toFixed(2)}s - {seg.end_time.toFixed(2)}s
-                                </span>
-                                {seg.speaker && <strong style={{ color: 'var(--accent-interactive)' }}>{seg.speaker}:</strong>}
-                                <span>{seg.text || <em style={{ color: 'var(--text-muted)' }}>No cue text</em>}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '160px', overflowY: 'auto' }}>
+                          {transcriptSegments.map((seg, idx) => {
+                            const isCueActive =
+                              audioCurrentTime >= seg.start_time && audioCurrentTime <= seg.end_time;
+
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  if (audioRef.current) {
+                                    audioRef.current.currentTime = seg.start_time;
+                                    audioRef.current.play();
+                                    setIsPlaying(true);
+                                  }
+                                }}
+                                style={{
+                                  padding: '0.45rem 0.7rem',
+                                  background: isCueActive ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-elevated)',
+                                  border: `1px solid ${isCueActive ? 'var(--accent-interactive)' : 'var(--border-hairline)'}`,
+                                  borderRadius: 'var(--radius-sm)',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontSize: '0.8rem',
+                                }}
+                                title="Click to seek and play segment"
+                              >
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                  <span className="badge badge-blue" style={{ fontSize: '0.68rem' }}>
+                                    {seg.start_time.toFixed(1)}s – {seg.end_time.toFixed(1)}s
+                                  </span>
+                                  {seg.speaker && <strong style={{ color: 'var(--accent-interactive)' }}>{seg.speaker}:</strong>}
+                                  <span>{seg.text || <em style={{ color: 'var(--text-muted)' }}>No cue text</em>}</span>
+                                </div>
+                                <Play size={12} style={{ color: isCueActive ? 'var(--accent-interactive)' : 'var(--text-muted)' }} />
                               </div>
-                              <Play size={12} style={{ color: 'var(--text-muted)' }} />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
                   </div>
+                ) : dataset.task_type === 'document_ocr' && activeAsset ? (
+                  /* 5. Document OCR Presentation */
+                  <div
+                    style={{
+                      width: '100%',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                      gap: '1rem',
+                      height: '100%',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ProgressiveAssetImage
+                        src={`/api/v1/assets/${activeAsset.id}/raw`}
+                        alt="OCR Document"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: 'calc(100vh - 240px)',
+                          objectFit: 'contain',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-hairline)',
+                        }}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        background: 'var(--bg-surface)',
+                        padding: '1.25rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-hairline)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                        Extracted Document Text
+                      </div>
+                      <textarea
+                        className="input"
+                        value={currentRecord.metadata?.text || currentRecord.metadata?.content || ''}
+                        readOnly
+                        style={{ flex: 1, resize: 'none', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  </div>
+                ) : dataset.task_type === 'paired_image_text' && activeAsset ? (
+                  /* 6. Paired Image-Text Presentation */
+                  <div
+                    style={{
+                      width: '100%',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                      gap: '1.25rem',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <ProgressiveAssetImage
+                      src={`/api/v1/assets/${activeAsset.id}/raw`}
+                      alt="Paired Asset"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: 'calc(100vh - 240px)',
+                        objectFit: 'contain',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-hairline)',
+                      }}
+                    />
+                    <div
+                      style={{
+                        background: 'var(--bg-surface)',
+                        padding: '1.5rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-hairline)',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                        Paired Text / Caption
+                      </div>
+                      <div style={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-primary)' }}>
+                        {currentRecord.metadata?.text || currentRecord.metadata?.caption || currentRecord.metadata?.prompt || 'No paired text provided.'}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  /* 4. Text Classification Media Presentation */
+                  /* 4. Text Classification Document Reader */
                   <div
                     style={{
                       width: '100%',
@@ -851,28 +1186,44 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Document Payload Content
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: 'var(--text-secondary)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                        }}
+                      >
+                        <FileText size={15} />
+                        <span>Document Payload</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        <span>Words: {((currentRecord.metadata?.text || currentRecord.metadata?.content || '').split(/\s+/).filter(Boolean).length)}</span>
+                        <span>
+                          Words: {((currentRecord.metadata?.text || currentRecord.metadata?.content || '').split(/\s+/).filter(Boolean).length)}
+                        </span>
                         <span>•</span>
                         <span>Chars: {((currentRecord.metadata?.text || currentRecord.metadata?.content || '').length)}</span>
                       </div>
                     </div>
                     <div
                       style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.95rem',
-                        lineHeight: 1.7,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: '1rem',
+                        lineHeight: 1.75,
                         color: 'var(--text-primary)',
                         whiteSpace: 'pre-wrap',
                         background: 'var(--bg-canvas)',
-                        padding: '1.25rem',
+                        padding: '1.5rem',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--border-hairline)',
-                        maxHeight: '400px',
+                        maxHeight: '420px',
                         overflowY: 'auto',
+                        maxWidth: '68ch',
+                        margin: '0 auto',
                       }}
                     >
                       {currentRecord.metadata?.text ||
@@ -883,7 +1234,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 )}
               </div>
 
-              {/* Bottom Sticky Hotkey Legend Bar */}
+              {/* Bottom Hotkey Legend Bar */}
               <div className="workbench-hotkey-legend">
                 <div><kbd>1-9</kbd>Select Class</div>
                 <div><kbd>Enter</kbd>Save & Next</div>
@@ -892,6 +1243,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 <div><kbd>C</kbd>Needs Fix</div>
                 <div><kbd>N</kbd>Not Similar</div>
                 <div><kbd>J / K</kbd>Next / Prev</div>
+                <div><kbd>?</kbd>All Shortcuts</div>
               </div>
             </div>
           )}
@@ -900,392 +1252,547 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         {/* ========================================================================= */}
         {/* Right Column: Inspector, Label Selection & Actions */}
         {/* ========================================================================= */}
-        <div className="workbench-panel-right">
-          {/* Section 1: Guidelines */}
-          <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Annotation Guidelines
-            </div>
-            <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: 1.5, background: 'var(--bg-elevated)', padding: '0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
-              {dataset.annotation_instructions ||
-                (dataset.task_type === 'audio_transcription'
-                  ? 'Transcribe speech verbatim, verify speaker turns, and adjust timestamps.'
-                  : 'Select the most accurate label. Use hotkeys 1-9 for quick classification.')}
-            </div>
-          </div>
-
-          {/* Section 2: Task-Specific Label / Audio Inputs */}
-          {dataset.task_type === 'audio_transcription' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                  Full Transcript
-                </div>
-                <textarea
-                  className="input"
-                  rows={4}
-                  placeholder="Enter full transcript of the audio..."
-                  value={transcriptText}
-                  onChange={(e) => setTranscriptText(e.target.value)}
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                    Timed Segments
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                    onClick={() => {
-                      const cur = audioRef.current?.currentTime || 0;
-                      setTranscriptSegments([
-                        ...transcriptSegments,
-                        { start_time: Math.max(0, Math.floor(cur)), end_time: Math.ceil(cur + 2), text: '', speaker: 'Speaker 1' },
-                      ]);
-                    }}
-                  >
-                    <Plus size={12} style={{ marginRight: '2px' }} /> Add Segment
-                  </button>
-                </div>
-                {transcriptSegments.map((seg, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.3rem',
-                      padding: '0.5rem',
-                      marginBottom: '0.4rem',
-                      backgroundColor: 'var(--bg-elevated)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-hairline)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input"
-                        placeholder="Start"
-                        value={seg.start_time}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          const next = [...transcriptSegments];
-                          next[idx] = { ...seg, start_time: val };
-                          setTranscriptSegments(next);
-                        }}
-                        style={{ width: '65px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                      />
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>to</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input"
-                        placeholder="End"
-                        value={seg.end_time}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          const next = [...transcriptSegments];
-                          next[idx] = { ...seg, end_time: val };
-                          setTranscriptSegments(next);
-                        }}
-                        style={{ width: '65px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTranscriptSegments(transcriptSegments.filter((_, i) => i !== idx));
-                        }}
-                        style={{
-                          marginLeft: 'auto',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--rose)',
-                          cursor: 'pointer',
-                          padding: '2px',
-                        }}
-                        title="Delete segment"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Segment cue text..."
-                      value={seg.text}
-                      onChange={(e) => {
-                        const next = [...transcriptSegments];
-                        next[idx] = { ...seg, text: e.target.value };
-                        setTranscriptSegments(next);
-                      }}
-                      style={{ fontSize: '0.78rem', padding: '0.25rem 0.45rem' }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
+        {isRightPanelOpen && (
+          <div className="workbench-panel-right">
+            {/* Section 1: Annotation Guidelines */}
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Class Selection ({allowedClasses.length})
-              </div>
-              {allowedClasses.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  {allowedClasses.map((lbl, idx) => {
-                    const isSelected = selectedLabel === lbl;
-                    const shortcutKey = idx < 9 ? `${idx + 1}` : null;
-
-                    return (
-                      <button
-                        key={lbl}
-                        onClick={() => setSelectedLabel(lbl)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.55rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-elevated)',
-                          border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-hairline)'}`,
-                          color: isSelected ? 'var(--accent-primary-fg)' : 'var(--text-primary)',
-                          fontWeight: isSelected ? 600 : 500,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span style={{ fontSize: '0.85rem' }}>{lbl}</span>
-                        {shortcutKey && (
-                          <kbd
-                            style={{
-                              background: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'var(--bg-surface)',
-                              border: `1px solid ${isSelected ? 'rgba(255, 255, 255, 0.3)' : 'var(--border-hairline)'}`,
-                              padding: '0.1rem 0.35rem',
-                              borderRadius: '3px',
-                              fontSize: '0.72rem',
-                              color: isSelected ? '#fff' : 'var(--text-muted)',
-                            }}
-                          >
-                            {shortcutKey}
-                          </kbd>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Enter classification label..."
-                  value={selectedLabel}
-                  onChange={(e) => setSelectedLabel(e.target.value)}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Section 3: Confidence Slider */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-              <span>Confidence</span>
-              <span className="badge badge-blue">{(confidence * 100).toFixed(0)}%</span>
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.05"
-              value={confidence}
-              onChange={(e) => setConfidence(parseFloat(e.target.value))}
-              style={{ width: '100%', accentColor: 'var(--accent-interactive)' }}
-            />
-          </div>
-
-          {/* Section 4: Notes / Rationale */}
-          <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-              Annotation Notes / Rationale
-            </div>
-            <textarea
-              className="input"
-              rows={2}
-              placeholder="Optional notes or reason for label..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ width: '100%', resize: 'vertical', fontSize: '0.825rem' }}
-            />
-          </div>
-
-          {/* Section 5: Save & Fast Navigation */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <SpringButton
-              variant="primary"
-              disabled={
-                saving ||
-                !currentRecord ||
-                (dataset.task_type === 'audio_transcription'
-                  ? !transcriptText.trim() && transcriptSegments.length === 0
-                  : dataset.task_type !== 'object_detection' && !selectedLabel)
-              }
-              onClick={() => handleSaveAnnotation()}
-              style={{ width: '100%', padding: '0.65rem' }}
-              shortcut="Enter"
-            >
-              {saving ? 'Saving...' : 'Save & Next'}
-            </SpringButton>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <SpringButton
-                variant="secondary"
-                disabled={currentIndex === 0 || saving}
-                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                style={{ padding: '0.45rem', fontSize: '0.825rem' }}
-                shortcut="K"
-                title="Previous Record (K or Up)"
-              >
-                Prev
-              </SpringButton>
-              <SpringButton
-                variant="secondary"
-                disabled={currentIndex >= queue.length - 1 || saving}
-                onClick={() => setCurrentIndex((prev) => Math.min(queue.length - 1, prev + 1))}
-                style={{ padding: '0.45rem', fontSize: '0.825rem' }}
-                shortcut="J"
-                title="Next Record / Skip (J or Down)"
-              >
-                Skip / Next
-              </SpringButton>
-            </div>
-          </div>
-
-          {/* Section 6: Review Status Transitions */}
-          {currentRecord?.annotation && (
-            <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '1rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                Review Transition
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <SpringButton
-                  variant="secondary"
-                  onClick={() => handleReviewAction('approved')}
-                  disabled={saving}
-                  style={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                    borderColor: 'rgba(16, 185, 129, 0.3)',
-                    color: 'var(--status-approved)',
-                    padding: '0.45rem',
-                  }}
-                  shortcut="A"
-                  title="Approve (A)"
-                >
-                  <CheckCircle2 size={13} style={{ marginRight: '4px' }} /> Approve
-                </SpringButton>
-                <SpringButton
-                  variant="danger"
-                  onClick={() => handleReviewAction('rejected')}
-                  disabled={saving}
-                  style={{ padding: '0.45rem' }}
-                  shortcut="R"
-                  title="Reject (R)"
-                >
-                  <XCircle size={13} style={{ marginRight: '4px' }} /> Reject
-                </SpringButton>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <SpringButton
-                  variant="secondary"
-                  onClick={() => handleReviewAction('needs_correction')}
-                  disabled={saving}
-                  style={{
-                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                    borderColor: 'rgba(245, 158, 11, 0.3)',
-                    color: 'var(--status-pending)',
-                    padding: '0.45rem',
-                  }}
-                  shortcut="C"
-                  title="Needs Correction (C)"
-                >
-                  <AlertTriangle size={13} style={{ marginRight: '4px' }} /> Needs Fix
-                </SpringButton>
-                <SpringButton
-                  variant="secondary"
-                  onClick={() => handleNotSimilarAction()}
-                  disabled={saving}
-                  style={{
-                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                    borderColor: 'rgba(37, 99, 235, 0.3)',
-                    color: 'var(--accent-interactive)',
-                    padding: '0.45rem',
-                  }}
-                  shortcut="N"
-                  title="Mark as Not Similar / Disagreement (N)"
-                >
-                  ≠ Not Similar
-                </SpringButton>
-              </div>
-            </div>
-          )}
-
-          {/* Section 7: Revisions & Audit History */}
-          {currentRecord?.revisions && currentRecord.revisions.length > 0 && (
-            <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '0.85rem' }}>
-              <button
-                onClick={() => setShowHistory(!showHistory)}
+              <div
                 style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
                   color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '0.825rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.25rem 0',
+                  marginBottom: '0.35rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <History size={14} /> Revision History ({currentRecord.revisions.length})
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                  {showHistory ? <ChevronUp size={15} strokeWidth={1.75} /> : <ChevronDown size={15} strokeWidth={1.75} />}
-                </span>
-              </button>
+                Guidelines
+              </div>
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.5,
+                  background: 'var(--bg-elevated)',
+                  padding: '0.65rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-hairline)',
+                }}
+              >
+                {dataset.annotation_instructions ||
+                  (dataset.task_type === 'audio_transcription'
+                    ? 'Transcribe speech verbatim, align temporal cue segments, and adjust boundaries.'
+                    : 'Select the most accurate class label. Use hotkeys 1-9 for fast tagging.')}
+              </div>
+            </div>
 
-              {showHistory && (
-                <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {currentRecord.revisions.map((rev) => (
-                    <div
-                      key={rev.id}
-                      style={{
-                        padding: '0.5rem 0.65rem',
-                        background: 'var(--bg-elevated)',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-hairline)',
-                        fontSize: '0.78rem',
+            {/* Section 2: Task-Specific Label / Audio Inputs */}
+            {dataset.task_type === 'audio_transcription' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                    Full Transcript
+                  </div>
+                  <textarea
+                    rows={4}
+                    placeholder="Enter verbatim audio transcription..."
+                    value={transcriptText}
+                    onChange={(e) => {
+                      setTranscriptText(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      fontSize: '0.825rem',
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-hairline)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-primary)',
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                      Timed Cues ({transcriptSegments.length})
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                      onClick={() => {
+                        const cur = audioRef.current?.currentTime || 0;
+                        setTranscriptSegments([
+                          ...transcriptSegments,
+                          {
+                            start_time: Math.max(0, Math.floor(cur)),
+                            end_time: Math.ceil(cur + 2),
+                            text: '',
+                            speaker: 'Speaker 1',
+                          },
+                        ]);
+                        setIsDirty(true);
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        <span>Rev #{rev.revision_number} • {rev.payload?.label}</span>
-                        <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>{rev.origin}</span>
+                      <Plus size={12} style={{ marginRight: '2px' }} /> Add Cue
+                    </button>
+                  </div>
+                  {transcriptSegments.map((seg, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.3rem',
+                        padding: '0.45rem',
+                        marginBottom: '0.35rem',
+                        backgroundColor: 'var(--bg-elevated)',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-hairline)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          step="0.1"
+                          placeholder="Start"
+                          value={seg.start_time}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            const next = [...transcriptSegments];
+                            next[idx] = { ...seg, start_time: val };
+                            setTranscriptSegments(next);
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            width: '58px',
+                            padding: '0.2rem 0.35rem',
+                            fontSize: '0.75rem',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-hairline)',
+                            borderRadius: '3px',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>–</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          placeholder="End"
+                          value={seg.end_time}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            const next = [...transcriptSegments];
+                            next[idx] = { ...seg, end_time: val };
+                            setTranscriptSegments(next);
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            width: '58px',
+                            padding: '0.2rem 0.35rem',
+                            fontSize: '0.75rem',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-hairline)',
+                            borderRadius: '3px',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTranscriptSegments(transcriptSegments.filter((_, i) => i !== idx));
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            marginLeft: 'auto',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--rose)',
+                            cursor: 'pointer',
+                            padding: '2px',
+                          }}
+                          title="Delete cue"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
-                        {rev.change_reason || 'Initial creation'} • {new Date(rev.created_at).toLocaleTimeString()}
-                      </div>
+                      <input
+                        type="text"
+                        placeholder="Cue text..."
+                        value={seg.text}
+                        onChange={(e) => {
+                          const next = [...transcriptSegments];
+                          next[idx] = { ...seg, text: e.target.value };
+                          setTranscriptSegments(next);
+                          setIsDirty(true);
+                        }}
+                        style={{
+                          fontSize: '0.78rem',
+                          padding: '0.25rem 0.45rem',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-hairline)',
+                          borderRadius: '3px',
+                          color: 'var(--text-primary)',
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'var(--text-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    Class Selection ({allowedClasses.length})
+                  </span>
+                  {allowedClasses.length > 6 && (
+                    <input
+                      type="text"
+                      placeholder="Filter classes..."
+                      value={classSearch}
+                      onChange={(e) => setClassSearch(e.target.value)}
+                      style={{
+                        padding: '0.15rem 0.4rem',
+                        fontSize: '0.72rem',
+                        width: '105px',
+                        background: 'var(--bg-canvas)',
+                        border: '1px solid var(--border-hairline)',
+                        borderRadius: '3px',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                  )}
+                </div>
+
+                {allowedClasses.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '200px', overflowY: 'auto' }}>
+                    {filteredClasses.map((lbl, idx) => {
+                      const isSelected = selectedLabel === lbl;
+                      const globalIdx = allowedClasses.indexOf(lbl);
+                      const shortcutKey = globalIdx >= 0 && globalIdx < 9 ? `${globalIdx + 1}` : null;
+
+                      return (
+                        <button
+                          key={lbl}
+                          onClick={() => {
+                            setSelectedLabel(lbl);
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-elevated)',
+                            border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-hairline)'}`,
+                            color: isSelected ? 'var(--accent-primary-fg)' : 'var(--text-primary)',
+                            fontWeight: isSelected ? 600 : 500,
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.825rem' }}>{lbl}</span>
+                          {shortcutKey && (
+                            <kbd
+                              style={{
+                                background: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'var(--bg-surface)',
+                                border: `1px solid ${isSelected ? 'rgba(255, 255, 255, 0.3)' : 'var(--border-hairline)'}`,
+                                padding: '0.1rem 0.35rem',
+                                borderRadius: '3px',
+                                fontSize: '0.7rem',
+                                color: isSelected ? '#fff' : 'var(--text-muted)',
+                              }}
+                            >
+                              {shortcutKey}
+                            </kbd>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Enter label..."
+                    value={selectedLabel}
+                    onChange={(e) => {
+                      setSelectedLabel(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.4rem',
+                      fontSize: '0.825rem',
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-hairline)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-primary)',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Section 3: Confidence Slider */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                <span>Confidence</span>
+                <span className="badge badge-blue">{(confidence * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={confidence}
+                onChange={(e) => {
+                  setConfidence(parseFloat(e.target.value));
+                  setIsDirty(true);
+                }}
+                style={{ width: '100%', accentColor: 'var(--accent-interactive)' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                {[0.5, 0.75, 0.9, 1.0].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setConfidence(preset);
+                      setIsDirty(true);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: confidence === preset ? 'var(--accent-interactive)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                    }}
+                  >
+                    {Math.round(preset * 100)}%
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Section 4: Notes / Rationale */}
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                Annotation Notes / Rationale
+              </div>
+              <textarea
+                rows={2}
+                placeholder="Optional notes or reason for label..."
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  setIsDirty(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.45rem',
+                  fontSize: '0.8rem',
+                  background: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-primary)',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Section 5: Save & Fast Navigation */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <SpringButton
+                variant="primary"
+                disabled={
+                  saving ||
+                  !currentRecord ||
+                  (dataset.task_type === 'audio_transcription'
+                    ? !transcriptText.trim() && transcriptSegments.length === 0
+                    : dataset.task_type !== 'object_detection' && !selectedLabel)
+                }
+                onClick={() => handleSaveAnnotation()}
+                style={{ width: '100%', padding: '0.65rem' }}
+                shortcut="Enter"
+              >
+                {saving ? 'Saving...' : 'Save & Next'}
+              </SpringButton>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <SpringButton
+                  variant="secondary"
+                  disabled={currentFilteredIndex <= 0 || saving}
+                  onClick={handleNavigatePrev}
+                  style={{ padding: '0.45rem', fontSize: '0.8rem' }}
+                  shortcut="K"
+                  title="Previous Record (K or Up)"
+                >
+                  Prev
+                </SpringButton>
+                <SpringButton
+                  variant="secondary"
+                  disabled={currentFilteredIndex >= filteredQueue.length - 1 || saving}
+                  onClick={handleNavigateNext}
+                  style={{ padding: '0.45rem', fontSize: '0.8rem' }}
+                  shortcut="J"
+                  title="Next Record / Skip (J or Down)"
+                >
+                  Next / Skip
+                </SpringButton>
+              </div>
+            </div>
+
+            {/* Section 6: Review Decisions */}
+            {currentRecord?.annotation && (
+              <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '0.85rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.45rem', textTransform: 'uppercase' }}>
+                  Review Decisions
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem', marginBottom: '0.45rem' }}>
+                  <SpringButton
+                    variant="secondary"
+                    onClick={() => handleReviewAction('approved')}
+                    disabled={saving}
+                    style={{
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      borderColor: 'rgba(16, 185, 129, 0.3)',
+                      color: 'var(--emerald)',
+                      padding: '0.4rem',
+                      fontSize: '0.78rem',
+                    }}
+                    shortcut="A"
+                    title="Approve (A)"
+                  >
+                    <CheckCircle2 size={13} style={{ marginRight: '4px' }} /> Approve
+                  </SpringButton>
+                  <SpringButton
+                    variant="danger"
+                    onClick={() => handleReviewAction('rejected')}
+                    disabled={saving}
+                    style={{ padding: '0.4rem', fontSize: '0.78rem' }}
+                    shortcut="R"
+                    title="Reject (R)"
+                  >
+                    <XCircle size={13} style={{ marginRight: '4px' }} /> Reject
+                  </SpringButton>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem' }}>
+                  <SpringButton
+                    variant="secondary"
+                    onClick={() => handleReviewAction('needs_correction')}
+                    disabled={saving}
+                    style={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                      borderColor: 'rgba(245, 158, 11, 0.3)',
+                      color: 'var(--amber)',
+                      padding: '0.4rem',
+                      fontSize: '0.78rem',
+                    }}
+                    shortcut="C"
+                    title="Needs Correction (C)"
+                  >
+                    <AlertTriangle size={13} style={{ marginRight: '4px' }} /> Needs Fix
+                  </SpringButton>
+                  <SpringButton
+                    variant="secondary"
+                    onClick={() => handleNotSimilarAction()}
+                    disabled={saving}
+                    style={{
+                      backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                      borderColor: 'rgba(37, 99, 235, 0.3)',
+                      color: 'var(--accent-interactive)',
+                      padding: '0.4rem',
+                      fontSize: '0.78rem',
+                    }}
+                    shortcut="N"
+                    title="Mark as Not Similar / Disagreement (N)"
+                  >
+                    ≠ Not Similar
+                  </SpringButton>
+                </div>
+              </div>
+            )}
+
+            {/* Section 7: Revisions & Audit History */}
+            {currentRecord?.revisions && currentRecord.revisions.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '0.75rem' }}>
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.2rem 0',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                    <History size={14} /> Revision History ({currentRecord.revisions.length})
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                    {showHistory ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </span>
+                </button>
+
+                {showHistory && (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {currentRecord.revisions.map((rev) => (
+                      <div
+                        key={rev.id}
+                        style={{
+                          padding: '0.45rem 0.6rem',
+                          background: 'var(--bg-elevated)',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-hairline)',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '0.2rem' }}>
+                          <span>Rev #{rev.revision_number} • {rev.payload?.label || 'Revision'}</span>
+                          <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>{rev.origin}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                          {rev.change_reason || 'Initial creation'} • {new Date(rev.created_at).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Accessible Shortcuts Reference Modal */}
+      <ShortcutHelpModal
+        isOpen={isShortcutModalOpen}
+        onClose={() => setIsShortcutModalOpen(false)}
+        taskType={dataset.task_type}
+      />
     </div>
   );
 };
