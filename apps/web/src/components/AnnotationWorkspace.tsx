@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   fetchDatasetQueue,
   fetchRecordDetail,
@@ -10,6 +10,23 @@ import { Dataset, RecordQueueItem, RecordDetail } from '../types';
 import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
 import { ProgressiveAssetImage } from './ui/ProgressiveAssetImage';
 import { SpringButton } from './ui/SpringButton';
+import {
+  ArrowLeft,
+  Copy,
+  Check,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  History,
+  Volume2,
+  FileText,
+  Search,
+  Sparkles,
+  Play,
+  Pause,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
 interface AnnotationWorkspaceProps {
   dataset: Dataset;
@@ -25,11 +42,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   // Filters
   const [selectedSplit, setSelectedSplit] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [queueSearch, setQueueSearch] = useState<string>('');
 
   // Active Record
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentRecord, setCurrentRecord] = useState<RecordDetail | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Annotation Editor Form
   const [selectedLabel, setSelectedLabel] = useState<string>('');
@@ -39,7 +58,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [transcriptText, setTranscriptText] = useState<string>('');
   const [transcriptSegments, setTranscriptSegments] = useState<Array<{ start_time: number; end_time: number; speaker?: string; text: string }>>([]);
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -50,6 +70,12 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // Load Record Queue
@@ -113,7 +139,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     } finally {
       setLoadingRecord(false);
     }
-  }, [allowedClasses]);
+  }, [allowedClasses, dataset.task_type]);
 
   useEffect(() => {
     if (queue.length > 0 && currentIndex < queue.length) {
@@ -210,7 +236,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         action,
         comment || `Reviewer marked as ${action}`
       );
-      showToast(`Status changed to ${action}`);
+      showToast(`Status changed to ${action.replace('_', ' ')}`);
       await loadActiveRecord(currentRecord.id);
       loadQueue();
 
@@ -229,7 +255,6 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     if (currentRecord?.annotation) {
       await handleReviewAction('rejected', 'Marked as Not Similar / Disagreement');
     } else if (currentRecord) {
-      // Create annotation marked as rejected / not_similar
       setSaving(true);
       try {
         await createAnnotation(
@@ -303,8 +328,24 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
 
   const activeAsset = currentRecord?.assets?.[0];
 
+  // Filtered queue items
+  const filteredQueue = queue.filter((item) => {
+    if (!queueSearch.trim()) return true;
+    const q = queueSearch.toLowerCase();
+    return (
+      (item.external_key && item.external_key.toLowerCase().includes(q)) ||
+      item.id.toLowerCase().includes(q) ||
+      (item.annotation_payload?.label && item.annotation_payload.label.toLowerCase().includes(q))
+    );
+  });
+
+  const reviewedCount = queue.filter(
+    (q) => q.review_status === 'approved' || q.review_status === 'rejected' || q.review_status === 'needs_correction'
+  ).length;
+  const reviewPct = queue.length > 0 ? Math.round((reviewedCount / queue.length) * 100) : 0;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', gap: '1rem' }}>
+    <div className="workbench-viewport">
       {/* Toast Alert */}
       {toastMessage && (
         <div
@@ -313,54 +354,51 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             top: '20px',
             right: '20px',
             zIndex: 1000,
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border-subtle)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-hairline)',
             boxShadow: 'var(--shadow-lg)',
-            padding: '0.75rem 1.25rem',
+            padding: '0.65rem 1.15rem',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             color: 'var(--text-primary)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
           }}
         >
-          <span>💡</span>
+          <Sparkles size={16} style={{ color: 'var(--accent-interactive)' }} />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Top Navigation Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.75rem 1.25rem',
-          background: 'var(--surface-elevated)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button className="btn btn-secondary" onClick={onBack} style={{ padding: '0.4rem 0.8rem' }}>
-            ← Back to Dataset
+      {/* Top Workbench Navigation Bar */}
+      <div className="workbench-top-bar">
+        {/* Left: Back & Dataset Identity */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={onBack}
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem' }}
+          >
+            <ArrowLeft size={14} style={{ marginRight: '4px' }} />
+            <span>Dataset</span>
           </button>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontWeight: 700, fontSize: '1rem' }}>{dataset.name}</span>
-              <span className="badge badge-blue">{dataset.task_type}</span>
-            </div>
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              {dataset.name}
+            </span>
+            <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
           </div>
         </div>
 
-        {/* Filter Controls */}
+        {/* Center: Filters & Progress Meter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <select
             className="input"
             value={selectedSplit}
             onChange={(e) => setSelectedSplit(e.target.value)}
-            style={{ width: '130px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+            style={{ width: '115px', padding: '0.35rem 0.55rem', fontSize: '0.825rem' }}
           >
             <option value="">All Splits</option>
             <option value="train">Train</option>
@@ -372,118 +410,173 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             className="input"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            style={{ width: '160px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+            style={{ width: '145px', padding: '0.35rem 0.55rem', fontSize: '0.825rem' }}
           >
             <option value="">All Statuses</option>
             <option value="unannotated">Unannotated</option>
             <option value="pending_review">Pending Review</option>
             <option value="approved">Approved</option>
-            <option value="needs_correction">Needs Correction</option>
+            <option value="needs_correction">Needs Fix</option>
             <option value="rejected">Rejected</option>
           </select>
 
-          {/* Queue Navigation Progress */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.5rem' }}>
-            <button
-              className="btn btn-secondary"
-              disabled={currentIndex === 0 || queue.length === 0}
-              onClick={() => setCurrentIndex((i) => i - 1)}
-              title="Previous Record (K or Up)"
-              style={{ padding: '0.4rem 0.75rem' }}
-            >
-              ▲ Prev
-            </button>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', minWidth: '90px', textAlign: 'center' }}>
-              {queue.length > 0 ? `${currentIndex + 1} of ${totalQueue}` : '0 of 0'}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.3rem 0.65rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-hairline)',
+              fontSize: '0.78rem',
+            }}
+          >
+            <span style={{ color: 'var(--text-secondary)' }}>Reviewed:</span>
+            <span style={{ fontWeight: 700, color: 'var(--accent-interactive)' }}>
+              {reviewedCount} / {queue.length} ({reviewPct}%)
             </span>
-            <button
-              className="btn btn-secondary"
-              disabled={currentIndex >= queue.length - 1 || queue.length === 0}
-              onClick={() => setCurrentIndex((i) => i + 1)}
-              title="Next Record (J or Down)"
-              style={{ padding: '0.4rem 0.75rem' }}
-            >
-              ▼ Next
-            </button>
           </div>
+        </div>
+
+        {/* Right: Quick Pagination Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button
+            className="btn btn-secondary"
+            disabled={currentIndex === 0 || queue.length === 0}
+            onClick={() => setCurrentIndex((i) => i - 1)}
+            title="Previous Record (K or Up)"
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+          >
+            Prev <kbd style={{ marginLeft: '4px', fontSize: '0.7rem' }}>K</kbd>
+          </button>
+          <span
+            style={{
+              fontSize: '0.82rem',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-secondary)',
+              minWidth: '85px',
+              textAlign: 'center',
+            }}
+          >
+            {queue.length > 0 ? `${currentIndex + 1} of ${totalQueue}` : '0 of 0'}
+          </span>
+          <button
+            className="btn btn-secondary"
+            disabled={currentIndex >= queue.length - 1 || queue.length === 0}
+            onClick={() => setCurrentIndex((i) => i + 1)}
+            title="Next Record (J or Down)"
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+          >
+            Next <kbd style={{ marginLeft: '4px', fontSize: '0.7rem' }}>J</kbd>
+          </button>
         </div>
       </div>
 
-      {/* Main Workspace 3-Column Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '260px 1fr 340px',
-          gap: '1rem',
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        {/* Left Column: Queue List */}
-        <div
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-subtle)', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            QUEUE ITEMS ({queue.length})
+      {/* Main 3-Panel Balanced Workspace Layout */}
+      <div className="workbench-body">
+        {/* ========================================================================= */}
+        {/* Left Column: Record Queue Navigator */}
+        {/* ========================================================================= */}
+        <div className="workbench-panel-left">
+          {/* Queue Header & Search */}
+          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-hairline)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Queue ({filteredQueue.length})
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Sorted by Index
+              </span>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                }}
+              />
+              <input
+                type="text"
+                className="input"
+                placeholder="Search key, label, ID..."
+                value={queueSearch}
+                onChange={(e) => setQueueSearch(e.target.value)}
+                style={{ width: '100%', paddingLeft: '28px', fontSize: '0.8rem', padding: '0.35rem 0.5rem 0.35rem 26px' }}
+              />
+            </div>
           </div>
 
+          {/* Queue Items List */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
             {loadingQueue ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading queue...</div>
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Loading dataset records...
+              </div>
             ) : queueError ? (
               <div style={{ padding: '1rem', color: 'var(--rose)', fontSize: '0.85rem' }}>{queueError}</div>
-            ) : queue.length === 0 ? (
+            ) : filteredQueue.length === 0 ? (
               <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 No records match active filters.
               </div>
             ) : (
-              queue.map((item, idx) => {
-                const isActive = idx === currentIndex;
-                const statusColor =
+              filteredQueue.map((item, idx) => {
+                const isActive = item.id === (currentRecord?.id || queue[currentIndex]?.id);
+                const statusBadgeClass =
                   item.review_status === 'approved'
-                    ? 'var(--emerald)'
+                    ? 'badge-emerald'
                     : item.review_status === 'rejected'
-                    ? 'var(--rose)'
+                    ? 'badge-rose'
                     : item.review_status === 'needs_correction'
-                    ? 'var(--amber)'
+                    ? 'badge-amber'
                     : item.review_status === 'pending_review'
-                    ? 'var(--text-accent)'
-                    : 'var(--text-muted)';
+                    ? 'badge-blue'
+                    : 'badge-neutral';
 
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setCurrentIndex(idx)}
-                    style={{
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                      border: isActive ? '1px solid var(--primary-glow)' : '1px solid transparent',
-                      marginBottom: '0.25rem',
-                      cursor: 'pointer',
-                      transition: 'all var(--transition-fast)',
+                    onClick={() => {
+                      const originalIdx = queue.findIndex((q) => q.id === item.id);
+                      if (originalIdx !== -1) setCurrentIndex(originalIdx);
                     }}
+                    className={`workbench-queue-item ${isActive ? 'active' : ''}`}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '0.825rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: isActive ? 700 : 500,
+                          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        }}
+                      >
                         #{idx + 1} {item.external_key || item.id.slice(0, 8)}
                       </span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: statusColor }}>
-                        {item.review_status.replace('_', ' ')}
+                      <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                        {item.review_status.replace(/_/g, ' ')}
                       </span>
                     </div>
-                    {item.annotation_payload?.label && (
-                      <span className="badge badge-blue" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}>
-                        {item.annotation_payload.label}
-                      </span>
-                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <span>Split: {item.split || 'train'}</span>
+                      {item.annotation_payload?.label && (
+                        <span className="badge badge-blue" style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem' }}>
+                          {item.annotation_payload.label}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -491,17 +584,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           </div>
         </div>
 
-        {/* Center Stage: Media / Document Viewer */}
-        <div
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+        {/* ========================================================================= */}
+        {/* Center Column: Media & Canvas Viewer Stage (Primary Focus) */}
+        {/* ========================================================================= */}
+        <div className="workbench-panel-center">
           {loadingRecord ? (
             <div className="loading-container" style={{ flex: 1 }}>
               <div className="spinner"></div>
@@ -518,24 +604,47 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               {/* Asset Information Header */}
               <div
                 style={{
-                  padding: '0.75rem 1.25rem',
-                  borderBottom: '1px solid var(--border-subtle)',
+                  padding: '0.65rem 1.25rem',
+                  borderBottom: '1px solid var(--border-hairline)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: 'rgba(15, 23, 42, 0.4)',
+                  background: 'var(--bg-surface)',
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                    Record: <code style={{ fontFamily: 'var(--font-mono)' }}>{currentRecord.external_key || currentRecord.id}</code>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{currentRecord.external_key || currentRecord.id}</code>
                   </span>
-                  <span className="badge badge-cyan">Split: {currentRecord.split}</span>
+                  <button
+                    onClick={() => handleCopyId(currentRecord.id)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: copied ? 'var(--emerald)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                    }}
+                    title="Copy full Record UUID"
+                  >
+                    {copied ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                  <span className="badge badge-neutral">Split: {currentRecord.split}</span>
                 </div>
+
                 {activeAsset && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {activeAsset.original_filename && <span>{activeAsset.original_filename} • </span>}
-                    {activeAsset.dimensions && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {activeAsset.original_filename && (
+                      <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+                        {activeAsset.original_filename} •{' '}
+                      </span>
+                    )}
+                    {activeAsset.dimensions?.width && activeAsset.dimensions?.height && (
                       <span>
                         {activeAsset.dimensions.width}×{activeAsset.dimensions.height}px •{' '}
                       </span>
@@ -545,7 +654,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 )}
               </div>
 
-              {/* Viewer Stage */}
+              {/* Viewer Stage Area */}
               <div
                 style={{
                   flex: 1,
@@ -554,53 +663,83 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   justifyContent: 'center',
                   padding: '1.5rem',
                   overflow: 'auto',
-                  backgroundColor: 'var(--bg-canvas)',
+                  background: 'var(--bg-canvas)',
                 }}
               >
+                {/* 1. Image Classification Media Presentation */}
                 {dataset.task_type === 'image_classification' && activeAsset ? (
-                  <ProgressiveAssetImage
-                    src={`/api/v1/assets/${activeAsset.id}/raw`}
-                    alt={activeAsset.original_filename || 'Record Asset'}
-                    width={activeAsset.dimensions?.width || 640}
-                    height={activeAsset.dimensions?.height || 480}
+                  <div
                     style={{
                       maxWidth: '100%',
                       maxHeight: '100%',
-                      boxShadow: 'var(--shadow-md)',
-                      border: '1px solid var(--border-hairline)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
-                  />
+                  >
+                    <ProgressiveAssetImage
+                      src={`/api/v1/assets/${activeAsset.id}/raw`}
+                      alt={activeAsset.original_filename || 'Record Asset'}
+                      width={activeAsset.dimensions?.width || 640}
+                      height={activeAsset.dimensions?.height || 480}
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: 'calc(100vh - 220px)',
+                        objectFit: 'contain',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'var(--shadow-md)',
+                        border: '1px solid var(--border-hairline)',
+                      }}
+                    />
+                  </div>
                 ) : dataset.task_type === 'object_detection' && activeAsset ? (
-                  <ObjectDetectionCanvas
-                    imageUrl={`/api/v1/assets/${activeAsset.id}/raw`}
-                    boxes={boxes}
-                    classes={allowedClasses}
-                    selectedClass={selectedLabel || allowedClasses[0] || 'object'}
-                    onChange={(newBoxes) => setBoxes(newBoxes)}
-                  />
+                  /* 2. Object Detection Media Presentation */
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <ObjectDetectionCanvas
+                      imageUrl={`/api/v1/assets/${activeAsset.id}/raw`}
+                      boxes={boxes}
+                      classes={allowedClasses}
+                      selectedClass={selectedLabel || allowedClasses[0] || 'object'}
+                      onChange={(newBoxes) => setBoxes(newBoxes)}
+                    />
+                  </div>
                 ) : dataset.task_type === 'audio_transcription' && activeAsset ? (
+                  /* 3. Audio Transcription Media Presentation */
                   <div
                     style={{
                       width: '100%',
-                      maxWidth: '720px',
-                      backgroundColor: 'var(--bg-surface)',
-                      padding: '2rem',
+                      maxWidth: '820px',
+                      background: 'var(--bg-surface)',
+                      padding: '1.75rem',
                       borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
+                      border: '1px solid var(--border-hairline)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '1.5rem',
-                      boxShadow: 'var(--shadow-lg)',
+                      boxShadow: 'var(--shadow-md)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '2rem' }}>🎙️</span>
+                        <div
+                          style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'var(--bg-elevated)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--accent-interactive)',
+                          }}
+                        >
+                          <Volume2 size={24} />
+                        </div>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
                             {activeAsset.original_filename || 'Audio Recording'}
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                             {activeAsset.dimensions?.duration_seconds ? `${activeAsset.dimensions.duration_seconds}s • ` : ''}
                             {activeAsset.dimensions?.sample_rate_hz ? `${activeAsset.dimensions.sample_rate_hz} Hz • ` : ''}
                             {activeAsset.dimensions?.channels ? `${activeAsset.dimensions.channels} ch • ` : ''}
@@ -608,25 +747,18 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           </div>
                         </div>
                       </div>
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Speed:</span>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Speed:</span>
                         {[0.75, 1.0, 1.25, 1.5].map((rate) => (
                           <button
                             key={rate}
                             type="button"
+                            className={`btn ${playbackRate === rate ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                             onClick={() => {
                               setPlaybackRate(rate);
                               if (audioRef.current) audioRef.current.playbackRate = rate;
-                            }}
-                            style={{
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: playbackRate === rate ? 'var(--primary)' : 'rgba(30, 41, 59, 0.8)',
-                              color: 'var(--text-primary)',
-                              border: playbackRate === rate ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                              fontWeight: playbackRate === rate ? 700 : 400,
                             }}
                           >
                             {rate}x
@@ -639,22 +771,22 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       ref={audioRef}
                       controls
                       src={`/api/v1/assets/${activeAsset.id}/raw`}
-                      style={{ width: '100%', borderRadius: 'var(--radius-sm)' }}
-                      onLoadedMetadata={(e) => {
-                        (e.target as HTMLAudioElement).playbackRate = playbackRate;
-                      }}
+                      style={{ width: '100%' }}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => setIsPlaying(false)}
                     />
 
-                    {/* Quick Cue Playback List */}
+                    {/* Interactive Segments Visual Timeline */}
                     {transcriptSegments.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                          Segment Cues ({transcriptSegments.length})
+                      <div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                          Timeline Cues ({transcriptSegments.length})
                         </div>
-                        <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {transcriptSegments.map((seg, sIdx) => (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '180px', overflowY: 'auto' }}>
+                          {transcriptSegments.map((seg, idx) => (
                             <div
-                              key={sIdx}
+                              key={idx}
                               onClick={() => {
                                 if (audioRef.current) {
                                   audioRef.current.currentTime = seg.start_time;
@@ -663,14 +795,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                               }}
                               style={{
                                 padding: '0.5rem 0.75rem',
-                                background: 'rgba(30, 41, 59, 0.5)',
-                                border: '1px solid var(--border-subtle)',
+                                background: 'var(--bg-elevated)',
+                                border: '1px solid var(--border-hairline)',
                                 borderRadius: 'var(--radius-sm)',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                fontSize: '0.85rem',
+                                fontSize: '0.825rem',
                               }}
                               title="Click to seek and play"
                             >
@@ -678,10 +810,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                                 <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
                                   {seg.start_time.toFixed(2)}s - {seg.end_time.toFixed(2)}s
                                 </span>
-                                {seg.speaker && <strong style={{ color: 'var(--text-accent)' }}>{seg.speaker}:</strong>}
-                                <span>{seg.text}</span>
+                                {seg.speaker && <strong style={{ color: 'var(--accent-interactive)' }}>{seg.speaker}:</strong>}
+                                <span>{seg.text || <em style={{ color: 'var(--text-muted)' }}>No cue text</em>}</span>
                               </div>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>▶</span>
+                              <Play size={12} style={{ color: 'var(--text-muted)' }} />
                             </div>
                           ))}
                         </div>
@@ -689,26 +821,41 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                     )}
                   </div>
                 ) : (
+                  /* 4. Text Classification Media Presentation */
                   <div
                     style={{
                       width: '100%',
-                      maxWidth: '680px',
-                      background: 'rgba(15, 23, 42, 0.8)',
-                      padding: '1.75rem',
+                      maxWidth: '780px',
+                      background: 'var(--bg-surface)',
+                      padding: '2rem',
                       borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
+                      border: '1px solid var(--border-hairline)',
+                      boxShadow: 'var(--shadow-md)',
                     }}
                   >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-                      Text Payload
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Document Payload Content
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <span>Words: {((currentRecord.metadata?.text || currentRecord.metadata?.content || '').split(/\s+/).filter(Boolean).length)}</span>
+                        <span>•</span>
+                        <span>Chars: {((currentRecord.metadata?.text || currentRecord.metadata?.content || '').length)}</span>
+                      </div>
                     </div>
                     <div
                       style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '1rem',
+                        fontSize: '0.95rem',
                         lineHeight: 1.7,
                         color: 'var(--text-primary)',
                         whiteSpace: 'pre-wrap',
+                        background: 'var(--bg-canvas)',
+                        padding: '1.25rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-hairline)',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
                       }}
                     >
                       {currentRecord.metadata?.text ||
@@ -718,42 +865,44 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   </div>
                 )}
               </div>
+
+              {/* Bottom Sticky Hotkey Legend Bar */}
+              <div className="workbench-hotkey-legend">
+                <div><kbd>1-9</kbd>Select Class</div>
+                <div><kbd>Enter</kbd>Save & Next</div>
+                <div><kbd>A</kbd>Approve</div>
+                <div><kbd>R</kbd>Reject</div>
+                <div><kbd>C</kbd>Needs Fix</div>
+                <div><kbd>N</kbd>Not Similar</div>
+                <div><kbd>J / K</kbd>Next / Prev</div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Right Column: Label Selector, Review Controls & Revision History */}
-        <div
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: 'auto',
-            padding: '1.25rem',
-            gap: '1.25rem',
-          }}
-        >
-          {/* Guidelines */}
+        {/* ========================================================================= */}
+        {/* Right Column: Inspector, Label Selection & Actions */}
+        {/* ========================================================================= */}
+        <div className="workbench-panel-right">
+          {/* Section 1: Guidelines */}
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-              Guidelines
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Annotation Guidelines
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: 1.5, background: 'var(--bg-elevated)', padding: '0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)' }}>
               {dataset.annotation_instructions ||
                 (dataset.task_type === 'audio_transcription'
-                  ? 'Listen to the audio, transcribe speech accurately, and review cue timestamps.'
+                  ? 'Transcribe speech verbatim, verify speaker turns, and adjust timestamps.'
                   : 'Select the most accurate label. Use hotkeys 1-9 for quick classification.')}
             </div>
           </div>
 
-          {/* Audio Transcription Inputs vs Class Selection Buttons */}
+          {/* Section 2: Task-Specific Label / Audio Inputs */}
           {dataset.task_type === 'audio_transcription' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-                  Verbatim Transcript
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                  Full Transcript
                 </div>
                 <textarea
                   className="input"
@@ -767,13 +916,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                    Timed Cues / Segments
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Timed Segments
                   </span>
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
                     onClick={() => {
                       const cur = audioRef.current?.currentTime || 0;
                       setTranscriptSegments([
@@ -782,7 +931,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       ]);
                     }}
                   >
-                    + Add Cue
+                    <Plus size={12} style={{ marginRight: '2px' }} /> Add Segment
                   </button>
                 </div>
                 {transcriptSegments.map((seg, idx) => (
@@ -794,9 +943,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       gap: '0.3rem',
                       padding: '0.5rem',
                       marginBottom: '0.4rem',
-                      backgroundColor: 'var(--bg-subtle)',
+                      backgroundColor: 'var(--bg-elevated)',
                       borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)',
+                      border: '1px solid var(--border-hairline)',
                     }}
                   >
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -812,9 +961,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           next[idx] = { ...seg, start_time: val };
                           setTranscriptSegments(next);
                         }}
-                        style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                        style={{ width: '65px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
                       />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>to</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>to</span>
                       <input
                         type="number"
                         step="0.1"
@@ -827,7 +976,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           next[idx] = { ...seg, end_time: val };
                           setTranscriptSegments(next);
                         }}
-                        style={{ width: '70px', padding: '0.2rem 0.4rem', fontSize: '0.8rem' }}
+                        style={{ width: '65px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
                       />
                       <button
                         type="button"
@@ -840,23 +989,24 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           border: 'none',
                           color: 'var(--rose)',
                           cursor: 'pointer',
-                          fontSize: '0.85rem',
+                          padding: '2px',
                         }}
+                        title="Delete segment"
                       >
-                        ✕
+                        <Trash2 size={13} />
                       </button>
                     </div>
                     <input
                       type="text"
                       className="input"
-                      placeholder="Cue text..."
+                      placeholder="Segment cue text..."
                       value={seg.text}
                       onChange={(e) => {
                         const next = [...transcriptSegments];
                         next[idx] = { ...seg, text: e.target.value };
                         setTranscriptSegments(next);
                       }}
-                      style={{ fontSize: '0.8rem', padding: '0.3rem 0.5rem' }}
+                      style={{ fontSize: '0.78rem', padding: '0.25rem 0.45rem' }}
                     />
                   </div>
                 ))}
@@ -864,11 +1014,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
-                Class Labels ({allowedClasses.length})
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Class Selection ({allowedClasses.length})
               </div>
               {allowedClasses.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {allowedClasses.map((lbl, idx) => {
                     const isSelected = selectedLabel === lbl;
                     const shortcutKey = idx < 9 ? `${idx + 1}` : null;
@@ -881,26 +1031,27 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '0.6rem 0.85rem',
+                          padding: '0.55rem 0.75rem',
                           borderRadius: 'var(--radius-sm)',
-                          backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
-                          border: isSelected ? '1px solid var(--primary-glow)' : '1px solid var(--border-subtle)',
-                          color: isSelected ? '#ffffff' : 'var(--text-primary)',
-                          fontWeight: isSelected ? 700 : 500,
+                          backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-elevated)',
+                          border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-hairline)'}`,
+                          color: isSelected ? 'var(--accent-primary-fg)' : 'var(--text-primary)',
+                          fontWeight: isSelected ? 600 : 500,
                           cursor: 'pointer',
                           textAlign: 'left',
-                          transition: 'all var(--transition-fast)',
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        <span>{lbl}</span>
+                        <span style={{ fontSize: '0.85rem' }}>{lbl}</span>
                         {shortcutKey && (
                           <kbd
                             style={{
-                              background: 'rgba(0, 0, 0, 0.4)',
-                              padding: '0.15rem 0.4rem',
+                              background: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'var(--bg-surface)',
+                              border: `1px solid ${isSelected ? 'rgba(255, 255, 255, 0.3)' : 'var(--border-hairline)'}`,
+                              padding: '0.1rem 0.35rem',
                               borderRadius: '3px',
-                              fontSize: '0.75rem',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              fontSize: '0.72rem',
+                              color: isSelected ? '#fff' : 'var(--text-muted)',
                             }}
                           >
                             {shortcutKey}
@@ -922,11 +1073,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           )}
 
-          {/* Confidence Slider */}
+          {/* Section 3: Confidence Slider */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
               <span>Confidence</span>
-              <span style={{ color: 'var(--text-accent)' }}>{(confidence * 100).toFixed(0)}%</span>
+              <span className="badge badge-blue">{(confidence * 100).toFixed(0)}%</span>
             </div>
             <input
               type="range"
@@ -935,13 +1086,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               step="0.05"
               value={confidence}
               onChange={(e) => setConfidence(parseFloat(e.target.value))}
-              style={{ width: '100%', accentColor: 'var(--primary)' }}
+              style={{ width: '100%', accentColor: 'var(--accent-interactive)' }}
             />
           </div>
 
-          {/* Rationale / Notes */}
+          {/* Section 4: Notes / Rationale */}
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
               Annotation Notes / Rationale
             </div>
             <textarea
@@ -950,11 +1101,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               placeholder="Optional notes or reason for label..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ resize: 'vertical' }}
+              style={{ width: '100%', resize: 'vertical', fontSize: '0.825rem' }}
             />
           </div>
 
-          {/* Save Action & Fast Navigation Buttons */}
+          {/* Section 5: Save & Fast Navigation */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <SpringButton
               variant="primary"
@@ -971,12 +1122,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             >
               {saving ? 'Saving...' : 'Save & Next'}
             </SpringButton>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <SpringButton
                 variant="secondary"
                 disabled={currentIndex === 0 || saving}
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                style={{ padding: '0.45rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.45rem', fontSize: '0.825rem' }}
                 shortcut="K"
                 title="Previous Record (K or Up)"
               >
@@ -986,7 +1138,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 variant="secondary"
                 disabled={currentIndex >= queue.length - 1 || saving}
                 onClick={() => setCurrentIndex((prev) => Math.min(queue.length - 1, prev + 1))}
-                style={{ padding: '0.45rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.45rem', fontSize: '0.825rem' }}
                 shortcut="J"
                 title="Next Record / Skip (J or Down)"
               >
@@ -995,10 +1147,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           </div>
 
-          {/* Review Workflow Controls */}
+          {/* Section 6: Review Status Transitions */}
           {currentRecord?.annotation && (
             <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '1rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
                 Review Transition
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -1007,27 +1159,25 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   onClick={() => handleReviewAction('approved')}
                   disabled={saving}
                   style={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
                     borderColor: 'rgba(16, 185, 129, 0.3)',
                     color: 'var(--status-approved)',
-                    padding: '0.5rem',
+                    padding: '0.45rem',
                   }}
                   shortcut="A"
                   title="Approve (A)"
                 >
-                  ✓ Approve
+                  <CheckCircle2 size={13} style={{ marginRight: '4px' }} /> Approve
                 </SpringButton>
                 <SpringButton
                   variant="danger"
                   onClick={() => handleReviewAction('rejected')}
                   disabled={saving}
-                  style={{
-                    padding: '0.5rem',
-                  }}
+                  style={{ padding: '0.45rem' }}
                   shortcut="R"
                   title="Reject (R)"
                 >
-                  ✕ Reject
+                  <XCircle size={13} style={{ marginRight: '4px' }} /> Reject
                 </SpringButton>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -1036,25 +1186,25 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   onClick={() => handleReviewAction('needs_correction')}
                   disabled={saving}
                   style={{
-                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
                     borderColor: 'rgba(245, 158, 11, 0.3)',
                     color: 'var(--status-pending)',
-                    padding: '0.5rem',
+                    padding: '0.45rem',
                   }}
                   shortcut="C"
                   title="Needs Correction (C)"
                 >
-                  ⚠️ Needs Fix
+                  <AlertTriangle size={13} style={{ marginRight: '4px' }} /> Needs Fix
                 </SpringButton>
                 <SpringButton
                   variant="secondary"
                   onClick={() => handleNotSimilarAction()}
                   disabled={saving}
                   style={{
-                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                    borderColor: 'rgba(59, 130, 246, 0.3)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                    borderColor: 'rgba(37, 99, 235, 0.3)',
                     color: 'var(--accent-interactive)',
-                    padding: '0.5rem',
+                    padding: '0.45rem',
                   }}
                   shortcut="N"
                   title="Mark as Not Similar / Disagreement (N)"
@@ -1065,46 +1215,48 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
           )}
 
-          {/* Revisions & Audit Drawer */}
+          {/* Section 7: Revisions & Audit History */}
           {currentRecord?.revisions && currentRecord.revisions.length > 0 && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+            <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '0.85rem' }}>
               <button
                 onClick={() => setShowHistory(!showHistory)}
                 style={{
                   width: '100%',
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-accent)',
+                  color: 'var(--text-secondary)',
                   cursor: 'pointer',
-                  fontSize: '0.85rem',
+                  fontSize: '0.825rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '0.25rem 0',
                 }}
               >
-                <span>📜 Revision History ({currentRecord.revisions.length})</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <History size={14} /> Revision History ({currentRecord.revisions.length})
+                </span>
                 <span>{showHistory ? '▲' : '▼'}</span>
               </button>
 
               {showHistory && (
-                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   {currentRecord.revisions.map((rev) => (
                     <div
                       key={rev.id}
                       style={{
-                        padding: '0.5rem 0.75rem',
-                        background: 'rgba(15, 23, 42, 0.6)',
+                        padding: '0.5rem 0.65rem',
+                        background: 'var(--bg-elevated)',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.8rem',
+                        border: '1px solid var(--border-hairline)',
+                        fontSize: '0.78rem',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '0.2rem' }}>
                         <span>Rev #{rev.revision_number} • {rev.payload?.label}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>{rev.origin}</span>
+                        <span className="badge badge-neutral" style={{ fontSize: '0.68rem' }}>{rev.origin}</span>
                       </div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
                         {rev.change_reason || 'Initial creation'} • {new Date(rev.created_at).toLocaleTimeString()}
                       </div>
                     </div>

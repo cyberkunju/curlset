@@ -10,8 +10,11 @@ import {
   Bot,
   Tag,
   FileText,
+  Database,
+  ExternalLink,
+  ChevronRight,
 } from 'lucide-react';
-import { fetchDatasetDetail } from '../api';
+import { fetchDatasetDetail, fetchDatasetQueue } from '../api';
 import { DatasetDetailResponse } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { AIAnnotationModal } from './AIAnnotationModal';
@@ -51,6 +54,11 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isDiffOpen, setIsDiffOpen] = useState(false);
   const [isClusterMapOpen, setIsClusterMapOpen] = useState(false);
 
+  // Live Records Preview Explorer state
+  const [sampleRecords, setSampleRecords] = useState<any[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [sampleSplit, setSampleSplit] = useState<string>('');
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -64,9 +72,22 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     }
   };
 
+  const loadSampleRecords = async () => {
+    setRecordsLoading(true);
+    try {
+      const q = await fetchDatasetQueue(datasetId, sampleSplit || undefined, undefined, 10, 0);
+      setSampleRecords(q.items);
+    } catch (err) {
+      console.error('Failed to load sample records:', err);
+    } finally {
+      setRecordsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
-  }, [datasetId]);
+    loadSampleRecords();
+  }, [datasetId, sampleSplit]);
 
   if (loading) {
     return (
@@ -129,10 +150,14 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
           <SpringButton variant="secondary" onClick={onBack}>
             <ArrowLeft size={15} style={{ marginRight: '4px' }} />
             <span>Back</span>
+          </SpringButton>
+          <SpringButton variant="primary" onClick={() => setIsWorkspaceOpen(true)}>
+            <PenTool size={15} style={{ marginRight: '6px' }} />
+            <span>Launch Annotation Workbench</span>
           </SpringButton>
         </div>
       </div>
@@ -366,6 +391,128 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Dataset Records Explorer Table */}
+      <div style={{ marginBottom: '3rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Database size={18} style={{ color: 'var(--accent-interactive)' }} /> Dataset Records Explorer
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+              Inspect individual samples, assigned splits, and verified review decisions.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <select
+              className="input"
+              value={sampleSplit}
+              onChange={(e) => setSampleSplit(e.target.value)}
+              style={{ width: '130px', padding: '0.35rem 0.6rem', fontSize: '0.825rem' }}
+            >
+              <option value="">All Splits</option>
+              <option value="train">Train</option>
+              <option value="val">Val</option>
+              <option value="test">Test</option>
+            </select>
+
+            <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.825rem', padding: '0.4rem 0.75rem' }}>
+              <span>Open in Full Workbench</span>
+              <ChevronRight size={14} style={{ marginLeft: '4px' }} />
+            </SpringButton>
+          </div>
+        </div>
+
+        {recordsLoading ? (
+          <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Loading records preview...
+          </div>
+        ) : sampleRecords.length === 0 ? (
+          <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>No records found in this dataset</p>
+            <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>Import media assets in Stage 01 to populate records.</p>
+            <SpringButton variant="primary" onClick={() => setIsImportOpen(true)}>
+              <span>Import Media Now</span>
+            </SpringButton>
+          </div>
+        ) : (
+          <div className="data-table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '60px' }}>#</th>
+                  <th>Record Key / UUID</th>
+                  <th>Split</th>
+                  <th>Label / Payload</th>
+                  <th>Review Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleRecords.map((rec, idx) => {
+                  const statusClass =
+                    rec.review_status === 'approved'
+                      ? 'badge-emerald'
+                      : rec.review_status === 'rejected'
+                      ? 'badge-rose'
+                      : rec.review_status === 'needs_correction'
+                      ? 'badge-amber'
+                      : rec.review_status === 'pending_review'
+                      ? 'badge-blue'
+                      : 'badge-neutral';
+
+                  return (
+                    <tr key={rec.id}>
+                      <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
+                        #{idx + 1}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                          {rec.external_key || rec.id.slice(0, 12)}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          ID: {rec.id.slice(0, 8)}...
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-neutral" style={{ textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                          {rec.split || 'train'}
+                        </span>
+                      </td>
+                      <td>
+                        {rec.annotation_payload?.label ? (
+                          <span className="badge badge-blue">{rec.annotation_payload.label}</span>
+                        ) : rec.annotation_payload?.text ? (
+                          <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                            {rec.annotation_payload.text.slice(0, 40)}...
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Unlabeled</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${statusClass}`} style={{ fontSize: '0.75rem' }}>
+                          {rec.review_status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => setIsWorkspaceOpen(true)}
+                          style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}
+                        >
+                          Annotate →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modals */}

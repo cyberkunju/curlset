@@ -111,9 +111,9 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
         <div style={{
           padding: '0.75rem 1rem',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(99, 102, 241, 0.1)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
-          color: 'var(--indigo)',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-hairline)',
+          color: 'var(--text-secondary)',
           fontSize: '0.8rem',
           lineHeight: '1.4',
           marginBottom: '1rem',
@@ -121,9 +121,9 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
           gap: '0.5rem',
           alignItems: 'flex-start',
         }}>
-          <span>🛡️</span>
+          <span style={{ color: 'var(--accent-interactive)' }}>🛡️</span>
           <div>
-            <strong>Phase 12 Integrity Policy:</strong> Synthetic records are never confused with real samples.
+            <strong style={{ color: 'var(--text-primary)' }}>Integrity Policy:</strong> Synthetic records are never confused with real samples.
             Every sample is tagged <code>origin: synthetic</code>, linked to its prompt version and seed,
             and routed to <code>PENDING_REVIEW</code> by default.
           </div>
@@ -146,7 +146,7 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
               <span className="stat-label" style={{ fontSize: '0.75rem' }}>Real Records</span>
             </div>
             <div className="stat-card" style={{ padding: '0.75rem' }}>
-              <span className="stat-value" style={{ fontSize: '1.25rem', color: 'var(--indigo)' }}>{lineageData.synthetic_records}</span>
+              <span className="stat-value" style={{ fontSize: '1.25rem', color: 'var(--accent-interactive)' }}>{lineageData.synthetic_records}</span>
               <span className="stat-label" style={{ fontSize: '0.75rem' }}>Synthetic Records</span>
             </div>
             <div className="stat-card" style={{ padding: '0.75rem' }}>

@@ -140,6 +140,59 @@ npm run build
 
 ---
 
-## 5. Conclusion & Operational Status
+## 5. First Wave Remediation Summary
 
-The remediation successfully addresses the identified UI/UX gaps without breaking existing APIs, database contracts, or domain logic. The platform now presents a unified, responsive, high-density desktop engineering interface adhering to neutral-first principles and motion accessibility standards.
+The initial remediation addressed baseline light-theme tokens, mobile navigation toggle, data table styling, and motion accessibility.
+
+---
+
+## 6. Targeted Remediation Wave — Dataset Workbench & Shared Consistency
+
+**Date:** October 26, 2026 (Targeted Remediation)  
+**Reference Alignment:** `Dataset Workbench UI_UX Blueprint`
+
+### 6.1 Priority 1: Annotation Workbench Full-Viewport Redesign
+- **Full-Viewport Takeover (`.workbench-viewport`)**: Breakout negative margins (`margin: -2rem -2.25rem`, `height: calc(100vh - 56px)`) transform the workspace from a cramped centered card into a desktop-grade engineering workbench.
+- **Top Workbench Bar (`.workbench-top-bar`)**: Integrates direct back navigation, dataset identity, split/status filters, queue review percentage (`Reviewed: X/Y (Z%)`), and quick hotkey pagination (`[K] Prev`, `[J] Next`).
+- **Balanced 3-Panel Architecture (`.workbench-body`)**:
+  1. *Left Panel (Queue)*: Client-side queue search input (`Search`), dense record list with indices (`#1`), mono keys/IDs, split tags, review status pills (`Approved`, `Pending`, `Needs Fix`, `Rejected`), and technical blue active border indicator.
+  2. *Center Panel (Stage - Primary Focus)*:
+     - Asset context header with one-click UUID copy button (`Copy` / `Check`), split badge, filename, pixel dimensions, file size, and audio duration.
+     - Media presentations optimized for every supported modality:
+       - `image_classification`: Responsive viewport with `ProgressiveAssetImage` and crisp borders.
+       - `object_detection`: Interactive `ObjectDetectionCanvas` with technical blue bounding box borders and class selector.
+       - `audio_transcription`: Waveform audio console, playback speed toggle (`0.75x`–`1.5x`), duration meter, and interactive timed cue segments editor (`+ Add Segment`, `Delete`).
+       - `text_classification`: Clean typographic payload reader with word/char counters.
+     - Bottom sticky hotkey legend bar (`<kbd>1-9</kbd> Class`, `<kbd>Enter</kbd> Save & Next`, `<kbd>A</kbd> Approve`, `<kbd>R</kbd> Reject`, `<kbd>C</kbd> Needs Fix`, `<kbd>N</kbd> Not Similar`, `<kbd>J/K</kbd> Navigate`).
+  3. *Right Panel (Inspector)*:
+     - Guidelines & instructions card.
+     - Class selection buttons with `<kbd>` badges.
+     - Confidence slider with percentage badge.
+     - Notes/rationale textarea with clean focus styling.
+     - Save & Next (`Enter`), Prev (`K`), Skip (`J`).
+     - Dedicated review buttons: `✓ Approve [A]`, `✕ Reject [R]`, `⚠️ Needs Fix [C]`, `≠ Not Similar [N]`.
+     - Collapsible revision history drawer (`History` icon) showing previous versions and authors.
+
+### 6.2 Priority 2: Dataset Experience & Live Records Explorer
+- **`DatasetDetail.tsx`**:
+  - Added primary header CTA: **"Launch Annotation Workbench"** with `PenTool` icon.
+  - Added embedded **Dataset Records Explorer Table**: Directly inspects records from `fetchDatasetQueue`, showing index `#`, key/UUID, split, label/payload preview, review status badge, split filter dropdown, and direct "Annotate →" links.
+
+### 6.3 Priority 3: Shared Design Consistency & Purple Panel Purge
+- **`GovernanceView.tsx`**:
+  - Completely purged purple-tinted panel (`rgba(99, 102, 241, 0.08)`) and `var(--indigo)`; replaced with neutral elevated container (`var(--bg-elevated)`), hairline borders, and blue shield indicator (`ShieldAlert`).
+  - Replaced all emoji icons (`🛡️`, `📊`, `👥`, `📜`, `💾`, `📑`) with Lucide icons (`ShieldCheck`, `BarChart2`, `Users`, `FileText`, `HardDrive`, `Layers`).
+- **`SyntheticGenerationModal.tsx`**:
+  - Replaced purple notice box and stat badges with neutral design tokens.
+- **`ObjectDetectionCanvas.tsx`**:
+  - Replaced legacy `var(--indigo)` bounding box borders with precision technical blue `var(--accent-interactive)`.
+- **`ClusterMapModal.tsx` & `ExportModal.tsx`**:
+  - Replaced legacy indigo and slate backgrounds with design tokens.
+- **`var(--indigo)` Elimination**:
+  - 100% of `--indigo` usage removed from component styles across the entire application.
+
+### 6.4 Verification Results
+- **Frontend Production Build**: `npm run build` in `apps/web`: **PASSED** (0 errors).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/`: **104 passed** (100% pass rate).
+- **Linting & Code Quality**: `.venv\Scripts\ruff check .`: **All checks passed** (0 errors).
+

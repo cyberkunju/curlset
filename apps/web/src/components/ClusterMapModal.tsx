@@ -124,8 +124,8 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                   const cy = mapCoord(c.center_v);
                   return (
                     <g key={c.label}>
-                      <circle cx={cx} cy={cy} r="28" fill="rgba(99, 102, 241, 0.12)" stroke="var(--indigo)" strokeWidth="1.5" />
-                      <text x={cx} y={cy - 8} fill="#FAFAFA" fontSize="10" fontWeight="700" textAnchor="middle">
+                      <circle cx={cx} cy={cy} r="28" fill="rgba(37, 99, 235, 0.12)" stroke="var(--accent-interactive)" strokeWidth="1.5" />
+                      <text x={cx} y={cy - 8} fill="var(--text-primary)" fontSize="10" fontWeight="700" textAnchor="middle">
                         {c.label}
                       </text>
                       <text x={cx} y={cy + 6} fill="var(--text-muted)" fontSize="8" textAnchor="middle">
@@ -191,7 +191,7 @@ export const ClusterMapModal: React.FC<ClusterMapModalProps> = ({
                     Dataset Records ({data.total_records})
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1px solid var(--indigo)', background: 'rgba(99, 102, 241, 0.2)' }} />
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1px solid var(--accent-interactive)', background: 'rgba(37, 99, 235, 0.2)' }} />
                     Semantic Clusters ({data.clusters.length})
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

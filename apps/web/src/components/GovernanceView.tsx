@@ -8,6 +8,7 @@ import {
   fetchProjectAuditLogs,
 } from '../api';
 import { Project, ProjectMember, ProjectQuotaUsage, AuditLogEntry } from '../types';
+import { ShieldCheck, BarChart2, Users, FileText, HardDrive, ShieldAlert, Layers, AlertCircle } from 'lucide-react';
 
 export const GovernanceView: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -116,10 +117,10 @@ export const GovernanceView: React.FC = () => {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.025em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🛡️</span> Governance & Resource Quotas
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <ShieldCheck size={24} style={{ color: 'var(--accent-interactive)' }} /> Governance & Resource Quotas
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Multi-tenant access control (RBAC), storage byte budgets, record volume limits, and security audit logs.
           </p>
         </div>
@@ -156,47 +157,56 @@ export const GovernanceView: React.FC = () => {
           <p className="empty-desc">Create a project workspace first to configure governance and quotas.</p>
         </div>
       ) : (
-        <div style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           {/* Sub Navigation */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 1.25rem', background: 'var(--surface-hover)' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-hairline)', padding: '0 1rem', background: 'var(--bg-elevated)' }}>
             <button
               onClick={() => setActiveTab('quotas')}
-              className={`btn btn-ghost`}
+              className="btn btn-ghost"
               style={{
-                borderBottom: activeTab === 'quotas' ? '2px solid var(--indigo)' : '2px solid transparent',
+                borderBottom: activeTab === 'quotas' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
                 borderRadius: 0,
-                color: activeTab === 'quotas' ? 'var(--indigo-light)' : 'var(--text-secondary)',
-                fontWeight: 600,
-                padding: '0.85rem 1rem',
+                color: activeTab === 'quotas' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: activeTab === 'quotas' ? 600 : 500,
+                padding: '0.75rem 1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
               }}
             >
-              📊 Quotas & Usage Limits
+              <BarChart2 size={16} /> Quotas & Usage Limits
             </button>
             <button
               onClick={() => setActiveTab('team')}
-              className={`btn btn-ghost`}
+              className="btn btn-ghost"
               style={{
-                borderBottom: activeTab === 'team' ? '2px solid var(--indigo)' : '2px solid transparent',
+                borderBottom: activeTab === 'team' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
                 borderRadius: 0,
-                color: activeTab === 'team' ? 'var(--indigo-light)' : 'var(--text-secondary)',
-                fontWeight: 600,
-                padding: '0.85rem 1rem',
+                color: activeTab === 'team' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: activeTab === 'team' ? 600 : 500,
+                padding: '0.75rem 1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
               }}
             >
-              👥 Team & RBAC Roles
+              <Users size={16} /> Team & RBAC Roles
             </button>
             <button
               onClick={() => setActiveTab('audit')}
-              className={`btn btn-ghost`}
+              className="btn btn-ghost"
               style={{
-                borderBottom: activeTab === 'audit' ? '2px solid var(--indigo)' : '2px solid transparent',
+                borderBottom: activeTab === 'audit' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
                 borderRadius: 0,
-                color: activeTab === 'audit' ? 'var(--indigo-light)' : 'var(--text-secondary)',
-                fontWeight: 600,
-                padding: '0.85rem 1rem',
+                color: activeTab === 'audit' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: activeTab === 'audit' ? 600 : 500,
+                padding: '0.75rem 1rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
               }}
             >
-              📜 Security Audit Trail
+              <FileText size={16} /> Security Audit Trail
             </button>
           </div>
 
@@ -214,21 +224,21 @@ export const GovernanceView: React.FC = () => {
             ) : activeTab === 'quotas' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {/* Storage Card */}
-                <div style={{ background: 'var(--surface-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <span style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      💾 Storage Consumption
+                      <HardDrive size={16} style={{ color: 'var(--accent-interactive)' }} /> Storage Consumption
                     </span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {formatBytes(usage?.storage_bytes_used || 0)} / {formatBytes(usage?.storage_quota_bytes || 0)} ({usage?.storage_percentage || 0}%)
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: '10px', background: 'var(--surface-hover)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(usage?.storage_percentage || 0, 100)}%`,
                         height: '100%',
-                        background: (usage?.storage_percentage || 0) > 90 ? 'var(--rose)' : (usage?.storage_percentage || 0) > 70 ? 'var(--amber)' : 'var(--indigo)',
+                        background: (usage?.storage_percentage || 0) > 90 ? 'var(--rose)' : (usage?.storage_percentage || 0) > 70 ? 'var(--amber)' : 'var(--accent-interactive)',
                         transition: 'width 0.3s ease',
                       }}
                     />
@@ -239,16 +249,16 @@ export const GovernanceView: React.FC = () => {
                 </div>
 
                 {/* Records Card */}
-                <div style={{ background: 'var(--surface-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <span style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      📑 Record Capacity Quota
+                      <Layers size={16} style={{ color: 'var(--accent-interactive)' }} /> Record Capacity Quota
                     </span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {(usage?.records_used || 0).toLocaleString()} / {(usage?.records_quota || 0).toLocaleString()} records ({usage?.records_percentage || 0}%)
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: '10px', background: 'var(--surface-hover)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: '999px', overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(usage?.records_percentage || 0, 100)}%`,
@@ -263,9 +273,11 @@ export const GovernanceView: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Abuse / Rate Limiting Notice */}
-                <div style={{ padding: '1rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--indigo-light)' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>🛡️ Rate Limiting & Abuse Defense Enabled:</div>
+                {/* Abuse / Rate Limiting Notice (Neutral Panel) */}
+                <div style={{ padding: '1rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldAlert size={16} style={{ color: 'var(--accent-interactive)' }} /> Rate Limiting & Abuse Defense Enabled
+                  </div>
                   <div>• API Ingestion: 300 requests / 60 seconds rolling window per client.</div>
                   <div>• Batch AI Model Inference: 30 requests / 60 seconds rolling window.</div>
                   <div>• Synthetic Sample Generation: 25 requests / 60 seconds rolling window.</div>

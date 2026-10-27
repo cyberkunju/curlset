@@ -223,8 +223,8 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                 top: `${box.y}px`,
                 width: `${box.w}px`,
                 height: `${box.h}px`,
-                border: isSelected ? '2px solid var(--emerald)' : '2px solid var(--indigo)',
-                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.15)',
+                border: isSelected ? '2px solid var(--emerald)' : '2px solid var(--accent-interactive)',
+                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(37, 99, 235, 0.15)',
                 cursor: 'pointer',
                 boxSizing: 'border-box',
               }}
@@ -234,7 +234,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                   position: 'absolute',
                   top: '-22px',
                   left: '-2px',
-                  background: isSelected ? 'var(--emerald)' : 'var(--indigo)',
+                  background: isSelected ? 'var(--emerald)' : 'var(--accent-interactive)',
                   color: '#fff',
                   fontSize: '0.7rem',
                   fontWeight: 700,
@@ -279,7 +279,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
         </div>
 
         {boxes.length === 0 ? (
-          <div style={{ padding: '0.75rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          <div style={{ padding: '0.75rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
             No bounding boxes defined yet. Draw on the image above to localize an object.
           </div>
         ) : (
@@ -293,8 +293,8 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                   alignItems: 'center',
                   padding: '0.4rem 0.75rem',
                   borderRadius: 'var(--radius-sm)',
-                  background: selectedBoxIndex === idx ? 'rgba(99, 102, 241, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                  border: `1px solid ${selectedBoxIndex === idx ? 'var(--indigo)' : 'var(--border-subtle)'}`,
+                  background: selectedBoxIndex === idx ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-elevated)',
+                  border: `1px solid ${selectedBoxIndex === idx ? 'var(--accent-interactive)' : 'var(--border-hairline)'}`,
                   fontSize: '0.8rem',
                 }}
               >

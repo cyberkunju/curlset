@@ -167,15 +167,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     style={{
                       padding: '0.85rem',
                       borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${format === 'csv' ? 'var(--indigo)' : 'var(--border-subtle)'}`,
-                      background: format === 'csv' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+                      border: `2px solid ${format === 'csv' ? 'var(--accent-interactive)' : 'var(--border-subtle)'}`,
+                      background: format === 'csv' ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-elevated)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>📄 Standard CSV</span>
-                      {format === 'csv' && <span style={{ color: 'var(--indigo)' }}>●</span>}
+                      {format === 'csv' && <span style={{ color: 'var(--accent-interactive)' }}>●</span>}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       Comma-separated table with text, class labels, metadata, and media paths.
@@ -188,7 +188,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       padding: '0.85rem',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${format === 'jsonl' ? 'var(--cyan)' : 'var(--border-subtle)'}`,
-                      background: format === 'jsonl' ? 'rgba(6, 182, 212, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+                      background: format === 'jsonl' ? 'rgba(6, 182, 212, 0.12)' : 'var(--bg-elevated)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
