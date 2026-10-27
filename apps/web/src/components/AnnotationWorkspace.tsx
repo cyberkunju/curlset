@@ -196,7 +196,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   };
 
   // Review status transitions
-  const handleReviewAction = async (action: 'approved' | 'rejected' | 'needs_correction') => {
+  const handleReviewAction = async (action: 'approved' | 'rejected' | 'needs_correction', comment?: string) => {
     if (!currentRecord?.annotation) {
       showToast('Record must have an annotation before review transition.');
       return;
@@ -206,7 +206,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       await transitionReviewStatus(
         currentRecord.annotation.id,
         action,
-        `Reviewer marked as ${action}`
+        comment || `Reviewer marked as ${action}`
       );
       showToast(`Status changed to ${action}`);
       await loadActiveRecord(currentRecord.id);
@@ -219,6 +219,40 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       showToast(`Transition failed: ${err.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Dedicated "Not Similar / Disagree" review action
+  const handleNotSimilarAction = async () => {
+    if (currentRecord?.annotation) {
+      await handleReviewAction('rejected', 'Marked as Not Similar / Disagreement');
+    } else if (currentRecord) {
+      // Create annotation marked as rejected / not_similar
+      setSaving(true);
+      try {
+        await createAnnotation(
+          currentRecord.id,
+          {
+            label: 'not_similar',
+            rationale: 'Reviewer marked as Not Similar / Disagreement',
+            ...(notes ? { notes } : {}),
+          },
+          'human',
+          'rejected',
+          'default_user',
+          confidence
+        );
+        showToast("Marked as 'Not Similar / Disagree' (Rejected)");
+        await loadActiveRecord(currentRecord.id);
+        loadQueue();
+        if (currentIndex < queue.length - 1) {
+          setCurrentIndex((prev) => prev + 1);
+        }
+      } catch (err: any) {
+        showToast(`Failed to mark not similar: ${err.message}`);
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -247,6 +281,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         handleReviewAction('needs_correction');
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        handleNotSimilarAction();
       } else if (e.key >= '1' && e.key <= '9') {
         const classIdx = parseInt(e.key, 10) - 1;
         if (classIdx < allowedClasses.length) {
@@ -915,21 +952,43 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             />
           </div>
 
-          {/* Save Action Button */}
-          <button
-            className="btn btn-primary"
-            disabled={
-              saving ||
-              !currentRecord ||
-              (dataset.task_type === 'audio_transcription'
-                ? !transcriptText.trim() && transcriptSegments.length === 0
-                : dataset.task_type !== 'object_detection' && !selectedLabel)
-            }
-            onClick={() => handleSaveAnnotation()}
-            style={{ width: '100%', padding: '0.65rem', justifyContent: 'center' }}
-          >
-            {saving ? 'Saving...' : '💾 Save & Next (Enter)'}
-          </button>
+          {/* Save Action & Fast Navigation Buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button
+              className="btn btn-primary"
+              disabled={
+                saving ||
+                !currentRecord ||
+                (dataset.task_type === 'audio_transcription'
+                  ? !transcriptText.trim() && transcriptSegments.length === 0
+                  : dataset.task_type !== 'object_detection' && !selectedLabel)
+              }
+              onClick={() => handleSaveAnnotation()}
+              style={{ width: '100%', padding: '0.65rem', justifyContent: 'center' }}
+            >
+              {saving ? 'Saving...' : '💾 Save & Next (Enter)'}
+            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <button
+                className="btn btn-secondary"
+                disabled={currentIndex === 0 || saving}
+                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                style={{ justifyContent: 'center', padding: '0.45rem', fontSize: '0.85rem' }}
+                title="Previous Record (K or Up)"
+              >
+                ⏮️ Prev (K)
+              </button>
+              <button
+                className="btn btn-secondary"
+                disabled={currentIndex >= queue.length - 1 || saving}
+                onClick={() => setCurrentIndex((prev) => Math.min(queue.length - 1, prev + 1))}
+                style={{ justifyContent: 'center', padding: '0.45rem', fontSize: '0.85rem' }}
+                title="Next Record / Skip (J or Down)"
+              >
+                ⏭️ Next / Skip (J)
+              </button>
+            </div>
+          </div>
 
           {/* Review Workflow Controls */}
           {currentRecord?.annotation && (
@@ -969,22 +1028,38 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   ✕ Reject (R)
                 </button>
               </div>
-              <button
-                className="btn"
-                onClick={() => handleReviewAction('needs_correction')}
-                disabled={saving}
-                style={{
-                  width: '100%',
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  borderColor: 'var(--amber)',
-                  color: 'var(--amber)',
-                  justifyContent: 'center',
-                  padding: '0.5rem',
-                }}
-                title="Needs Correction (C)"
-              >
-                ⚠️ Needs Correction (C)
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <button
+                  className="btn"
+                  onClick={() => handleReviewAction('needs_correction')}
+                  disabled={saving}
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    borderColor: 'var(--amber)',
+                    color: 'var(--amber)',
+                    justifyContent: 'center',
+                    padding: '0.5rem',
+                  }}
+                  title="Needs Correction (C)"
+                >
+                  ⚠️ Needs Fix (C)
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => handleNotSimilarAction()}
+                  disabled={saving}
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.2)',
+                    borderColor: '#a855f7',
+                    color: '#c084fc',
+                    justifyContent: 'center',
+                    padding: '0.5rem',
+                  }}
+                  title="Mark as Not Similar / Disagreement (N)"
+                >
+                  ≠ Not Similar (N)
+                </button>
+              </div>
             </div>
           )}
 

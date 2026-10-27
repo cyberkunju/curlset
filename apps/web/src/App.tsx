@@ -7,10 +7,11 @@ import { ProjectDetail } from './components/ProjectDetail';
 import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
 import { SystemHealthView } from './components/SystemHealthView';
+import { GovernanceView } from './components/GovernanceView';
 import { Project } from './types';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'projects' | 'project_detail' | 'dataset_detail' | 'health'>('projects');
+  const [currentView, setCurrentView] = useState<'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance'>('projects');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
 
@@ -63,6 +64,10 @@ export const App: React.FC = () => {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
       setCurrentView('projects');
+    } else if (view === 'governance') {
+      setSelectedProjectId(null);
+      setSelectedDatasetId(null);
+      setCurrentView('governance');
     } else if (view === 'health') {
       setCurrentView('health');
     }
@@ -72,7 +77,7 @@ export const App: React.FC = () => {
 
   // Compute breadcrumbs
   const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [
-    { label: 'Projects', onClick: () => handleNavigate('projects') },
+    { label: currentView === 'governance' ? 'Governance & Quotas' : 'Projects', onClick: () => handleNavigate(currentView === 'governance' ? 'governance' : 'projects') },
   ];
 
   if (selectedProjectId && currentProject) {
@@ -138,6 +143,7 @@ export const App: React.FC = () => {
           )}
 
           {currentView === 'health' && <SystemHealthView />}
+          {currentView === 'governance' && <GovernanceView />}
         </main>
       </div>
 
