@@ -1011,8 +1011,8 @@ Phase R5.2.4 established strict IoU comparability and honest aggregation, but as
    - In `VersionDiffModal.tsx`, side-by-side mode truthfully renders `"No source image asset"` when an asset is unresolved, and overlay mode strictly refuses co-projection when either version lacks a primary image.
 
 3. **Greedy Matching Approximation Documentation & Testing:**
-   - Formally clarified and documented that bounding box matching implements a greedy one-to-one bipartite approximation sorted by descending IoU in $O(N \log N)$ time, consistent with standard benchmark practices (e.g. PASCAL/COCO evaluation).
-   - Explicitly clarified in comments, docstrings, and plan documents that greedy matching is an approximation and is not guaranteed to achieve the global maximum-weight assignment when multiple overlapping candidate pairs conflict.
+   - Documented bounding box matching as the platform's custom greedy box-matching metric for symmetric version diff spatial evaluation, separate from benchmark evaluation metrics (e.g. PASCAL VOC mAP or COCO AP).
+   - Documented that greedy matching operates as an approximation and is not guaranteed to achieve the global maximum-weight bipartite assignment across conflicting overlapping pairs.
    - Added unit test documenting greedy approximation behavior on an overlapping box setup.
 
 4. **Automated Verification:**
@@ -1024,9 +1024,73 @@ Phase R5.2.4 established strict IoU comparability and honest aggregation, but as
 - **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.89s; Vite emitted normal single-bundle notification without code splitting).
 - **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (37/37 unit tests in 0.96s).
 - **Python Version Diff Tests**: `.venv\Scripts\pytest tests/unit/test_version_diff.py -v`: **PASSED** (1/1 in 0.84s).
-- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **134 passed, 0 failures** in 6.45s.
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **141 passed, 0 failures** in 6.59s (reconciled from the stale 134-test figure prior to coordinate transform additions).
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
-- **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
+- **Browser Automation & Remote CI Note**: Browser subagent execution and remote GitHub Actions CI remain unverified in the offline sandbox; code-level types, boundary conditions, and test suites are 100% locally verified.
+
+---
+
+## 23. Phase R5.2.4.2 — Asset Metadata Strictness & Matching Complexity Accuracy
+
+**Date:** October 27, 2026  
+**Status:** **COMPLETE**
+
+### 23.1 Problem Statement & Gaps Addressed
+Phase R5.2.4.1 closed manifest-ordering vulnerabilities by resolving primary images by role, but left minor edge cases:
+1. **Permissive Modality Handling**: `role == "primary_image"` previously permitted unknown non-empty modalities (e.g., `"pointcloud"`, `"mesh"`) to be selected if not explicitly listed in `non_image_modalities`.
+2. **Missing Metadata Fallback Inconsistency**: A single asset lacking both role and modality could be selected as a fallback rather than resolving truthfully as unavailable.
+3. **Complexity Claim Accuracy**: Code comments and plan notes claimed an $O(N \log N)$ runtime for greedy matching, ignoring that candidate pair generation is quadratic ($O(N_1 \times N_2)$) and sorting operates over up to $N_1 \times N_2$ overlapping pairs.
+4. **Benchmark Conflation**: The documentation informally equated record-level mean IoU with standardized computer-vision benchmark evaluation metrics (PASCAL VOC / COCO AP).
+5. **Documentation Drift**: Full test suite counts previously reported a stale 134-test baseline instead of the actual 141-test result from the R5.2.4.1 run.
+
+### 23.2 Architectural Changes & Deliverables Completed
+
+1. **Strict Primary-Image Resolution Contract (`packages/dataset_versioning/service.py`):**
+   - Refactored `resolve_primary_image_asset(assets: list[dict] | None) -> tuple[dict | None, str | None]` to module level and attached to `VersioningService.resolve_primary_image_asset`.
+   - Authoritative validation against `AssetModality` and `AssetRole` enums:
+     - Explicit `role == "primary_image"` is eligible strictly when `modality == "image"` or genuinely absent/empty (`None` or whitespace-only strings) for backward compatibility with valid legacy records.
+     - Known non-image modalities (`"text"`, `"audio"`, `"video"`, `"document"`) and non-empty unrecognized modalities (`"pointcloud"`, `"mesh"`, `"unknown"`) are strictly rejected (`(None, "missing_source_asset")`).
+     - A single asset with no role may only be used as a compatibility fallback when its modality is explicitly `"image"`.
+     - A single asset missing both role and modality resolves truthfully as unavailable (`(None, "missing_source_asset")`).
+     - Preserved ambiguity protection (`(None, "ambiguous_primary_image")`) when multiple eligible primary images or multiple unassigned images exist.
+   - Downstream version-specific URLs (`asset_url_v1`, `asset_url_v2`), dimensions, `same_asset`, and frontend display all rely strictly on the resolved primary image.
+
+2. **Shared Frontend Resolver (`apps/web/src/utils/coordinateContract.ts`):**
+   - Implemented and exported `resolvePrimaryImageAsset(assets?: ManifestAsset[] | null): { asset: ManifestAsset | null; reason: string | null }` matching the authoritative backend contract.
+   - Provides strict TypeScript typing and enables frontend test suites to exercise the exact resolver logic without duplicate reimplementations.
+
+3. **Accurate Algorithmic Complexity & Platform Custom Metric Documentation:**
+   - Corrected all runtime and space complexity claims in `packages/dataset_versioning/service.py`:
+     - Let $N_1 = |cb1|$ (number of boxes in v1), $N_2 = |cb2|$ (number of boxes in v2).
+     - Let $K$ be the number of same-label candidate box pairs with pairwise $\text{IoU} > 0$ ($K \le N_1 \times N_2$ worst-case).
+     - **Time Complexity**: Candidate pair generation is $O(N_1 \times N_2)$. Sorting $K$ candidate pairs is $O(K \log K) \le O((N_1 N_2) \log(N_1 N_2))$. For $N_1 \approx N_2 = N$, this is $O(N^2 \log N)$ worst-case time. Greedy scan is $O(K)$ with $O(1)$ set lookups. Total worst-case time complexity is $O(N_1 N_2 + K \log K) \le O(N^2 \log N)$.
+     - **Space Complexity**: Stores $K$ candidate tuples and matched index sets: $O(K + N_1 + N_2) \le O(N_1 N_2)$ worst-case.
+   - Defined the metric as the platform's **custom greedy box-matching metric**:
+     - Explicitly separated from standardized detection benchmarks (PASCAL VOC mAP@0.50 or COCO AP@[.50:.95]), which rank predictions against ground truth using precision-recall curves across datasets. In version diffing, neither version is ground truth; the metric evaluates symmetric geometric shift between versions.
+     - Preserved the note that greedy 1-to-1 matching is a heuristic approximation that prioritizes highest-overlap pairs and does not guarantee global maximum-weight bipartite assignment (which would require the $O(N^3)$ Hungarian/Munkres algorithm).
+   - Replaced the identical-box test with a mathematically verified concrete setup ($u_0, u_1$ in v1 and $v_0, v_1$ in v2) where greedy matching yields mean IoU of `0.20`, while the global maximum-weight assignment yields `0.3939`.
+
+4. **Automated Verification:**
+   - Added `TestAssetMetadataStrictnessAndResolution` in `tests/unit/test_coordinate_transforms.py` containing 9 tests:
+     1. Explicit primary-image role with `modality="image"`.
+     2. Explicit primary-image role with absent/empty modality (legacy compatibility).
+     3. Explicit primary-image role with known non-image modalities (`text`, `audio`, `video`, `document`).
+     4. Explicit primary-image role with unknown non-empty modalities (`pointcloud`, `mesh`, `custom_sensor`).
+     5. Single asset missing both role and modality resolving as unavailable.
+     6. Single asset with `modality="image"` and no role preserving supported compatibility.
+     7. Multiple valid primary-image candidates returning `ambiguous_primary_image`.
+     8. Verification that invalid or ambiguous assets result in `iou_status="unavailable"` and `mean_iou=None`.
+     9. Verification that version-specific URL isolation, coordinate conversion, and nullable metrics remain intact.
+   - Added Test 19 in `apps/web/tests/coordinate_contract.test.ts` testing `resolvePrimaryImageAsset` across all 9 scenarios in TypeScript.
+
+### 23.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (19/19 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 6.47s; standard Vite single-bundle notification without code splitting).
+- **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (46/46 unit tests in 1.54s).
+- **Python Version Diff Tests**: `.venv\Scripts\pytest tests/unit/test_version_diff.py -v`: **PASSED** (1/1 in 1.08s).
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 35.94s (reconciled from prior 141-test count with 9 new R5.2.4.2 tests).
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation & Remote CI Note**: Browser subagent execution and remote GitHub Actions CI remain unverified in the offline sandbox; code-level types, boundary conditions, and test suites are 100% locally verified.
 
 
 

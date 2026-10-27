@@ -199,3 +199,83 @@ export function formatIoUMetric(
   };
 }
 
+export interface ManifestAsset {
+  asset_id?: string;
+  role?: string | null;
+  modality?: string | null;
+  mime_type?: string | null;
+  dimensions?: { width: number; height: number } | null;
+  storage_key?: string | null;
+  [key: string]: any;
+}
+
+/**
+ * Resolves the intended primary image asset from explicit metadata per the repository contract:
+ * - Primary candidate: role is 'primary_image' and modality is 'image' or genuinely absent/empty (legacy).
+ * - Rejects known non-image modalities ('text', 'audio', 'video', 'document') and non-empty unrecognized modalities.
+ * - Single asset with no role may be used only when modality is explicitly 'image'.
+ * - Single asset missing both role and modality resolves as unavailable ('missing_source_asset').
+ * - Preserves ambiguity protection when multiple eligible primary images are present.
+ * - Returns { asset, reason: null } on clean single resolution.
+ * - Returns { asset: null, reason: 'ambiguous_primary_image' } if multiple candidates claim primary image role or multiple fallback images exist.
+ * - Returns { asset: null, reason: 'missing_source_asset' } if no primary image can be resolved.
+ */
+export function resolvePrimaryImageAsset(assets?: ManifestAsset[] | null): {
+  asset: ManifestAsset | null;
+  reason: string | null;
+} {
+  if (!assets || !Array.isArray(assets) || assets.length === 0) {
+    return { asset: null, reason: 'missing_source_asset' };
+  }
+
+  const isEmpty = (v: any) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+  const isImageModality = (m: any) => typeof m === 'string' && m.trim().toLowerCase() === 'image';
+
+  // 1. Look for explicit primary_image role candidates
+  const primaryRoleCandidates = assets.filter((a) => {
+    if (!a || typeof a !== 'object') return false;
+    const role = typeof a.role === 'string' ? a.role.trim() : null;
+    if (role === 'primary_image') {
+      return isImageModality(a.modality) || isEmpty(a.modality);
+    }
+    return false;
+  });
+
+  if (primaryRoleCandidates.length === 1) {
+    return { asset: primaryRoleCandidates[0], reason: null };
+  }
+  if (primaryRoleCandidates.length > 1) {
+    return { asset: null, reason: 'ambiguous_primary_image' };
+  }
+
+  // If any asset explicitly declared primary_image but failed modality validation, do not fallback
+  const hasIneligiblePrimary = assets.some(
+    (a) => a && typeof a === 'object' && typeof a.role === 'string' && a.role.trim() === 'primary_image'
+  );
+  if (hasIneligiblePrimary) {
+    return { asset: null, reason: 'missing_source_asset' };
+  }
+
+  // 2. Fallback: single asset record where modality explicitly identifies it as an image
+  if (assets.length === 1) {
+    const a = assets[0];
+    if (a && typeof a === 'object') {
+      const role = a.role;
+      const roleEmptyOrImage = isEmpty(role) || (typeof role === 'string' && role.trim() === 'image');
+      if (roleEmptyOrImage && isImageModality(a.modality)) {
+        return { asset: a, reason: null };
+      }
+    }
+    return { asset: null, reason: 'missing_source_asset' };
+  }
+
+  // 3. Multiple assets without primary_image role
+  const imageModalityCandidates = assets.filter((a) => a && typeof a === 'object' && isImageModality(a.modality));
+  if (imageModalityCandidates.length > 1) {
+    return { asset: null, reason: 'ambiguous_primary_image' };
+  }
+
+  return { asset: null, reason: 'missing_source_asset' };
+}
+
+

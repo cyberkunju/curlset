@@ -13,8 +13,9 @@ import {
   shouldPlotVersionGeometry,
   sourceToDisplayBox,
   formatIoUMetric,
+  resolvePrimaryImageAsset,
 } from '../src/utils/coordinateContract.ts';
-import type { BoundingBox } from '../src/utils/coordinateContract.ts';
+import type { BoundingBox, ManifestAsset } from '../src/utils/coordinateContract.ts';
 
 function runTests() {
   console.log('--- Running TypeScript Coordinate Calibration & Integrity Tests ---');
@@ -548,6 +549,87 @@ function runTests() {
       urlV1 && urlV2 && urlV1 === urlV2
     );
     assert.strictEqual(isOverlayPermitted, false, 'Overlay mode strictly refused when either version lacks primary image');
+  }
+
+  // Test 19 (Phase R5.2.4.2): Asset metadata strictness & primary-image resolution edge cases
+  {
+    // 1. Explicit primary_image role with modality="image"
+    const r1 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_img_ok', role: 'primary_image', modality: 'image' },
+    ]);
+    assert.strictEqual(r1.asset?.asset_id, 'ast_img_ok');
+    assert.strictEqual(r1.reason, null);
+
+    // 2. Explicit primary_image role with modality absent/empty (legacy compatibility)
+    const r2a = resolvePrimaryImageAsset([
+      { asset_id: 'ast_leg_none', role: 'primary_image', modality: null },
+    ]);
+    assert.strictEqual(r2a.asset?.asset_id, 'ast_leg_none');
+    assert.strictEqual(r2a.reason, null);
+
+    const r2b = resolvePrimaryImageAsset([
+      { asset_id: 'ast_leg_empty', role: 'primary_image', modality: '  ' },
+    ]);
+    assert.strictEqual(r2b.asset?.asset_id, 'ast_leg_empty');
+    assert.strictEqual(r2b.reason, null);
+
+    // 3. Explicit primary_image role with known non-image modality
+    const r3 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_text', role: 'primary_image', modality: 'text' },
+    ]);
+    assert.strictEqual(r3.asset, null);
+    assert.strictEqual(r3.reason, 'missing_source_asset');
+
+    // 4. Explicit primary_image role with unknown non-empty modality
+    const r4 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_pointcloud', role: 'primary_image', modality: 'pointcloud' },
+    ]);
+    assert.strictEqual(r4.asset, null);
+    assert.strictEqual(r4.reason, 'missing_source_asset');
+
+    // 5. Single asset missing both role and modality
+    const r5 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_no_role_no_mod', role: null, modality: null },
+    ]);
+    assert.strictEqual(r5.asset, null);
+    assert.strictEqual(r5.reason, 'missing_source_asset');
+
+    // 6. Single asset with modality="image" and no role (supported compatibility)
+    const r6 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_single_img', role: null, modality: 'image' },
+    ]);
+    assert.strictEqual(r6.asset?.asset_id, 'ast_single_img');
+    assert.strictEqual(r6.reason, null);
+
+    // 7. Multiple valid primary_image candidates returning ambiguous result
+    const r7 = resolvePrimaryImageAsset([
+      { asset_id: 'ast_p1', role: 'primary_image', modality: 'image' },
+      { asset_id: 'ast_p2', role: 'primary_image', modality: 'image' },
+    ]);
+    assert.strictEqual(r7.asset, null);
+    assert.strictEqual(r7.reason, 'ambiguous_primary_image');
+
+    // Multiple image assets with no role
+    const r7b = resolvePrimaryImageAsset([
+      { asset_id: 'ast_raw1', modality: 'image' },
+      { asset_id: 'ast_raw2', modality: 'image' },
+    ]);
+    assert.strictEqual(r7b.asset, null);
+    assert.strictEqual(r7b.reason, 'ambiguous_primary_image');
+
+    // 8. No invalid or ambiguous asset can produce an overlay
+    const invalidAssetResolution = resolvePrimaryImageAsset([
+      { asset_id: 'ast_inv', role: 'primary_image', modality: 'mesh' },
+    ]);
+    const urlFromInvalid = invalidAssetResolution.asset
+      ? `/api/v1/assets/${invalidAssetResolution.asset.asset_id}/raw`
+      : null;
+    assert.strictEqual(urlFromInvalid, null);
+
+    const overlayWithInvalid = Boolean(
+      urlFromInvalid && '/api/v1/assets/valid/raw' && urlFromInvalid === '/api/v1/assets/valid/raw'
+    );
+    assert.strictEqual(overlayWithInvalid, false, 'Invalid asset must never permit overlay');
   }
 
   console.log('✓ All TypeScript Coordinate Calibration & Integrity Tests PASSED!');

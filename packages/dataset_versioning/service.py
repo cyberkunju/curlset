@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from packages.dataset_core.constants import AssetModality, AssetRole
 from packages.dataset_core.db.models import (
     AssetModel,
     DatasetModel,
@@ -34,8 +35,80 @@ from packages.dataset_versioning.manifest import (
 )
 
 
+def resolve_primary_image_asset(assets: list[dict] | None) -> tuple[dict | None, str | None]:
+    """
+    Resolve the intended primary image asset from explicit metadata per the repository contract:
+    - Primary candidate: role is 'primary_image' and modality is 'image' or genuinely absent/empty (legacy).
+    - Reject known non-image modalities ('text', 'audio', 'video', 'document') and non-empty unrecognized modalities.
+    - A single asset with no role may be used as a compatibility fallback only when modality explicitly identifies it as an image.
+    - A single asset missing both role and modality resolves as unavailable ('missing_source_asset').
+    - Preserves ambiguity protection when multiple eligible primary images are present.
+    - Returns (asset, None) on clean single resolution.
+    - Returns (None, 'ambiguous_primary_image') if multiple candidates claim primary image role or multiple fallback images exist.
+    - Returns (None, 'missing_source_asset') if no primary image can be resolved.
+    """
+    if not isinstance(assets, list) or not assets:
+        return None, "missing_source_asset"
+
+    def is_empty_val(val: any) -> bool:
+        return val is None or (isinstance(val, str) and not val.strip())
+
+    def is_image_modality(mod: any) -> bool:
+        return isinstance(mod, str) and mod.strip().lower() == AssetModality.IMAGE.value
+
+    # 1. Look for explicit primary_image role candidates
+    primary_role_candidates = []
+    for a in assets:
+        if not isinstance(a, dict):
+            continue
+        role = a.get("role")
+        mod = a.get("modality")
+        # Eligible only when modality is 'image' or genuinely absent/empty for backward compatibility.
+        # Reject known non-image modalities and non-empty unrecognized modality values.
+        if (
+            isinstance(role, str)
+            and role.strip() == AssetRole.PRIMARY_IMAGE.value
+            and (is_image_modality(mod) or is_empty_val(mod))
+        ):
+            primary_role_candidates.append(a)
+
+    if len(primary_role_candidates) == 1:
+        return primary_role_candidates[0], None
+    if len(primary_role_candidates) > 1:
+        return None, "ambiguous_primary_image"
+
+    # If any asset explicitly declared role == 'primary_image' but was rejected due to an ineligible modality,
+    # do NOT fall back to arbitrary assets.
+    for a in assets:
+        if isinstance(a, dict) and isinstance(a.get("role"), str) and a.get("role").strip() == AssetRole.PRIMARY_IMAGE.value:
+            return None, "missing_source_asset"
+
+    # 2. Fallback: single asset record where modality explicitly identifies it as an image
+    if len(assets) == 1:
+        a = assets[0]
+        if isinstance(a, dict):
+            role = a.get("role")
+            mod = a.get("modality")
+            role_empty_or_image = is_empty_val(role) or (isinstance(role, str) and role.strip() == "image")
+            if role_empty_or_image and is_image_modality(mod):
+                return a, None
+        return None, "missing_source_asset"
+
+    # 3. If multiple assets exist without any primary_image role:
+    # Check if multiple images exist -> ambiguous; otherwise missing.
+    image_modality_candidates = [
+        a for a in assets if isinstance(a, dict) and is_image_modality(a.get("modality"))
+    ]
+    if len(image_modality_candidates) > 1:
+        return None, "ambiguous_primary_image"
+
+    return None, "missing_source_asset"
+
+
 class VersioningService:
     """Manages creation, immutability, diffing, and retrieval of dataset versions."""
+
+    resolve_primary_image_asset = staticmethod(resolve_primary_image_asset)
 
     @staticmethod
     def create_version(
@@ -374,69 +447,6 @@ class VersioningService:
                     return (float(w), float(h))
             return None
 
-        def resolve_primary_image_asset(assets: list[dict]) -> tuple[dict | None, str | None]:
-            """
-            Resolve the intended primary image asset from explicit metadata per the repository contract:
-            - Primary candidate: role is 'primary_image' and modality is 'image' (or unset/image-compatible).
-            - Excludes auxiliary roles ('thumbnail', 'crop', 'attachment', 'paired_text', 'source_document',
-              'primary_audio', 'audio_recording') and non-image modalities ('text', 'audio', 'video', 'document').
-            - Returns (asset, None) on clean single resolution.
-            - Returns (None, 'ambiguous_primary_image') if multiple candidates claim primary image role.
-            - Returns (None, 'missing_source_asset') if no primary image can be resolved.
-            """
-            if not isinstance(assets, list) or not assets:
-                return None, "missing_source_asset"
-
-            non_image_modalities = {"text", "audio", "video", "document"}
-            auxiliary_roles = {
-                "thumbnail",
-                "crop",
-                "attachment",
-                "paired_text",
-                "source_document",
-                "primary_audio",
-                "audio_recording",
-            }
-
-            # 1. Look for explicit primary_image role
-            primary_role_candidates = []
-            for a in assets:
-                if not isinstance(a, dict):
-                    continue
-                role = a.get("role")
-                mod = a.get("modality")
-                if role == "primary_image" and (mod is None or mod not in non_image_modalities):
-                    primary_role_candidates.append(a)
-
-            if len(primary_role_candidates) == 1:
-                return primary_role_candidates[0], None
-            if len(primary_role_candidates) > 1:
-                return None, "ambiguous_primary_image"
-
-            # 2. Fallback: single image candidate when role is 'image' or single-asset record with modality='image'
-            fallback_candidates = []
-            for a in assets:
-                if not isinstance(a, dict):
-                    continue
-                role = a.get("role")
-                mod = a.get("modality")
-                if (
-                    role not in auxiliary_roles
-                    and mod not in non_image_modalities
-                    and (
-                        role in ("primary_image", "image")
-                        or (len(assets) == 1 and (mod == "image" or not role))
-                    )
-                ):
-                    fallback_candidates.append(a)
-
-            if len(fallback_candidates) == 1:
-                return fallback_candidates[0], None
-            if len(fallback_candidates) > 1:
-                return None, "ambiguous_primary_image"
-
-            return None, "missing_source_asset"
-
         for rid in common_ids:
             r1 = rec_map_1[rid]
             r2 = rec_map_2[rid]
@@ -565,11 +575,32 @@ class VersioningService:
                     elif n1 == 0 or n2 == 0:
                         rec_iou = 0.0
                     else:
-                        # 1-to-1 bipartite greedy matching approximation on common label and IoU.
-                        # Greedy assignment sorts candidate pairs by descending IoU in O(N log N) time,
-                        # consistent with common detection benchmark conventions (e.g. PASCAL/COCO eval).
-                        # Note: Greedy matching is a deterministic approximation and is not guaranteed to achieve
-                        # the global maximum-weight bipartite assignment across conflicting multi-candidate pairs.
+                        # Platform Custom Greedy Box-Matching Metric:
+                        # Evaluates pairwise spatial alignment between version 1 and version 2 bounding boxes
+                        # sharing identical class labels.
+                        #
+                        # Algorithmic Complexity:
+                        # - Let N1 = len(cb1) (number of boxes in v1), N2 = len(cb2) (number of boxes in v2).
+                        # - Let K be the number of same-label candidate box pairs with pairwise IoU > 0.
+                        #   In the worst case (all boxes share identical labels and pairwise overlap), K = N1 * N2.
+                        # - Time Complexity:
+                        #   1. Candidate pair generation: O(N1 * N2) pairwise comparisons and IoU calculations.
+                        #   2. Candidate pair sorting: O(K log K) <= O((N1 * N2) log(N1 * N2)).
+                        #      For N1 ~ N2 = N, this is O(N^2 log N) worst-case time.
+                        #   3. Greedy assignment scan: O(K) iterations with O(1) hash set membership lookups.
+                        #   Total worst-case time complexity: O(N1 * N2 + K log K) <= O(N^2 log N).
+                        # - Space Complexity:
+                        #   Stores K candidate tuples and matched index sets: O(K + N1 + N2) <= O(N1 * N2) worst case.
+                        #
+                        # Metric Semantics & Distinction:
+                        # - This is the platform's custom greedy box-matching metric for version comparison.
+                        # - It is distinct from standardized object-detection benchmark metrics (such as PASCAL VOC
+                        #   mAP@0.50 or COCO AP@[.50:.95]), which rank confidence-scored predictions against ground
+                        #   truth across an entire dataset using precision-recall curves. Here, neither version is
+                        #   designated as ground truth; the metric measures symmetric geometric shift between versions.
+                        # - Note: Greedy 1-to-1 matching is a heuristic approximation that prioritizes highest-overlap
+                        #   pairs first and is not guaranteed to achieve the global maximum-weight bipartite matching
+                        #   (which would require the O(N^3) Hungarian / Kuhn-Munkres algorithm).
                         candidates = []
                         for idx1, b1 in enumerate(cb1):
                             lbl1 = b1.get("label")

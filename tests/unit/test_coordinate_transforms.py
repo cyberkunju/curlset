@@ -1365,22 +1365,31 @@ class TestPrimaryAssetResolutionIntegrity:
         """Document and verify greedy 1-to-1 matching behavior on a case where greedy selection is suboptimal.
         
         Suppose B1 has boxes u0, u1 and B2 has v0, v1:
-        - u0 overlaps v0 with IoU 0.90
-        - u0 overlaps v1 with IoU 0.85
-        - u1 overlaps v0 with IoU 0.85
-        - u1 overlaps v1 with IoU 0.00
+        - u0: [100, 0, 100, 100] (x in 100..200)
+        - u1: [150, 0, 60, 100]  (x in 150..210)
+        - v0: [120, 0, 60, 100]  (x in 120..180)
+        - v1: [90, 0, 60, 100]   (x in 90..150)
         
-        Optimal assignment: (u0, v1) + (u1, v0) = 0.85 + 0.85 = 1.70.
-        Greedy approximation: selects (u0, v0) first (0.90), leaving u1 and v1 unmatched (score 0).
-        Total IoU under greedy = 0.90 / (2 + 2 - 1) = 0.90 / 3 = 0.30.
+        Pairwise IoU:
+        - IoU(u0, v0) = 6000 / 10000 = 0.60
+        - IoU(u0, v1) = 5000 / 11000 ≈ 0.4545
+        - IoU(u1, v0) = 3000 / 9000  ≈ 0.3333
+        - IoU(u1, v1) = 0.0
+        
+        Greedy 1-to-1 approximation:
+        - Sorts candidate pairs descending: (0.60, u0, v0), (0.4545, u0, v1), (0.3333, u1, v0).
+        - Matches (u0, v0) first (score 0.60).
+        - u1 and v1 are left unmatched.
+        - Total instances = 2 + 2 - 1 = 3. Mean IoU = 0.60 / 3 = 0.20.
+        
+        Global maximum-weight assignment:
+        - Matches (u0, v1) + (u1, v0) = 0.4545 + 0.3333 = 0.7878.
+        - Total instances = 2 + 2 - 2 = 2. Mean IoU = 0.7878 / 2 = 0.3939 > 0.20.
+        
         This test proves and documents the greedy approximation contract without claiming global optimality.
         """
         from packages.dataset_versioning.service import VersioningService
 
-        # We construct boxes with these exact overlap properties in a 1000x1000 coordinate frame
-        # u0: [100, 100, 100, 100] (area 10000)
-        # v0: [100, 100, 105, 100] (high overlap with u0)
-        # We test the actual matching behavior via diff_dataset_versions:
         r1 = [{
             "record_id": "r_greedy",
             "annotation": {
@@ -1388,12 +1397,12 @@ class TestPrimaryAssetResolutionIntegrity:
                     "coordinate_system": "pixel-intrinsic",
                     "image_dimensions": {"width": 1000, "height": 1000},
                     "boxes": [
-                        {"label": "box", "x": 100, "y": 100, "w": 100, "h": 100},  # u0
-                        {"label": "box", "x": 105, "y": 100, "w": 100, "h": 100},  # u1
+                        {"label": "box", "x": 100, "y": 0, "w": 100, "h": 100},  # u0
+                        {"label": "box", "x": 150, "y": 0, "w": 60, "h": 100},   # u1
                     ],
                 }
             },
-            "assets": [{"asset_id": "ast_grd", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            "assets": [{"asset_id": "ast_grd", "role": "primary_image", "modality": "image", "dimensions": {"width": 1000, "height": 1000}}],
         }]
         r2 = [{
             "record_id": "r_greedy",
@@ -1402,12 +1411,12 @@ class TestPrimaryAssetResolutionIntegrity:
                     "coordinate_system": "pixel-intrinsic",
                     "image_dimensions": {"width": 1000, "height": 1000},
                     "boxes": [
-                        {"label": "box", "x": 100, "y": 100, "w": 100, "h": 100},  # v0
-                        {"label": "box", "x": 105, "y": 100, "w": 100, "h": 100},  # v1
+                        {"label": "box", "x": 120, "y": 0, "w": 60, "h": 100},  # v0
+                        {"label": "box", "x": 90, "y": 0, "w": 60, "h": 100},   # v1
                     ],
                 }
             },
-            "assets": [{"asset_id": "ast_grd", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            "assets": [{"asset_id": "ast_grd", "role": "primary_image", "modality": "image", "dimensions": {"width": 1000, "height": 1000}}],
         }]
         v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
         monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
@@ -1416,9 +1425,220 @@ class TestPrimaryAssetResolutionIntegrity:
         diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
         item = diff["spatial_diffs"][0]
 
-        # In this identical case, u0 matches v0 (1.0) and u1 matches v1 (1.0), yielding 1.0
         assert item["iou_status"] == "comparable"
-        assert item["mean_iou"] == 1.0
+        assert item["mean_iou"] == 0.2
+        assert item["iou_shift"] == 0.8
+
+
+class TestAssetMetadataStrictnessAndResolution:
+    """Phase R5.2.4.2: Asset metadata strictness and matching complexity accuracy."""
+
+    def test_explicit_primary_image_role_with_image_modality(self):
+        """Rule 1: Explicit primary_image role with modality='image' resolves cleanly."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        assets = [
+            {"asset_id": "ast_main", "role": "primary_image", "modality": "image", "dimensions": {"width": 800, "height": 600}}
+        ]
+        asset, err = resolve_primary_image_asset(assets)
+        assert err is None
+        assert asset is not None
+        assert asset["asset_id"] == "ast_main"
+
+    def test_explicit_primary_image_role_with_absent_modality(self):
+        """Rule 2: Explicit primary_image role with modality absent/empty preserves legacy compatibility."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        # None modality
+        assets_none = [
+            {"asset_id": "ast_legacy_none", "role": "primary_image", "modality": None}
+        ]
+        asset, err = resolve_primary_image_asset(assets_none)
+        assert err is None
+        assert asset is not None
+        assert asset["asset_id"] == "ast_legacy_none"
+
+        # Empty string modality
+        assets_empty = [
+            {"asset_id": "ast_legacy_empty", "role": "primary_image", "modality": "   "}
+        ]
+        asset, err = resolve_primary_image_asset(assets_empty)
+        assert err is None
+        assert asset is not None
+        assert asset["asset_id"] == "ast_legacy_empty"
+
+    def test_explicit_primary_image_role_with_known_non_image_modality(self):
+        """Rule 3: Explicit primary_image role with known non-image modality is rejected."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        for non_img_mod in ["text", "audio", "video", "document"]:
+            assets = [
+                {"asset_id": f"ast_{non_img_mod}", "role": "primary_image", "modality": non_img_mod}
+            ]
+            asset, err = resolve_primary_image_asset(assets)
+            assert asset is None
+            assert err == "missing_source_asset"
+
+    def test_explicit_primary_image_role_with_unknown_non_empty_modality(self):
+        """Rule 4: Explicit primary_image role with unknown non-empty modality is rejected."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        for unk_mod in ["pointcloud", "mesh", "custom_sensor", "unknown"]:
+            assets = [
+                {"asset_id": f"ast_{unk_mod}", "role": "primary_image", "modality": unk_mod}
+            ]
+            asset, err = resolve_primary_image_asset(assets)
+            assert asset is None
+            assert err == "missing_source_asset"
+
+    def test_single_asset_missing_both_role_and_modality(self):
+        """Rule 5: Single asset missing both role and modality resolves as unavailable."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        assets = [{"asset_id": "ast_untyped", "role": None, "modality": None}]
+        asset, err = resolve_primary_image_asset(assets)
+        assert asset is None
+        assert err == "missing_source_asset"
+
+        # Also with empty strings
+        assets_empty = [{"asset_id": "ast_untyped_empty", "role": "", "modality": ""}]
+        asset_e, err_e = resolve_primary_image_asset(assets_empty)
+        assert asset_e is None
+        assert err_e == "missing_source_asset"
+
+    def test_single_asset_with_modality_image_and_no_role(self):
+        """Rule 6: Single asset with modality='image' and no role preserves supported compatibility."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        assets = [{"asset_id": "ast_compat_img", "role": None, "modality": "image"}]
+        asset, err = resolve_primary_image_asset(assets)
+        assert err is None
+        assert asset is not None
+        assert asset["asset_id"] == "ast_compat_img"
+
+    def test_multiple_valid_primary_image_candidates_returns_ambiguous(self):
+        """Rule 7: Multiple eligible primary-image candidates return ambiguous_primary_image."""
+        from packages.dataset_versioning.service import resolve_primary_image_asset
+
+        assets = [
+            {"asset_id": "ast_p1", "role": "primary_image", "modality": "image"},
+            {"asset_id": "ast_p2", "role": "primary_image", "modality": None},
+        ]
+        asset, err = resolve_primary_image_asset(assets)
+        assert asset is None
+        assert err == "ambiguous_primary_image"
+
+    def test_no_invalid_or_ambiguous_asset_used_to_produce_numeric_iou(self, monkeypatch):
+        """Rule 8: Invalid or ambiguous assets set iou_status='unavailable' and mean_iou=None."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = f"tag_{vid}"
+                self.version_number = 1 if vid == "v1" else 2
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        # v1 has valid primary image, v2 has unknown modality on primary_image
+        m1 = {
+            "records": [{
+                "record_id": "rec_01",
+                "annotation": {
+                    "payload": {
+                        "coordinate_system": "pixel-intrinsic",
+                        "image_dimensions": {"width": 800, "height": 600},
+                        "boxes": [{"label": "cat", "x": 10, "y": 10, "w": 50, "h": 50}],
+                    }
+                },
+                "assets": [{"asset_id": "ast_01", "role": "primary_image", "modality": "image", "dimensions": {"width": 800, "height": 600}}],
+            }]
+        }
+        m2 = {
+            "records": [{
+                "record_id": "rec_01",
+                "annotation": {
+                    "payload": {
+                        "coordinate_system": "pixel-intrinsic",
+                        "image_dimensions": {"width": 800, "height": 600},
+                        "boxes": [{"label": "cat", "x": 10, "y": 10, "w": 50, "h": 50}],
+                    }
+                },
+                "assets": [{"asset_id": "ast_01", "role": "primary_image", "modality": "unknown_sensor", "dimensions": {"width": 800, "height": 600}}],
+            }]
+        }
+
+        v1 = MockVersion("v1", m1)
+        v2 = MockVersion("v2", m2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["iou_status"] == "unavailable"
+        assert item["mean_iou"] is None
+        assert item["exclusion_reason"] == "missing_source_asset"
+        assert item["asset_id_v2"] is None
+        assert item["asset_url_v2"] is None
+
+    def test_version_specific_isolation_and_nullable_metric_intact(self, monkeypatch):
+        """Rule 9: Version-specific URL isolation, coordinate conversion, and nullable metrics remain intact."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = f"tag_{vid}"
+                self.version_number = 1 if vid == "v1" else 2
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        # v1 normalized coords, v2 pixel-intrinsic coords, same primary asset
+        m1 = {
+            "records": [{
+                "record_id": "rec_intact",
+                "annotation": {
+                    "payload": {
+                        "coordinate_system": "normalized",
+                        "image_dimensions": {"width": 1000, "height": 500},
+                        "boxes": [{"label": "car", "x": 0.1, "y": 0.2, "w": 0.4, "h": 0.4}],
+                    }
+                },
+                "assets": [{"asset_id": "ast_shared", "role": "primary_image", "modality": "image", "dimensions": {"width": 1000, "height": 500}}],
+            }]
+        }
+        m2 = {
+            "records": [{
+                "record_id": "rec_intact",
+                "annotation": {
+                    "payload": {
+                        "coordinate_system": "pixel-intrinsic",
+                        "image_dimensions": {"width": 1000, "height": 500},
+                        "boxes": [{"label": "car", "x": 100, "y": 100, "w": 400, "h": 200}],
+                    }
+                },
+                "assets": [{"asset_id": "ast_shared", "role": "primary_image", "modality": "image", "dimensions": {"width": 1000, "height": 500}}],
+            }]
+        }
+
+        v1 = MockVersion("v1", m1)
+        v2 = MockVersion("v2", m2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is True
+        assert item["iou_status"] == "comparable"
+        assert item["mean_iou"] == 1.0  # Normalized (0.1*1000=100, 0.2*500=100, 0.4*1000=400, 0.4*500=200) matches exactly
+        assert item["iou_shift"] == 0.0
+        assert item["asset_url_v1"] == "/api/v1/assets/ast_shared/file"
+        assert item["asset_url_v2"] == "/api/v1/assets/ast_shared/file"
+
 
 
 
