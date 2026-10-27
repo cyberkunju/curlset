@@ -1,39 +1,55 @@
 :root {
-  /* Design Tokens */
+  /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Color Palette - Premium Dark Theme */
-  --bg-base: #090d16;
-  --bg-surface: #0f172a;
-  --bg-card: rgba(26, 35, 50, 0.7);
-  --bg-card-hover: rgba(33, 44, 63, 0.85);
-  --bg-modal: #111827;
-  --bg-glass: rgba(15, 23, 42, 0.75);
+  /* Minimal Monochrome + High-Contrast Surface Palette (Carbon Obsidian & Zinc) */
+  --bg-canvas: #09090B;
+  --bg-surface: #111114;
+  --bg-elevated: #18181C;
+  --bg-subtle-hover: #222228;
+  --border-hairline: #27272A;
+  --border-strong: #3F3F46;
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --accent-primary: #FAFAFA;
+  --accent-primary-fg: #09090B;
+  --accent-interactive: #3B82F6;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
-  --border-glow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  /* Backward Compatibility Tokens */
+  --bg-base: var(--bg-canvas);
+  --bg-card: var(--bg-surface);
+  --bg-card-hover: var(--bg-subtle-hover);
+  --bg-modal: var(--bg-surface);
+  --bg-glass: rgba(17, 17, 20, 0.92);
+  --border-subtle: var(--border-hairline);
+  --border-focus: var(--accent-interactive);
+  --border-glow: 0 0 0 1px var(--accent-interactive);
+  --text-accent: var(--accent-interactive);
+  --primary: var(--accent-primary);
+  --primary-hover: #E4E4E7;
+  --primary-gradient: var(--accent-primary);
+  --cyan-accent: #38BDF8;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-accent: #818cf8;
+  /* Semantic Review & Quality Tokens */
+  --status-approved: #10B981;
+  --status-pending: #F59E0B;
+  --status-disagreement: #F97316;
+  --status-rejected: #EF4444;
+  --emerald: var(--status-approved);
+  --amber: var(--status-pending);
+  --rose: var(--status-rejected);
 
-  /* Accents & Signals */
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  --cyan-accent: #06b6d4;
-  --emerald: #10b981;
-  --amber: #f59e0b;
-  --rose: #ef4444;
+  /* Apple / Linear Custom Bezier Timing Curves */
+  --ease-apple-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-apple-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-snappy-press: cubic-bezier(0.2, 0, 0, 1);
 
-  /* Shadows & Glass */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-  --glass-blur: blur(16px);
+  /* Shadows & Radius */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.65);
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -47,16 +63,12 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-base);
+  background-color: var(--bg-canvas);
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.05) 0px, transparent 50%);
-  background-attachment: fixed;
 }
 
 /* App Layout */

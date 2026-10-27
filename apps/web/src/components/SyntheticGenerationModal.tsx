@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { triggerSyntheticGeneration, fetchSyntheticLineage } from '../api';
+import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { SpringButton } from './ui/SpringButton';
 
 interface SyntheticGenerationModalProps {
   datasetId: string;
@@ -268,13 +270,19 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
               </div>
             </div>
 
+            {isGenerating && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <PerceptualProgressBar active={isGenerating} taskType="synthesize" />
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <SpringButton type="button" variant="secondary" onClick={onClose} disabled={isGenerating}>
                 Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={isGenerating}>
+              </SpringButton>
+              <SpringButton type="submit" variant="primary" disabled={isGenerating}>
                 {isGenerating ? 'Synthesizing Samples...' : `Generate ${count} Synthetic Samples`}
-              </button>
+              </SpringButton>
             </div>
           </form>
 

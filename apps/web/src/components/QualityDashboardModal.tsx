@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { fetchValidationSummary, runDatasetValidation } from '../api';
 import { QualityReport, ValidationFinding } from '../types';
+import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { SpringButton } from './ui/SpringButton';
 
 interface QualityDashboardModalProps {
   datasetId: string;
@@ -113,15 +115,21 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
                 </p>
               </div>
 
-              <button
-                className="btn btn-primary"
+              <SpringButton
+                variant="primary"
                 onClick={handleRunAudit}
                 disabled={running}
                 style={{ whiteSpace: 'nowrap' }}
               >
-                {running ? 'Re-running Diagnostics...' : '🔄 Re-run Quality Audit'}
-              </button>
+                {running ? 'Running Diagnostics...' : '🔄 Re-run Quality Audit'}
+              </SpringButton>
             </div>
+
+            {running && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <PerceptualProgressBar active={running} taskType="validate" />
+              </div>
+            )}
 
             {/* Metrics Grid */}
             <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>

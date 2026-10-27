@@ -22,11 +22,20 @@ from packages.dataset_core.db.models import (
 from packages.dataset_core.exceptions import ResourceNotFoundError
 from packages.dataset_core.id_generator import generate_id
 from packages.dataset_io.storage import StorageBackend, get_storage_backend
+from packages.dataset_quality.confident_learning import (
+    ConfidentLearningAuditor,
+    LabeledSample,
+)
+from packages.dataset_quality.cross_modal_alignment import (
+    CrossModalAlignmentAuditor,
+    CrossModalPair,
+)
 from packages.dataset_quality.models import (
     QualityReport,
     ValidationFinding,
     ValidationSeverity,
 )
+from packages.dataset_quality.phash_leakage import PHashLeakageDetector, PHashSplitItem
 
 
 class QualityEngine:
@@ -84,6 +93,9 @@ class QualityEngine:
         missing_asset_ids: list[str] = []
         empty_content_ids: list[str] = []
         invalid_timestamp_ids: list[str] = []
+        phash_items: list[PHashSplitItem] = []
+        confident_samples: list[LabeledSample] = []
+        cross_modal_pairs: list[CrossModalPair] = []
 
         for r in records:
             split_counter[r.split] += 1
@@ -175,6 +187,44 @@ class QualityEngine:
                 if sha:
                     sha_to_splits.setdefault(sha, set()).add(r.split)
                     sha_to_records.setdefault(sha, []).append(r.id)
+
+                if asset.phash:
+                    phash_items.append(
+                        PHashSplitItem(
+                            record_id=r.id,
+                            asset_id=asset.id,
+                            phash=asset.phash,
+                            split=r.split,
+                        )
+                    )
+
+            if r.annotations:
+                latest_ann = max(r.annotations, key=lambda a: a.created_at)
+                if dataset.task_type == TaskType.OBJECT_DETECTION.value:
+                    boxes = latest_ann.payload.get("boxes", [])
+                    detected_classes = [b.get("label", "") for b in boxes if isinstance(b, dict)]
+                    caption = str(r.extra_metadata.get("text") or r.extra_metadata.get("caption") or "")
+                    if caption and detected_classes:
+                        cross_modal_pairs.append(
+                            CrossModalPair(
+                                record_id=r.id,
+                                detected_classes=detected_classes,
+                                caption_text=caption,
+                            )
+                        )
+                lbl = latest_ann.payload.get("label")
+                if lbl:
+                    feature_vec = [0.0] * 32
+                    for char in str(r.extra_metadata.get("text") or r.id):
+                        feature_vec[ord(char) % 32] += 1.0
+                    confident_samples.append(
+                        LabeledSample(
+                            record_id=r.id,
+                            label=lbl,
+                            feature_vector=feature_vec,
+                            confidence=latest_ann.confidence or 1.0,
+                        )
+                    )
 
         # 2. Unresolved Reviews Finding
         if unresolved_record_ids:
@@ -317,7 +367,14 @@ class QualityEngine:
                     count=synth_count,
                 )
             )
+        # 10. pHash Perceptual Split Leakage
+        findings.extend(PHashLeakageDetector.audit_split_leakage(phash_items))
 
+        # 11. Confident Learning Label Noise
+        findings.extend(ConfidentLearningAuditor.audit_label_errors(confident_samples))
+
+        # 12. Cross-Modal Semantic Contradictions
+        findings.extend(CrossModalAlignmentAuditor.audit_contradictions(cross_modal_pairs))
 
         blocking_count = sum(1 for f in findings if f.severity == ValidationSeverity.BLOCKING)
         warning_count = sum(1 for f in findings if f.severity == ValidationSeverity.WARNING)

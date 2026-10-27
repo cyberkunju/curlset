@@ -8,6 +8,8 @@ import {
 } from '../api';
 import { Dataset, RecordQueueItem, RecordDetail } from '../types';
 import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
+import { ProgressiveAssetImage } from './ui/ProgressiveAssetImage';
+import { SpringButton } from './ui/SpringButton';
 
 interface AnnotationWorkspaceProps {
   dataset: Dataset;
@@ -556,16 +558,16 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 }}
               >
                 {dataset.task_type === 'image_classification' && activeAsset ? (
-                  <img
+                  <ProgressiveAssetImage
                     src={`/api/v1/assets/${activeAsset.id}/raw`}
                     alt={activeAsset.original_filename || 'Record Asset'}
+                    width={activeAsset.dimensions?.width || 640}
+                    height={activeAsset.dimensions?.height || 480}
                     style={{
                       maxWidth: '100%',
                       maxHeight: '100%',
-                      objectFit: 'contain',
-                      borderRadius: 'var(--radius-sm)',
-                      boxShadow: 'var(--shadow-lg)',
-                      border: '1px solid var(--border-subtle)',
+                      boxShadow: 'var(--shadow-md)',
+                      border: '1px solid var(--border-hairline)',
                     }}
                   />
                 ) : dataset.task_type === 'object_detection' && activeAsset ? (
@@ -954,8 +956,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
 
           {/* Save Action & Fast Navigation Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <button
-              className="btn btn-primary"
+            <SpringButton
+              variant="primary"
               disabled={
                 saving ||
                 !currentRecord ||
@@ -964,101 +966,101 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   : dataset.task_type !== 'object_detection' && !selectedLabel)
               }
               onClick={() => handleSaveAnnotation()}
-              style={{ width: '100%', padding: '0.65rem', justifyContent: 'center' }}
+              style={{ width: '100%', padding: '0.65rem' }}
+              shortcut="Enter"
             >
-              {saving ? 'Saving...' : '💾 Save & Next (Enter)'}
-            </button>
+              {saving ? 'Saving...' : 'Save & Next'}
+            </SpringButton>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <button
-                className="btn btn-secondary"
+              <SpringButton
+                variant="secondary"
                 disabled={currentIndex === 0 || saving}
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                style={{ justifyContent: 'center', padding: '0.45rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.45rem', fontSize: '0.85rem' }}
+                shortcut="K"
                 title="Previous Record (K or Up)"
               >
-                ⏮️ Prev (K)
-              </button>
-              <button
-                className="btn btn-secondary"
+                Prev
+              </SpringButton>
+              <SpringButton
+                variant="secondary"
                 disabled={currentIndex >= queue.length - 1 || saving}
                 onClick={() => setCurrentIndex((prev) => Math.min(queue.length - 1, prev + 1))}
-                style={{ justifyContent: 'center', padding: '0.45rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.45rem', fontSize: '0.85rem' }}
+                shortcut="J"
                 title="Next Record / Skip (J or Down)"
               >
-                ⏭️ Next / Skip (J)
-              </button>
+                Skip / Next
+              </SpringButton>
             </div>
           </div>
 
           {/* Review Workflow Controls */}
           {currentRecord?.annotation && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+            <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '1rem' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem', textTransform: 'uppercase' }}>
                 Review Transition
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <button
-                  className="btn"
+                <SpringButton
+                  variant="secondary"
                   onClick={() => handleReviewAction('approved')}
                   disabled={saving}
                   style={{
-                    background: 'rgba(16, 185, 129, 0.2)',
-                    borderColor: 'var(--emerald)',
-                    color: 'var(--emerald)',
-                    justifyContent: 'center',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    borderColor: 'rgba(16, 185, 129, 0.3)',
+                    color: 'var(--status-approved)',
                     padding: '0.5rem',
                   }}
+                  shortcut="A"
                   title="Approve (A)"
                 >
-                  ✓ Approve (A)
-                </button>
-                <button
-                  className="btn"
+                  ✓ Approve
+                </SpringButton>
+                <SpringButton
+                  variant="danger"
                   onClick={() => handleReviewAction('rejected')}
                   disabled={saving}
                   style={{
-                    background: 'rgba(239, 68, 68, 0.2)',
-                    borderColor: 'var(--rose)',
-                    color: 'var(--rose)',
-                    justifyContent: 'center',
                     padding: '0.5rem',
                   }}
+                  shortcut="R"
                   title="Reject (R)"
                 >
-                  ✕ Reject (R)
-                </button>
+                  ✕ Reject
+                </SpringButton>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <button
-                  className="btn"
+                <SpringButton
+                  variant="secondary"
                   onClick={() => handleReviewAction('needs_correction')}
                   disabled={saving}
                   style={{
-                    background: 'rgba(245, 158, 11, 0.2)',
-                    borderColor: 'var(--amber)',
-                    color: 'var(--amber)',
-                    justifyContent: 'center',
+                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    borderColor: 'rgba(245, 158, 11, 0.3)',
+                    color: 'var(--status-pending)',
                     padding: '0.5rem',
                   }}
+                  shortcut="C"
                   title="Needs Correction (C)"
                 >
-                  ⚠️ Needs Fix (C)
-                </button>
-                <button
-                  className="btn"
+                  ⚠️ Needs Fix
+                </SpringButton>
+                <SpringButton
+                  variant="secondary"
                   onClick={() => handleNotSimilarAction()}
                   disabled={saving}
                   style={{
-                    background: 'rgba(168, 85, 247, 0.2)',
-                    borderColor: '#a855f7',
-                    color: '#c084fc',
-                    justifyContent: 'center',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    borderColor: 'rgba(59, 130, 246, 0.3)',
+                    color: 'var(--accent-interactive)',
                     padding: '0.5rem',
                   }}
+                  shortcut="N"
                   title="Mark as Not Similar / Disagreement (N)"
                 >
-                  ≠ Not Similar (N)
-                </button>
+                  ≠ Not Similar
+                </SpringButton>
               </div>
             </div>
           )}

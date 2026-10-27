@@ -157,13 +157,14 @@ Reliably turn user files into normalized records and safely stored assets.
 ### Deliverables
 - Storage abstraction (`StorageBackend`, `LocalStorageBackend`) in `packages/dataset_io/storage.py`.
 - Exact SHA-256 and 64-bit perceptual difference hashing (`phash`) in `packages/dataset_io/hashing.py`.
+- Multi-modal stem and manifest bundler in `packages/dataset_io/bundler.py`.
 - Safety validation (magic-byte sniffing, zip bomb defense, path traversal sanitization) in `packages/dataset_io/safety.py`.
 - Multi-modal ingestion orchestrator (`IngestionService`) supporting single assets, paired multimodal ZIPs, CSV, JSON, and JSONL in `packages/dataset_io/ingestion_service.py`.
 - REST API endpoint `POST /api/v1/datasets/{dataset_id}/ingest` with multipart file upload in `services/api/routes/ingestion.py`.
-- Drag-and-drop Import Modal in `apps/web/src/components/ImportModal.tsx` showing real-time accepted, duplicate, and rejected counts.
+- Drag-and-drop Import Modal in `apps/web/src/components/ImportModal.tsx` showing real-time accepted, duplicate, and rejected counts with non-linear `PerceptualProgressBar` and tactile `SpringButton`.
 
 ### Exit gate
-PASSED: Verified with 30 passing tests (`tests/integration/test_ingestion_pipeline.py`, `tests/unit/test_safety.py`, `tests/unit/test_hashing.py`) and clean frontend build (`npm run build` in 1.15s). Malformed inputs, path traversal attempts, and duplicate files safely handled with diagnostics. Zero unhandled exceptions.
+PASSED: Verified with passing tests (`tests/integration/test_ingestion_pipeline.py`, `tests/unit/test_safety.py`, `tests/unit/test_hashing.py`, `tests/unit/test_multimodal_bundler.py`) and clean frontend build. Malformed inputs, path traversal attempts, and duplicate files safely handled with diagnostics. Zero unhandled exceptions.
 
 ## 7. Phase 4 — Annotation schemas and manual labeling
 
@@ -255,12 +256,15 @@ Help users discover problems before publishing a dataset.
 ### Deliverables
 - Quality data models (`QualityReport`, `ValidationFinding`, `ValidationSeverity`) in `packages/dataset_quality/models.py`.
 - Deterministic static and semantic audit engine in `packages/dataset_quality/engine.py` evaluating empty datasets, unreviewed items, schema violations, missing assets, empty text, exact duplicate assets, split leakage (identical asset across train and test/validation splits), and class imbalance.
+- 64-bit DCT perceptual hash cross-split leakage blocker (`packages/dataset_quality/phash_leakage.py`) enforcing $d_H \le 6$ isolation between train and validation/test splits.
+- Confident Learning automated label noise neighborhood auditor (`packages/dataset_quality/confident_learning.py`).
+- Cross-Modal semantic alignment and contradiction auditor (`packages/dataset_quality/cross_modal_alignment.py`).
 - Validation REST API endpoints (`POST /api/v1/datasets/{dataset_id}/validate`, `GET /api/v1/datasets/{dataset_id}/validation-summary`) in `services/api/routes/validation.py`.
-- Interactive frontend Quality Dashboard (`apps/web/src/components/QualityDashboardModal.tsx`) with publication readiness banner, distribution histograms, finding severities, affected record IDs, remediation advice, and statutory compliance disclaimers.
-- Integration test suite in `tests/integration/test_quality_validation_pipeline.py`.
+- Interactive frontend Quality Dashboard (`apps/web/src/components/QualityDashboardModal.tsx`) with publication readiness banner, distribution histograms, finding severities, affected record IDs, remediation advice, `PerceptualProgressBar`, and statutory compliance disclaimers.
+- Comprehensive integration & unit test suites in `tests/integration/test_quality_validation_pipeline.py`, `tests/unit/test_phash_leakage.py`, `tests/unit/test_confident_learning.py`, and `tests/unit/test_cross_modal_alignment.py`.
 
 ### Exit gate
-PASSED: Verified with 44 passing automated tests in 2.50s, 0 ruff errors, and clean frontend build (`npm run build` in 1.28s). The validation engine catches split leakage, schema mismatch, unreviewed annotations, and missing assets. Datasets with blocking errors are explicitly disallowed from publication readiness; reports include mandatory disclaimers never claiming legal clearance or societal bias elimination.
+PASSED: Verified with 90 passing automated tests across the workspace in 8.49s, 0 ruff errors, and clean frontend build. The validation engine catches pHash split leakage, schema mismatch, unreviewed annotations, confident learning label noise, and cross-modal caption contradictions. Datasets with blocking errors are explicitly disallowed from publication readiness; reports include mandatory disclaimers never claiming legal clearance or societal bias elimination.
 
 ## 10. Phase 7 — Provenance, immutable versions and documentation
 

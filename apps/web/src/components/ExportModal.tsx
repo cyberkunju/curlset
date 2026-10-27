@@ -6,6 +6,8 @@ import {
   triggerVersionExport,
 } from '../api';
 import { DatasetVersion, ExportArtifact } from '../types';
+import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { SpringButton } from './ui/SpringButton';
 
 interface ExportModalProps {
   datasetId: string;
@@ -271,13 +273,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 and associated media assets.
               </div>
 
+              {exporting && (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <PerceptualProgressBar active={exporting} taskType="export" />
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={onClose} disabled={exporting}>
+                <SpringButton type="button" variant="secondary" onClick={onClose} disabled={exporting}>
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={exporting}>
+                </SpringButton>
+                <SpringButton type="submit" variant="primary" disabled={exporting}>
                   {exporting ? 'Compiling Export Archive...' : '🚀 Generate Export Package'}
-                </button>
+                </SpringButton>
               </div>
             </form>
 

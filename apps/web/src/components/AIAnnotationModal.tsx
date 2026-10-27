@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchProviders, triggerAIAnnotation } from '../api';
+import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
+import { SpringButton } from './ui/SpringButton';
 
 interface AIAnnotationModalProps {
   datasetId: string;
@@ -241,13 +243,19 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
               </label>
             </div>
 
+            {loading && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <PerceptualProgressBar active={loading} taskType="annotate" />
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
+              <SpringButton type="button" variant="secondary" onClick={onClose} disabled={loading}>
                 Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              </SpringButton>
+              <SpringButton type="submit" variant="primary" disabled={loading}>
                 {loading ? 'Running Inference...' : '🚀 Start AI Inference'}
-              </button>
+              </SpringButton>
             </div>
           </form>
         )}

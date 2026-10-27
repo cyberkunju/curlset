@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { SpringButton } from './ui/SpringButton';
+import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 
 interface ImportReport {
   run_id: string;
@@ -155,13 +157,19 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               </select>
             </div>
 
+            {uploading && (
+              <div style={{ marginTop: '1.25rem' }}>
+                <PerceptualProgressBar active={uploading} taskType="ingest" />
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={resetAndClose} disabled={uploading}>
+              <SpringButton type="button" variant="secondary" onClick={resetAndClose} disabled={uploading}>
                 Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={uploading || !file}>
+              </SpringButton>
+              <SpringButton type="submit" variant="primary" disabled={uploading || !file}>
                 {uploading ? 'Processing Ingestion...' : 'Start Ingest'}
-              </button>
+              </SpringButton>
             </div>
           </form>
         ) : (

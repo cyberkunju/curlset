@@ -32,7 +32,9 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
-  const getRelativeCoords = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  const getRelativeCoords = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current) return { x: 0, y: 0 };
     const rect = containerRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
@@ -43,11 +45,13 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     if (e.target !== containerRef.current && (e.target as HTMLElement).tagName !== 'IMG') {
       return;
     }
+    if (e.pointerType === 'touch') setIsTouchDevice(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     const coords = getRelativeCoords(e);
     setIsDrawing(true);
     setStartPoint(coords);
@@ -55,7 +59,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     setSelectedBoxIndex(null);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDrawing || !startPoint) return;
     const coords = getRelativeCoords(e);
     const x = Math.min(startPoint.x, coords.x);
@@ -65,7 +69,8 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     setCurrentBox({ x, y, w, h });
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
     if (!isDrawing || !currentBox) return;
     setIsDrawing(false);
     setStartPoint(null);
@@ -99,21 +104,22 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-      {/* Canvas Area */}
+      {/* Canvas Area with Unified Touch & Mouse PointerEvents */}
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         style={{
           position: 'relative',
           display: 'inline-block',
           userSelect: 'none',
+          touchAction: 'none',
           cursor: isDrawing ? 'crosshair' : 'default',
-          border: '1px solid var(--border-subtle)',
+          border: '1px solid var(--border-hairline)',
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
-          background: 'rgba(15, 23, 42, 0.8)',
+          backgroundColor: 'var(--bg-canvas)',
           maxWidth: '100%',
         }}
       >
