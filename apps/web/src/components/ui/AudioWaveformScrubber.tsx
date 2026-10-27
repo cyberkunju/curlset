@@ -22,6 +22,98 @@ interface CachedWaveform {
 // In-memory LRU cache for decoded waveforms to prevent redundant processing and unbounded memory growth
 const waveformCache = new Map<string, CachedWaveform>();
 
+/**
+ * Safely probes audio duration from an in-memory byte buffer via a detached HTMLAudioElement
+ * before uncompressed PCM audio decoding occurs in Web Audio API.
+ * Note: Media preflight reduces memory exposure by verifying duration before uncompressed PCM
+ * buffer allocation, though browser media decoders maintain implementation-dependent internal buffers.
+ */
+function probeMediaDuration(
+  data: ArrayBuffer,
+  mimeType: string,
+  signal: AbortSignal,
+  timeoutMs: number = 4000
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      return reject(new DOMException('Aborted', 'AbortError'));
+    }
+
+    if (
+      typeof window === 'undefined' ||
+      typeof window.Audio === 'undefined' ||
+      typeof URL === 'undefined' ||
+      typeof URL.createObjectURL !== 'function'
+    ) {
+      return reject(new Error('Browser media preflight not supported in environment'));
+    }
+
+    const blob = new Blob([data], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    const audio = new Audio();
+    audio.preload = 'metadata';
+
+    let settled = false;
+    let timer: number | null = null;
+
+    const cleanup = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('error', onError);
+      signal.removeEventListener('abort', onAbort);
+      audio.removeAttribute('src');
+      audio.load();
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        // Ignore blob revoke error
+      }
+    };
+
+    const onLoadedMetadata = () => {
+      if (settled) return;
+      settled = true;
+      const dur = audio.duration;
+      cleanup();
+      if (typeof dur === 'number' && isFinite(dur) && !isNaN(dur) && dur > 0) {
+        resolve(dur);
+      } else {
+        reject(new Error('Media metadata returned non-finite or invalid duration'));
+      }
+    };
+
+    const onError = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Media metadata decoding failed (unsupported codec or corrupt audio)'));
+    };
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('error', onError);
+    signal.addEventListener('abort', onAbort);
+
+    timer = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Timed out probing media duration metadata'));
+    }, timeoutMs);
+
+    audio.src = blobUrl;
+  });
+}
+
 export interface AudioWaveformScrubberProps {
   currentTime: number;
   duration: number;
@@ -31,6 +123,7 @@ export interface AudioWaveformScrubberProps {
   audioSrc?: string;
   assetByteSize?: number;
   assetDuration?: number;
+  mimeType?: string;
 }
 
 export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
@@ -42,6 +135,7 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
   audioSrc,
   assetByteSize,
   assetDuration,
+  mimeType,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -89,9 +183,8 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
       return;
     }
 
-    const knownDuration = assetDuration || (duration > 0 ? duration : null);
-    if (knownDuration && knownDuration > MAX_WAVEFORM_DURATION_SECONDS) {
-      const durMin = (knownDuration / 60).toFixed(1);
+    if (assetDuration && typeof assetDuration === 'number' && isFinite(assetDuration) && assetDuration > MAX_WAVEFORM_DURATION_SECONDS) {
+      const durMin = (assetDuration / 60).toFixed(1);
       const limitMin = (MAX_WAVEFORM_DURATION_SECONDS / 60).toFixed(0);
       setDecodeError(`Duration (${durMin}m) exceeds ${limitMin}m waveform budget`);
       setBars(null);
@@ -115,7 +208,7 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
           throw new Error(`Failed to load audio asset (HTTP ${response.status})`);
         }
 
-        // Header check: verify Content-Length if reported by server
+        // Header check: verify Content-Length as an early rejection signal (not proof of actual payload size)
         const contentLengthHeader = response.headers.get('content-length');
         if (contentLengthHeader) {
           const parsedBytes = parseInt(contentLengthHeader, 10);
@@ -126,56 +219,92 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
           }
         }
 
-        // Enforce encoded-response byte limit during streaming (even if Content-Length was absent or wrong)
-        let arrayBuffer: ArrayBuffer;
-        if (response.body && typeof response.body.getReader === 'function') {
-          const reader = response.body.getReader();
-          const chunks: Uint8Array[] = [];
-          let totalBytes = 0;
+        // Strict streaming guardrail: require readable stream reader to enforce bounded download.
+        // Do not read an unmeasurable response body into memory via arrayBuffer().
+        if (!response.body || typeof response.body.getReader !== 'function') {
+          throw new Error('Streaming reader unavailable for bounded download');
+        }
 
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value) {
-                totalBytes += value.length;
-                if (totalBytes > MAX_WAVEFORM_SOURCE_BYTES) {
-                  try {
-                    await reader.cancel();
-                  } catch {
-                    // Ignore cancel cleanup errors
-                  }
-                  const limitMb = (MAX_WAVEFORM_SOURCE_BYTES / (1024 * 1024)).toFixed(0);
-                  throw new Error(`Download exceeded ${limitMb}MB waveform budget`);
-                }
-                chunks.push(value);
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let totalBytes = 0;
+
+        try {
+          while (true) {
+            if (isCancelled) {
+              try {
+                await reader.cancel();
+              } catch {
+                // Ignore cancel errors
               }
+              return;
             }
-          } finally {
-            try {
-              reader.releaseLock();
-            } catch {
-              // Reader lock already released
-            }
-          }
 
-          const concatenated = new Uint8Array(totalBytes);
-          let offset = 0;
-          for (const chunk of chunks) {
-            concatenated.set(chunk, offset);
-            offset += chunk.length;
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              totalBytes += value.length;
+              if (totalBytes > MAX_WAVEFORM_SOURCE_BYTES) {
+                try {
+                  await reader.cancel();
+                } catch {
+                  // Ignore cancel cleanup errors
+                }
+                const limitMb = (MAX_WAVEFORM_SOURCE_BYTES / (1024 * 1024)).toFixed(0);
+                throw new Error(`Download exceeded ${limitMb}MB waveform budget`);
+              }
+              chunks.push(value);
+            }
           }
-          arrayBuffer = concatenated.buffer;
-        } else {
-          // Fallback buffer reading when streaming reader is unavailable
-          arrayBuffer = await response.arrayBuffer();
-          if (arrayBuffer.byteLength > MAX_WAVEFORM_SOURCE_BYTES) {
-            const limitMb = (MAX_WAVEFORM_SOURCE_BYTES / (1024 * 1024)).toFixed(0);
-            throw new Error(`File exceeds ${limitMb}MB waveform budget`);
+        } finally {
+          try {
+            reader.releaseLock();
+          } catch {
+            // Lock already released
           }
         }
 
         if (isCancelled) return;
+
+        const concatenated = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+          concatenated.set(chunk, offset);
+          offset += chunk.length;
+        }
+        const arrayBuffer = concatenated.buffer;
+
+        if (isCancelled) return;
+
+        // Establish media duration BEFORE allocating uncompressed PCM samples in decodeAudioData
+        let confirmedDuration: number | null = null;
+        if (assetDuration && typeof assetDuration === 'number' && isFinite(assetDuration) && assetDuration > 0) {
+          confirmedDuration = assetDuration;
+        }
+
+        if (confirmedDuration === null) {
+          // Preflight media duration using size-bounded local bytes and detached HTMLAudioElement
+          const effectiveMime = mimeType || response.headers.get('content-type')?.split(';')[0].trim() || 'audio/wav';
+          try {
+            confirmedDuration = await probeMediaDuration(arrayBuffer, effectiveMime, abortController.signal);
+          } catch (probeErr: unknown) {
+            if (isCancelled) return;
+            const msg = probeErr instanceof Error ? probeErr.message : 'Media metadata probe failed';
+            throw new Error(`Unable to determine duration prior to decode (${msg})`);
+          }
+        }
+
+        if (isCancelled) return;
+
+        if (confirmedDuration === null || !isFinite(confirmedDuration) || isNaN(confirmedDuration) || confirmedDuration <= 0) {
+          throw new Error('Audio recording has invalid or indeterminate duration.');
+        }
+
+        if (confirmedDuration > MAX_WAVEFORM_DURATION_SECONDS) {
+          const durMin = (confirmedDuration / 60).toFixed(1);
+          const limitMin = (MAX_WAVEFORM_DURATION_SECONDS / 60).toFixed(0);
+          throw new Error(`Duration (${durMin}m) exceeds ${limitMin}m waveform budget`);
+        }
 
         // Verify AudioContext availability
         const AudioContextClass =
@@ -203,7 +332,7 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
 
         if (isCancelled) return;
 
-        // Guard against decoded audio duration exceeding budget
+        // Defense-in-depth: check decoded duration against budget
         if (audioBuffer.duration > MAX_WAVEFORM_DURATION_SECONDS) {
           const durMin = (audioBuffer.duration / 60).toFixed(1);
           const limitMin = (MAX_WAVEFORM_DURATION_SECONDS / 60).toFixed(0);
@@ -287,7 +416,7 @@ export const AudioWaveformScrubber: React.FC<AudioWaveformScrubberProps> = ({
       isCancelled = true;
       abortController.abort();
     };
-  }, [effectiveSrc, assetId, assetByteSize, assetDuration, duration]);
+  }, [effectiveSrc, assetId, assetByteSize, assetDuration, mimeType, duration]);
 
   const effectiveDuration = duration > 0 ? duration : 10;
   const progressPercent = Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100));

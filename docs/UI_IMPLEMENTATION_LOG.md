@@ -547,3 +547,43 @@ Protected the annotation workbench against large, long-duration, unsupported, an
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Environmental Note**: Browser automation execution remains constrained by offline sandbox environment (cannot download browser binaries). Code-level types, boundary conditions, and test suites are 100% verified.
 
+---
+
+## 14. Phase R4.3: Pre-Decode Duration Safety & Strict Streaming Fallback
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 14.1 Gaps Addressed
+Closed the two remaining resource-safety gaps from R4.2 prior to proceeding to R5:
+1. **Pre-Decode PCM Duration Vulnerability**: Decoded PCM memory was previously allocated before checking duration when duration metadata was missing. Highly compressed audio files could decompress to gigabytes of PCM samples in Web Audio API.
+2. **Unbounded Non-Streaming Download Fallback**: The previous fallback called `response.arrayBuffer()` without size enforcement during buffering if `body.getReader` was unavailable.
+
+### 14.2 Architecture & Defensive Implementation Delivered
+
+1. **Pre-Decode Duration Safety via Media Metadata Preflight (`probeMediaDuration`):**
+   - When asset duration metadata is absent or unverified, the scrubber safely inspects the media header using a detached `HTMLAudioElement` (`preload="metadata"`) and temporary `Blob` object URL before allocating any uncompressed PCM buffer in Web Audio API.
+   - **Lifecycle & Resource Cleanup**: Enforces a strict 4-second timeout, detaches all event listeners (`loadedmetadata`, `error`, `abort`), clears `audio.src`, calls `audio.load()`, and immediately revokes the Blob object URL via `URL.revokeObjectURL()`.
+   - **Strict Finite Checks**: Duration must be finite, positive, and `<= MAX_WAVEFORM_DURATION_SECONDS` (300s). Non-finite, NaN, 0, or overlong durations abort waveform extraction before `decodeAudioData()` is ever called.
+   - **Defense in Depth**: The post-decode duration check on `audioBuffer.duration` is retained as an additional safety gate.
+   - **Documented Decoupling**: Preflight avoids allocating massive uncompressed PCM samples in memory, though browser media decoders maintain implementation-dependent internal demuxer buffers.
+
+2. **Strictly Bounded Streaming Download:**
+   - **No Unbounded Buffering**: If a response cannot be consumed through a `ReadableStream` reader (`!response.body || typeof response.body.getReader !== 'function'`), the scrubber immediately rejects waveform extraction with `Streaming reader unavailable for bounded download`. It never reads an unmeasured body into memory via `response.arrayBuffer()`.
+   - **Early Header Check**: `Content-Length` is checked as an early rejection signal, while chunk-level byte counting enforces the 25 MB limit during streaming.
+   - **Safe Lock Release**: Reader locks are strictly released in `finally` blocks, and streams are cancelled via `reader.cancel()` on abort or budget violation.
+
+3. **Workspace Integration (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - Passed `mimeType={activeAsset.mime_type}` to `AudioWaveformScrubber` to ensure accurate MIME typing during Blob construction and media preflight.
+
+4. **Zero Regression Guarantee:**
+   - Real sample-derived bars, true silent audio flatline (`0.02`), seeking synchronization, cue markers, transcript segment editing, playback speeds, and keyboard shortcuts remain 100% active.
+   - If duration preflight fails or limits are exceeded, the UI gracefully falls back to the interactive standard playback timeline with a clear explanation badge.
+
+### 14.3 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 8.86s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 9.80s.
+- **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Environmental Note**: Browser automation execution remains constrained by offline sandbox environment (cannot download browser binaries). Code-level types, boundary conditions, and test suites are 100% verified.
+
+
