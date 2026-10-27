@@ -13,6 +13,10 @@ import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { fetchDatasetVersions } from '../api';
 import { DatasetVersion } from '../types';
+import {
+  identifyCoordinateSystem,
+  shouldPlotVersionGeometry,
+} from '../utils/coordinateContract';
 
 export interface VersionDiffModalProps {
   datasetId: string;
@@ -29,6 +33,8 @@ interface SpatialDiffViewerProps {
   imageDimensionsV1?: { width: number; height: number } | null;
   imageDimensionsV2?: { width: number; height: number } | null;
   assetDimensions?: { width: number; height: number } | null;
+  assetDimensionsV1?: { width: number; height: number } | null;
+  assetDimensionsV2?: { width: number; height: number } | null;
   viewMode: 'overlay' | 'sideBySide';
   v1Opacity: number;
   v2Opacity: number;
@@ -44,6 +50,8 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   imageDimensionsV1,
   imageDimensionsV2,
   assetDimensions,
+  assetDimensionsV1,
+  assetDimensionsV2,
   viewMode,
   v1Opacity,
   v2Opacity,
@@ -54,14 +62,29 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   const [containerDims, setContainerDims] = useState<{ width: number; height: number }>({ width: 300, height: 170 });
   const [imgError, setImgError] = useState(false);
 
-  // Resolved reference dimensions: prefer loaded natural dimensions, then asset metadata, then payload dimensions
-  const refDims = useMemo(() => {
-    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
-    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
-    if (imageDimensionsV2 && imageDimensionsV2.width > 0 && imageDimensionsV2.height > 0) return imageDimensionsV2;
+  // V1 and V2 must resolve their reference dimensions independently to avoid cross-version dimension leakage.
+  // We prefer the version's explicit payload dimensions, then that version's asset metadata, then the loaded asset natural dimensions.
+  const dimsV1 = useMemo(() => {
     if (imageDimensionsV1 && imageDimensionsV1.width > 0 && imageDimensionsV1.height > 0) return imageDimensionsV1;
+    if (assetDimensionsV1 && assetDimensionsV1.width > 0 && assetDimensionsV1.height > 0) return assetDimensionsV1;
+    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
+    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
     return null;
-  }, [naturalDims, assetDimensions, imageDimensionsV1, imageDimensionsV2]);
+  }, [imageDimensionsV1, assetDimensionsV1, assetDimensions, naturalDims]);
+
+  const dimsV2 = useMemo(() => {
+    if (imageDimensionsV2 && imageDimensionsV2.width > 0 && imageDimensionsV2.height > 0) return imageDimensionsV2;
+    if (assetDimensionsV2 && assetDimensionsV2.width > 0 && assetDimensionsV2.height > 0) return assetDimensionsV2;
+    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
+    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
+    return null;
+  }, [imageDimensionsV2, assetDimensionsV2, assetDimensions, naturalDims]);
+
+  const coordSystemV1 = useMemo(() => identifyCoordinateSystem(coordinateSystemV1, boxesV1), [coordinateSystemV1, boxesV1]);
+  const coordSystemV2 = useMemo(() => identifyCoordinateSystem(coordinateSystemV2, boxesV2), [coordinateSystemV2, boxesV2]);
+
+  const v1Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV1, boxesV1, dimsV1), [coordinateSystemV1, boxesV1, dimsV1]);
+  const v2Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV2, boxesV2, dimsV2), [coordinateSystemV2, boxesV2, dimsV2]);
 
   // Measure container dimensions with ResizeObserver
   useEffect(() => {
@@ -82,6 +105,13 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
 
   // Compute image-relative bounding box dimensions accounting for object-fit: contain letterbox offsets
   const computeBoxStyle = (box: any, isV1: boolean) => {
+    // If this version is not plottable according to the coordinate contract, do not fabricate geometry
+    if (isV1 && !v1Plottable) return null;
+    if (!isV1 && !v2Plottable) return null;
+
+    const activeCoordSystem = isV1 ? coordSystemV1 : coordSystemV2;
+    const activeVersionDims = isV1 ? dimsV1 : dimsV2;
+
     const cw = containerDims.width;
     const ch = containerDims.height;
     const bx = Number(box.x) || 0;
@@ -89,10 +119,66 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     const bw = Number(box.w ?? box.width) || 0;
     const bh = Number(box.h ?? box.height) || 0;
 
-    const isNormalized = bx <= 1 && by <= 1 && bw <= 1 && bh <= 1 && (bw > 0 || bh > 0);
-    const activeVersionDims = isV1 ? (imageDimensionsV1 || refDims) : (imageDimensionsV2 || refDims);
+    if (activeCoordSystem === 'uncalibrated-legacy' || activeCoordSystem === 'unknown') {
+      return null;
+    }
 
-    if (activeVersionDims && activeVersionDims.width > 0 && activeVersionDims.height > 0) {
+    if (activeCoordSystem === 'normalized') {
+      if (activeVersionDims && activeVersionDims.width > 0 && activeVersionDims.height > 0) {
+        const nw = activeVersionDims.width;
+        const nh = activeVersionDims.height;
+        const rImg = nw / nh;
+        const rCont = cw / ch;
+
+        let renderedW = cw;
+        let renderedH = ch;
+        let offX = 0;
+        let offY = 0;
+
+        if (rCont > rImg) {
+          renderedH = ch;
+          renderedW = ch * rImg;
+          offX = (cw - renderedW) / 2;
+          offY = 0;
+        } else {
+          renderedW = cw;
+          renderedH = cw / rImg;
+          offX = 0;
+          offY = (ch - renderedH) / 2;
+        }
+
+        const scaledX = bx * renderedW;
+        const scaledY = by * renderedH;
+        const scaledW = bw * renderedW;
+        const scaledH = bh * renderedH;
+
+        const clampedX = Math.max(0, Math.min(renderedW, scaledX));
+        const clampedY = Math.max(0, Math.min(renderedH, scaledY));
+        const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
+        const clampedH = Math.max(2, Math.min(renderedH - clampedY, scaledH));
+
+        return {
+          left: `${offX + clampedX}px`,
+          top: `${offY + clampedY}px`,
+          width: `${clampedW}px`,
+          height: `${clampedH}px`,
+        };
+      }
+
+      // Fallback for normalized without dimensions: map to container directly
+      return {
+        left: `${bx * cw}px`,
+        top: `${by * ch}px`,
+        width: `${Math.max(2, bw * cw)}px`,
+        height: `${Math.max(2, bh * ch)}px`,
+      };
+    }
+
+    if (activeCoordSystem === 'pixel-intrinsic') {
+      if (!activeVersionDims || activeVersionDims.width <= 0 || activeVersionDims.height <= 0) {
+        return null;
+      }
+
       const nw = activeVersionDims.width;
       const nh = activeVersionDims.height;
       const rImg = nw / nh;
@@ -104,39 +190,24 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
       let offY = 0;
 
       if (rCont > rImg) {
-        // Horizontal letterboxing (margins on left and right)
         renderedH = ch;
         renderedW = ch * rImg;
         offX = (cw - renderedW) / 2;
         offY = 0;
       } else {
-        // Vertical letterboxing (margins on top and bottom)
         renderedW = cw;
         renderedH = cw / rImg;
         offX = 0;
         offY = (ch - renderedH) / 2;
       }
 
-      let scaledX = 0;
-      let scaledY = 0;
-      let scaledW = 0;
-      let scaledH = 0;
+      const scaleX = renderedW / nw;
+      const scaleY = renderedH / nh;
+      const scaledX = bx * scaleX;
+      const scaledY = by * scaleY;
+      const scaledW = bw * scaleX;
+      const scaledH = bh * scaleY;
 
-      if (isNormalized) {
-        scaledX = bx * renderedW;
-        scaledY = by * renderedH;
-        scaledW = bw * renderedW;
-        scaledH = bh * renderedH;
-      } else {
-        const scaleX = renderedW / nw;
-        const scaleY = renderedH / nh;
-        scaledX = bx * scaleX;
-        scaledY = by * scaleY;
-        scaledW = bw * scaleX;
-        scaledH = bh * scaleY;
-      }
-
-      // Clamp within displayed image bounds
       const clampedX = Math.max(0, Math.min(renderedW, scaledX));
       const clampedY = Math.max(0, Math.min(renderedH, scaledY));
       const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
@@ -150,18 +221,6 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
       };
     }
 
-    // Fallback: If image asset or dimensions are unavailable, do NOT invent a 640x480 grid.
-    // Normalized coordinates can map directly to the container frame; uncalibrated coordinates cannot be plotted accurately.
-    if (isNormalized) {
-      return {
-        left: `${bx * cw}px`,
-        top: `${by * ch}px`,
-        width: `${Math.max(2, bw * cw)}px`,
-        height: `${Math.max(2, bh * ch)}px`,
-      };
-    }
-
-    // Non-normalized coordinates without source dimensions cannot be positioned accurately.
     return null;
   };
 
@@ -219,11 +278,45 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   };
 
   const hasValidAsset = Boolean(assetUrl && !imgError);
-  const hasDimensions = Boolean(refDims && refDims.width > 0 && refDims.height > 0);
-  const isLegacyV1 = coordinateSystemV1 !== 'pixel-intrinsic';
-  const isLegacyV2 = coordinateSystemV2 !== 'pixel-intrinsic';
+  const hasAnyBoxes = (boxesV1 && boxesV1.length > 0) || (boxesV2 && boxesV2.length > 0);
+  const hasPlottableBoxes =
+    (boxesV1.length > 0 && v1Plottable) || (boxesV2.length > 0 && v2Plottable);
 
-  if (!hasValidAsset && !hasDimensions) {
+  // If there are boxes present, but neither version can be safely plotted, show truthful geometry unavailable state
+  if (hasAnyBoxes && !hasPlottableBoxes) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          minHeight: '140px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-surface)',
+          border: '1px dashed var(--border-hairline)',
+          borderRadius: '4px',
+          padding: '1rem',
+          textAlign: 'center',
+          gap: '0.35rem',
+        }}
+      >
+        <AlertCircle size={20} style={{ color: 'var(--amber)' }} />
+        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          Spatial Geometry Unavailable (Uncalibrated)
+        </div>
+        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', maxWidth: '300px', lineHeight: 1.4 }}>
+          Coordinates lack calibration metadata or reliable source-image dimensions for record {recordId.slice(0, 8)}. Exact bounding boxes cannot be plotted truthfully.
+        </div>
+        <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          Baseline (v1): {boxesV1.length} box{boxesV1.length === 1 ? '' : 'es'} ({coordSystemV1}) · Target (v2): {boxesV2.length} box{boxesV2.length === 1 ? '' : 'es'} ({coordSystemV2})
+        </div>
+      </div>
+    );
+  }
+
+  // If neither asset nor dimensions exist at all
+  if (!hasValidAsset && !dimsV1 && !dimsV2) {
     return (
       <div
         style={{
@@ -254,6 +347,8 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
       </div>
     );
   }
+
+  const activeDimsDisplay = dimsV2 || dimsV1;
 
   if (viewMode === 'overlay') {
     return (
@@ -299,7 +394,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
               textAlign: 'center',
             }}
           >
-            <span>Geometry projected onto source frame ({refDims?.width}×{refDims?.height}px)</span>
+            <span>Geometry projected onto source frame ({activeDimsDisplay?.width}×{activeDimsDisplay?.height}px)</span>
           </div>
         )}
 
@@ -314,7 +409,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
             pointerEvents: 'none',
           }}
         >
-          {refDims && (
+          {activeDimsDisplay && (
             <span
               style={{
                 fontSize: '0.58rem',
@@ -325,22 +420,37 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
                 color: 'var(--text-secondary)',
               }}
             >
-              {refDims.width}×{refDims.height}px
+              {activeDimsDisplay.width}×{activeDimsDisplay.height}px
             </span>
           )}
-          {(isLegacyV1 || isLegacyV2) && (
+          {boxesV1.length > 0 && !v1Plottable && (
             <span
               style={{
                 fontSize: '0.58rem',
                 fontFamily: 'var(--font-mono)',
                 padding: '1px 4px',
                 borderRadius: '2px',
-                background: 'rgba(217, 119, 6, 0.8)',
+                background: 'rgba(239, 68, 68, 0.85)',
                 color: '#fff',
               }}
-              title="One or more versions lack explicit coordinate system calibration metadata"
+              title="v1 coordinates lack calibration metadata and cannot be plotted"
             >
-              Legacy Coords
+              v1: {boxesV1.length} uncalibrated
+            </span>
+          )}
+          {boxesV2.length > 0 && !v2Plottable && (
+            <span
+              style={{
+                fontSize: '0.58rem',
+                fontFamily: 'var(--font-mono)',
+                padding: '1px 4px',
+                borderRadius: '2px',
+                background: 'rgba(239, 68, 68, 0.85)',
+                color: '#fff',
+              }}
+              title="v2 coordinates lack calibration metadata and cannot be plotted"
+            >
+              v2: {boxesV2.length} uncalibrated
             </span>
           )}
         </div>
@@ -398,7 +508,26 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
               Geometry only
             </div>
           )}
-          {renderBoxesLayer(boxesV1, true, 1.0)}
+          {boxesV1.length > 0 && !v1Plottable ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.55)',
+                padding: '0.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: '0.65rem', color: 'var(--amber)', fontWeight: 600 }}>Uncalibrated</span>
+              <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>{boxesV1.length} boxes hidden</span>
+            </div>
+          ) : (
+            renderBoxesLayer(boxesV1, true, 1.0)
+          )}
         </div>
       </div>
 
@@ -439,7 +568,26 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
               Geometry only
             </div>
           )}
-          {renderBoxesLayer(boxesV2, false, 1.0)}
+          {boxesV2.length > 0 && !v2Plottable ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.55)',
+                padding: '0.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: '0.65rem', color: 'var(--amber)', fontWeight: 600 }}>Uncalibrated</span>
+              <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>{boxesV2.length} boxes hidden</span>
+            </div>
+          ) : (
+            renderBoxesLayer(boxesV2, false, 1.0)
+          )}
         </div>
       </div>
     </div>
@@ -916,6 +1064,8 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                               imageDimensionsV1={item.image_dimensions_v1}
                               imageDimensionsV2={item.image_dimensions_v2}
                               assetDimensions={item.asset_dimensions}
+                              assetDimensionsV1={item.asset_dimensions_v1}
+                              assetDimensionsV2={item.asset_dimensions_v2}
                               viewMode={viewMode}
                               v1Opacity={v1LayerOpacity}
                               v2Opacity={v2LayerOpacity}

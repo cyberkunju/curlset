@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Magnet,
   Sparkles,
@@ -8,20 +8,21 @@ import {
   Layers,
   Move,
   Crosshair,
+  AlertCircle,
 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { magneticSnapBoxToEdges } from '../utils/magneticBoxSnap';
+import {
+  displayToSourceCoords,
+  sourceToDisplayBox,
+  identifyCoordinateSystem,
+  shouldPlotVersionGeometry,
+} from '../utils/coordinateContract';
+import type { BoundingBox } from '../utils/coordinateContract';
 
-export interface BoundingBox {
-  id?: string;
-  label: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  confidence?: number;
-}
+export type { BoundingBox };
+export { displayToSourceCoords, sourceToDisplayBox };
 
 export interface ObjectDetectionCanvasProps {
   imageUrl: string;
@@ -33,6 +34,7 @@ export interface ObjectDetectionCanvasProps {
   assetDimensions?: { width?: number; height?: number } | null;
   coordinateSystem?: string;
   onDimensionsLoaded?: (dims: { width: number; height: number }) => void;
+  onRecreateCalibrated?: () => void;
 }
 
 // Deterministic class color mapping palette
@@ -59,73 +61,6 @@ export function getClassColor(label: string, classes: string[]): string {
   return CLASS_COLORS[Math.abs(hash) % CLASS_COLORS.length];
 }
 
-/**
- * Pure coordinate transformation utilities for intrinsic canonical frames
- */
-export function displayToSourceCoords(
-  dispX: number,
-  dispY: number,
-  dispW: number,
-  dispH: number,
-  srcW: number,
-  srcH: number
-): { x: number; y: number } {
-  if (dispW <= 0 || dispH <= 0 || srcW <= 0 || srcH <= 0) {
-    return { x: Math.round(dispX), y: Math.round(dispY) };
-  }
-  const scaleX = srcW / dispW;
-  const scaleY = srcH / dispH;
-  return {
-    x: Math.max(0, Math.min(srcW, Math.round(dispX * scaleX))),
-    y: Math.max(0, Math.min(srcH, Math.round(dispY * scaleY))),
-  };
-}
-
-export function sourceToDisplayBox(
-  box: BoundingBox,
-  dispW: number,
-  dispH: number,
-  srcW: number,
-  srcH: number,
-  isNormalized = false
-): { left: string; top: string; width: string; height: string } {
-  if (isNormalized) {
-    const l = Math.max(0, Math.min(dispW, box.x * dispW));
-    const t = Math.max(0, Math.min(dispH, box.y * dispH));
-    const w = Math.max(2, Math.min(dispW - l, box.w * dispW));
-    const h = Math.max(2, Math.min(dispH - t, box.h * dispH));
-    return {
-      left: `${Math.round(l)}px`,
-      top: `${Math.round(t)}px`,
-      width: `${Math.round(w)}px`,
-      height: `${Math.round(h)}px`,
-    };
-  }
-
-  if (dispW <= 0 || dispH <= 0 || srcW <= 0 || srcH <= 0) {
-    return {
-      left: `${box.x}px`,
-      top: `${box.y}px`,
-      width: `${box.w}px`,
-      height: `${box.h}px`,
-    };
-  }
-
-  const scaleX = dispW / srcW;
-  const scaleY = dispH / srcH;
-  const l = Math.max(0, Math.min(dispW, box.x * scaleX));
-  const t = Math.max(0, Math.min(dispH, box.y * scaleY));
-  const w = Math.max(2, Math.min(dispW - l, box.w * scaleX));
-  const h = Math.max(2, Math.min(dispH - t, box.h * scaleY));
-
-  return {
-    left: `${Math.round(l)}px`,
-    top: `${Math.round(t)}px`,
-    width: `${Math.round(w)}px`,
-    height: `${Math.round(h)}px`,
-  };
-}
-
 export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   imageUrl,
   boxes,
@@ -136,6 +71,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   assetDimensions,
   coordinateSystem,
   onDimensionsLoaded,
+  onRecreateCalibrated,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -220,39 +156,11 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedBoxIndex, boxes, disabled]);
 
-  // Determine if boxes use normalized coordinates
-  const isNormalizedBox = useCallback(
-    (b: BoundingBox) => {
-      if (coordinateSystem === 'normalized') return true;
-      if (coordinateSystem === 'pixel-intrinsic') return false;
-      return b.x <= 1.0 && b.y <= 1.0 && b.w <= 1.0 && b.h <= 1.0 && (b.w > 0 || b.h > 0);
-    },
-    [coordinateSystem]
-  );
-
-  // Auto-calibrate legacy normalized boxes into canonical intrinsic pixel frame if natural dimensions exist
-  useEffect(() => {
-    if (!naturalDims || naturalDims.width <= 0 || naturalDims.height <= 0) return;
-    if (boxes.length === 0) return;
-
-    // Check if any boxes are normalized fractions that require calibration to canonical pixels
-    const hasNormalized = boxes.some((b) => isNormalizedBox(b));
-    if (hasNormalized && coordinateSystem !== 'pixel-intrinsic') {
-      const calibrated = boxes.map((b) => {
-        if (isNormalizedBox(b)) {
-          return {
-            ...b,
-            x: Math.round(b.x * naturalDims.width),
-            y: Math.round(b.y * naturalDims.height),
-            w: Math.round(b.w * naturalDims.width),
-            h: Math.round(b.h * naturalDims.height),
-          };
-        }
-        return b;
-      });
-      onChange(calibrated);
-    }
-  }, [naturalDims, boxes, isNormalizedBox, coordinateSystem, onChange]);
+  // Contract-driven calibration determination (Phase R5.2.1)
+  const coordSystemType = identifyCoordinateSystem(coordinateSystem, boxes);
+  const isLegacyUncalibrated = coordSystemType === 'uncalibrated-legacy';
+  const canPlotBoxes = shouldPlotVersionGeometry(coordinateSystem, boxes, naturalDims);
+  const isExplicitlyNormalized = coordinateSystem === 'normalized';
 
   // Read full-resolution image data from offscreen canvas for precision edge-snapping
   const getImageData = (): ImageData | null => {
@@ -291,7 +199,8 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (disabled) return;
+    // Lock drawing on uncalibrated historical annotations to prevent mixed coordinate systems
+    if (disabled || isLegacyUncalibrated) return;
     if (e.target !== containerRef.current && (e.target as HTMLElement).tagName !== 'IMG') {
       return;
     }
@@ -414,11 +323,6 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   const srcW = naturalDims?.width || dispW;
   const srcH = naturalDims?.height || dispH;
 
-  const isLegacyUncalibrated =
-    coordinateSystem !== 'pixel-intrinsic' &&
-    boxes.length > 0 &&
-    boxes.some((b) => !isNormalizedBox(b) && (b.x > 1.0 || b.y > 1.0));
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', height: '100%' }}>
       {/* Precision Smart Canvas Controls Toolbar */}
@@ -455,13 +359,13 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             </SpringButton>
           )}
 
-          {/* Canonical Coordinate System Status Pill */}
+          {/* Coordinate System Calibration Status Pill */}
           {naturalDims && (
             <span
               style={{
                 fontSize: '0.7rem',
                 fontFamily: 'var(--font-mono)',
-                color: isLegacyUncalibrated ? 'var(--amber)' : 'var(--emerald)',
+                color: isLegacyUncalibrated ? 'var(--amber)' : isExplicitlyNormalized ? 'var(--text-secondary)' : 'var(--emerald)',
                 background: isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
                 border: `1px solid ${isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
                 padding: '0.15rem 0.45rem',
@@ -469,11 +373,17 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
               }}
               title={
                 isLegacyUncalibrated
-                  ? 'Legacy coordinates: will be saved in canonical source-image pixel frame on next edit/save'
+                  ? 'Historical uncalibrated coordinates: exact placement uncertain, geometry not plotted'
+                  : isExplicitlyNormalized
+                  ? 'Normalized coordinates [0, 1]'
                   : 'Canonical frame: coordinates calibrated to source image resolution'
               }
             >
-              {isLegacyUncalibrated ? 'Legacy Uncalibrated' : `Source: ${srcW}×${srcH}px`}
+              {isLegacyUncalibrated
+                ? 'Legacy Uncalibrated'
+                : isExplicitlyNormalized
+                ? 'Normalized Space [0, 1]'
+                : `Source: ${srcW}×${srcH}px`}
             </span>
           )}
 
@@ -541,6 +451,44 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
         </div>
       </div>
 
+      {/* Uncalibrated Historical Annotation Disclosure Banner */}
+      {isLegacyUncalibrated && (
+        <div
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.4rem',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertCircle size={16} style={{ color: 'var(--amber)', flexShrink: 0 }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Uncalibrated Historical Annotation ({boxes.length} box{boxes.length === 1 ? '' : 'es'})
+              </span>
+            </div>
+            {onRecreateCalibrated && (
+              <SpringButton
+                variant="secondary"
+                size="sm"
+                onClick={onRecreateCalibrated}
+                style={{ fontSize: '0.725rem', borderColor: 'var(--amber)', color: 'var(--amber)' }}
+              >
+                Clear & Re-annotate (Calibrated)
+              </SpringButton>
+            )}
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            This historical annotation lacks coordinate-space metadata. Exact spatial placement cannot be determined reliably from source dimensions alone. Geometry is not plotted on the canvas to prevent misleading visual alignment. Drawing is locked to prevent mixing uncalibrated boxes with calibrated source pixels.
+          </div>
+        </div>
+      )}
+
       {/* Main Annotation Viewport Area */}
       <div
         style={{
@@ -567,7 +515,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             display: 'inline-block',
             userSelect: 'none',
             touchAction: 'none',
-            cursor: isDrawing ? 'crosshair' : isDraggingBox ? 'grabbing' : 'default',
+            cursor: isDrawing ? 'crosshair' : isDraggingBox ? 'grabbing' : isLegacyUncalibrated ? 'not-allowed' : 'default',
             borderRadius: 'var(--radius-sm)',
             transform: `scale(${zoom})`,
             transformOrigin: 'center center',
@@ -589,8 +537,9 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             }}
           />
 
-          {/* Render Existing Bounding Boxes Scaled into Canvas Frame */}
-          {dispW > 0 &&
+          {/* Render Existing Bounding Boxes Scaled into Canvas Frame (Only when verified calibrated) */}
+          {canPlotBoxes &&
+            dispW > 0 &&
             dispH > 0 &&
             boxes.map((box, idx) => {
               const isSelected = selectedBoxIndex === idx;
@@ -601,8 +550,9 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                 dispH,
                 srcW,
                 srcH,
-                isNormalizedBox(box)
+                isExplicitlyNormalized
               );
+              if (!style) return null;
 
               return (
                 <div
@@ -718,7 +668,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                     border: `1.5px solid ${isSelected ? classColor : 'var(--border-hairline)'}`,
                     fontSize: '0.78rem',
                     whiteSpace: 'nowrap',
-                    cursor: 'pointer',
+                    cursor: isLegacyUncalibrated ? 'default' : 'pointer',
                     flexShrink: 0,
                   }}
                 >
@@ -740,9 +690,26 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                     style={{ minWidth: '90px' }}
                     ariaLabel={`Class for box ${idx + 1}`}
                   />
-                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
-                    {box.w}×{box.h} px
-                  </span>
+                  {isLegacyUncalibrated ? (
+                    <span
+                      style={{
+                        color: 'var(--amber)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.68rem',
+                      }}
+                      title="Coordinates recorded without calibration metadata"
+                    >
+                      x:{box.x}, y:{box.y}, w:{box.w}, h:{box.h} (uncalibrated)
+                    </span>
+                  ) : isExplicitlyNormalized ? (
+                    <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+                      {Number(box.w).toFixed(3)}×{Number(box.h).toFixed(3)} (norm)
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+                      {box.w}×{box.h} px
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

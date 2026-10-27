@@ -409,7 +409,9 @@ class VersioningService:
                 asset_url = None
                 assets_1 = r1.get("assets", [])
                 assets_2 = r2.get("assets", [])
-                primary_asset = assets_2[0] if assets_2 else (assets_1[0] if assets_1 else None)
+                asset_1 = assets_1[0] if assets_1 else None
+                asset_2 = assets_2[0] if assets_2 else None
+                primary_asset = asset_2 if asset_2 else asset_1
                 if primary_asset and primary_asset.get("asset_id"):
                     asset_url = f"/api/v1/assets/{primary_asset.get('asset_id')}/file"
 
@@ -424,6 +426,8 @@ class VersioningService:
                     "coordinate_system_v2": p2.get("coordinate_system"),
                     "image_dimensions_v1": p1.get("image_dimensions"),
                     "image_dimensions_v2": p2.get("image_dimensions"),
+                    "asset_dimensions_v1": asset_1.get("dimensions") if asset_1 else None,
+                    "asset_dimensions_v2": asset_2.get("dimensions") if asset_2 else None,
                     "asset_dimensions": primary_asset.get("dimensions") if primary_asset else None,
                 })
 

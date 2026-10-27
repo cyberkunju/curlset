@@ -73,6 +73,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [confidence, setConfidence] = useState<number>(1.0);
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [canvasImageDims, setCanvasImageDims] = useState<{ width: number; height: number } | null>(null);
+  const [activeCoordSystem, setActiveCoordSystem] = useState<string | null>(null);
+  const [isNewlyRecreated, setIsNewlyRecreated] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
   const [transcriptText, setTranscriptText] = useState<string>('');
   const [transcriptSegments, setTranscriptSegments] = useState<
@@ -219,6 +221,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           setBoxes([]);
         }
         setCanvasImageDims(null);
+        setActiveCoordSystem(detail.annotation?.payload?.coordinate_system || null);
+        setIsNewlyRecreated(false);
 
         if (dataset.task_type === 'audio_transcription') {
           setTranscriptText(detail.annotation?.payload?.text || '');
@@ -234,6 +238,15 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     },
     [allowedClasses, dataset.task_type]
   );
+
+  // Recreate uncalibrated legacy annotation into verified intrinsic source pixels
+  const handleRecreateCalibrated = () => {
+    setBoxes([]);
+    setActiveCoordSystem('pixel-intrinsic');
+    setIsNewlyRecreated(true);
+    setIsDirty(true);
+    showToast('Cleared uncalibrated boxes. Canvas is now active in calibrated source-image frame.');
+  };
 
   useEffect(() => {
     if (selectedRecordId) {
@@ -283,13 +296,47 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         if (boxes.length > 0) {
           payload.label = boxes[0].label;
         }
-        payload.coordinate_system = 'pixel-intrinsic';
-        const dimsToSave = canvasImageDims || activeAsset?.dimensions;
-        if (dimsToSave?.width && dimsToSave?.height) {
-          payload.image_dimensions = {
-            width: dimsToSave.width,
-            height: dimsToSave.height,
-          };
+
+        const existingCoordSys = currentRecord?.annotation?.payload?.coordinate_system;
+        const isCalibratedIntrinsic =
+          activeCoordSystem === 'pixel-intrinsic' ||
+          existingCoordSys === 'pixel-intrinsic' ||
+          (isNewlyRecreated && (canvasImageDims || activeAsset?.dimensions)) ||
+          (boxes.length === 0 && (canvasImageDims || activeAsset?.dimensions));
+
+        if (isCalibratedIntrinsic) {
+          payload.coordinate_system = 'pixel-intrinsic';
+          const dimsToSave =
+            canvasImageDims ||
+            activeAsset?.dimensions ||
+            currentRecord?.annotation?.payload?.image_dimensions;
+          if (dimsToSave?.width && dimsToSave?.height) {
+            payload.image_dimensions = {
+              width: dimsToSave.width,
+              height: dimsToSave.height,
+            };
+          }
+        } else if (activeCoordSystem === 'normalized' || existingCoordSys === 'normalized') {
+          payload.coordinate_system = 'normalized';
+          const dimsToSave =
+            canvasImageDims ||
+            activeAsset?.dimensions ||
+            currentRecord?.annotation?.payload?.image_dimensions;
+          if (dimsToSave?.width && dimsToSave?.height) {
+            payload.image_dimensions = {
+              width: dimsToSave.width,
+              height: dimsToSave.height,
+            };
+          }
+        } else {
+          // Uncalibrated legacy annotation: preserve coordinate-space uncertainty
+          // Do not label the payload as calibrated and do not rewrite coordinates
+          if (existingCoordSys) {
+            payload.coordinate_system = existingCoordSys;
+          }
+          if (currentRecord?.annotation?.payload?.image_dimensions) {
+            payload.image_dimensions = currentRecord.annotation.payload.image_dimensions;
+          }
         }
       } else {
         payload.label = labelToSave;
@@ -940,8 +987,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       classes={allowedClasses}
                       selectedClass={selectedLabel || allowedClasses[0] || 'object'}
                       assetDimensions={activeAsset.dimensions}
-                      coordinateSystem={currentRecord?.annotation?.payload?.coordinate_system}
+                      coordinateSystem={activeCoordSystem || currentRecord?.annotation?.payload?.coordinate_system}
                       onDimensionsLoaded={(dims) => setCanvasImageDims(dims)}
+                      onRecreateCalibrated={handleRecreateCalibrated}
                       onChange={(newBoxes) => {
                         setBoxes(newBoxes);
                         setIsDirty(true);

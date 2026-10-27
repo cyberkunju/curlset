@@ -305,6 +305,16 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - **Automated Tests**: Added `tests/unit/test_coordinate_transforms.py` covering intrinsic 1:1, downscaling, wide/tall letterboxing, zoom scaling, resize invariance, legacy normalized coordinate detection, and COCO/YOLO exports.
 - **Exit Gate:** `npm run build` passed (0 errors); 113/113 pytest tests passed in 6.45s; ruff check passed (0 lint errors).
 
+#### Phase R5.2.1: Legacy Annotation Calibration Safety (COMPLETED)
+- **Objective:** Fix the legacy coordinate contract ensuring missing coordinate metadata is never treated as proof of intrinsic pixels, preventing mixed coordinate systems, securing the annotation save path against false calibration stamping, and isolating version-diff dimensions.
+- **Tasks Delivered:**
+  - **Contract Engine (`apps/web/src/utils/coordinateContract.ts`)**: Pure TypeScript calibration module defining `identifyCoordinateSystem`, `isCoordinateSystemCalibrated`, `shouldPlotVersionGeometry`, `displayToSourceCoords`, and `sourceToDisplayBox`. Gated geometry plotting strictly on explicit calibration contract (`'pixel-intrinsic'` with valid dimensions or `'normalized'`). Uncalibrated historical coordinates are never silently plotted or stamped as intrinsic.
+  - **Canvas Lock & Recreation Flow (`apps/web/src/components/ObjectDetectionCanvas.tsx`)**: Uncalibrated legacy annotations display an amber disclosure notice. Canvas drawing is locked to prevent corrupt mixed-coordinate payloads. An explicit `"Clear & Re-annotate (Calibrated)"` action enables users to safely transition records into the canonical intrinsic frame.
+  - **Save Path Integrity (`apps/web/src/components/AnnotationWorkspace.tsx`)**: Only writes `coordinate_system: 'pixel-intrinsic'` and image dimensions when geometry is demonstrably calibrated. Historical uncalibrated payloads preserve their uncertainty without fabricating dimensions or stamping false calibration labels.
+  - **Version Diff Calibration & Dimension Isolation (`apps/web/src/components/VersionDiffModal.tsx` & `packages/dataset_versioning/service.py`)**: Gated version diff geometry plotting on reliable calibration contracts. Independent resolution of V1 and V2 asset dimensions eliminates cross-version dimension leakage. Uncalibrated versions display truthful badges and fallback cards showing record and box counts.
+  - **Automated Verification**: Added `apps/web/tests/coordinate_contract.test.ts` (tested via `npm run test:coordinates`) and `TestLegacyCalibrationSafety` in `tests/unit/test_coordinate_transforms.py`.
+- **Exit Gate:** `npm run test:coordinates` passed; `npm run build` passed in 6.43s (0 errors); 116/116 pytest passed (8.15s); `ruff check .` passed (0 lint errors).
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**

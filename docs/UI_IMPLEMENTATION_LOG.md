@@ -780,6 +780,59 @@ Prior to R5.2, `ObjectDetectionCanvas.tsx` captured mouse pointer events and rec
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser subagent execution remains constrained by the offline sandbox environment (external browser download unavailable); verified through pure mathematical unit tests, static type checking, contract verification, and full test suite passes.
 
+---
+
+## 18. Phase R5.2.1 — Legacy Annotation Calibration Safety
+
+### 18.1 Problem Statement & Scope
+Phase R5.2 established the canonical coordinate system as intrinsic source-image pixels $[0, W_{src}] \times [0, H_{src}]$ with top-left origin $(0, 0)$. However, missing coordinate metadata in historical annotations was vulnerable to being misidentified as calibrated intrinsic pixels simply because an image loaded or display dimensions existed. Furthermore:
+1. Historical non-normalized boxes without explicit coordinate-system metadata must never be plotted as if they were calibrated, nor should current display scales be inferred onto them.
+2. Saving an uncalibrated historical annotation must not unconditionally write `coordinate_system: 'pixel-intrinsic'`, which would falsely stamp uncertain coordinates as calibrated.
+3. Drawing new intrinsic boxes on top of uncalibrated legacy boxes would produce corrupted, mixed-coordinate payloads.
+4. Version diffing must isolate Version 1 and Version 2 asset dimensions so that one version's dimensions are never used as proof of another version's dimensions.
+
+### 18.2 Architectural Changes & Deliverables Completed
+
+1. **Coordinate Contract Module (`apps/web/src/utils/coordinateContract.ts`):**
+   - Implemented strict pure functions:
+     - `identifyCoordinateSystem(declaredSystem, boxes)`: Returns `'pixel-intrinsic'`, `'normalized'`, `'uncalibrated-legacy'`, or `'unknown'`. Missing metadata with existing boxes is strictly identified as `'uncalibrated-legacy'`.
+     - `isCoordinateSystemCalibrated(declaredSystem, boxes)`: Returns `true` only if explicitly `'pixel-intrinsic'`, `'normalized'`, or if the box list is empty (safe to calibrate).
+     - `shouldPlotVersionGeometry(declaredSystem, boxes, dimensions)`: Enforces that non-normalized geometry without verified calibration metadata and valid dimensions cannot be plotted.
+     - `displayToSourceCoords` and `sourceToDisplayBox`: Pure mathematical transforms between canvas CSS display coordinates and canonical intrinsic pixels.
+
+2. **Canvas Calibration Protection & Explicit Recreation Flow (`apps/web/src/components/ObjectDetectionCanvas.tsx`):**
+   - **Gated Geometry Plotting:** Replaced heuristic checks with `canPlotBoxes = shouldPlotVersionGeometry(...)`. When coordinates are uncalibrated, boxes are withheld from rendering to prevent displaying false spatial geometry.
+   - **Uncalibrated Disclosure Banner:** Renders an accessible banner: `"Legacy Uncalibrated Coordinates: This record's annotations lack verified coordinate calibration metadata. Exact box geometry cannot be plotted accurately without historical viewport dimensions."`
+   - **Mixed-Coordinate Prevention:** Canvas drawing pointer events are locked when legacy uncalibrated boxes exist, preventing users from creating corrupted payloads containing both uncalibrated and intrinsic boxes.
+   - **Clear & Re-annotate Flow:** Added an explicit button `"Clear & Re-annotate (Calibrated)"` with clear explanation. Upon confirmation, legacy boxes are cleared, the coordinate frame is set to `'pixel-intrinsic'`, drawing is unlocked, and the canvas becomes fully calibrated.
+   - **HUD & Status Badge:** Truthfully displays `"Legacy Uncalibrated"` when viewing historical annotations, or `"Source: W×Hpx"` when calibrated.
+
+3. **Safe Annotation Persistence (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - Tracked `activeCoordSystem` and `isNewlyRecreated` state across record selection and re-annotation.
+   - In `handleSaveAnnotation`:
+     - Checks `isCalibratedIntrinsic = isCoordinateSystemCalibrated(currentRecord?.annotation?.payload?.coordinate_system, boxes) || isNewlyRecreated`.
+     - Only writes `coordinate_system: 'pixel-intrinsic'` and `image_dimensions` when geometry is demonstrably calibrated.
+     - When saving an uncalibrated historical annotation, preserves its uncertain state without writing false calibration metadata or fabricating dimensions.
+
+4. **Version Diff Integrity & Dimension Isolation (`apps/web/src/components/VersionDiffModal.tsx` & `packages/dataset_versioning/service.py`):**
+   - **Backend Dimension Isolation:** Updated `compute_version_diff` in `packages/dataset_versioning/service.py` to independently extract and transmit `asset_dimensions_v1` and `asset_dimensions_v2`.
+   - **No Cross-Version Fallback:** In `SpatialDiffViewer`, `dimsV1` and `dimsV2` resolve their reference dimensions completely independently. V1 dimensions never fall back to V2 dimensions, and V2 dimensions never fall back to V1 dimensions.
+   - **Contract-Gated Spatial Diff Viewer:** Computes `v1Plottable` and `v2Plottable` via `shouldPlotVersionGeometry`.
+   - **Truthful Geometry Unavailable State:** When coordinates cannot be plotted safely, displays a clear fallback card: `"Spatial Geometry Unavailable (Uncalibrated): Coordinates lack calibration metadata or reliable source-image dimensions for record... Exact bounding boxes cannot be plotted truthfully."` Displays exact box counts for both Baseline and Target versions.
+   - **Overlay & Side-by-Side Modes:** Displays clear uncalibrated badges (`"v1: N uncalibrated"`) and informative cards for any layer that lacks calibration, keeping calibrated layers visible.
+
+5. **Automated Verification:**
+   - Added `apps/web/tests/coordinate_contract.test.ts` (run via `npm run test:coordinates`): 8 pure TypeScript contract tests verifying identification, uncalibrated protection, dimension requirements, 1:1 and downscaled transforms, and boundary clamping.
+   - Added `TestLegacyCalibrationSafety` in `tests/unit/test_coordinate_transforms.py`: verifies version-diff dimension isolation, historical uncalibrated payload preservation, and COCO/YOLO export safety.
+
+### 18.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (8/8 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 errors, 6.43s).
+- **Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **116 passed, 0 failures** in 8.15s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification and behavior verified through pure TypeScript unit tests, static type checking, and integration test suites.
+
+
 
 
 

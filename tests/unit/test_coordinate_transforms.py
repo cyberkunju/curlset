@@ -299,3 +299,178 @@ class TestExportCoordinateConversions:
         parts = [float(p) for p in content.split()]
         # Full image box: center = (0.5, 0.5), w = 1.0, h = 1.0
         assert parts == [0, 0.5, 0.5, 1.0, 1.0]
+
+
+class TestLegacyCalibrationSafety:
+    """Phase R5.2.1: Legacy annotation calibration safety tests."""
+
+    def test_version_diff_preserves_isolated_version_asset_dimensions(self, monkeypatch):
+        """Version diff extracts and preserves independent asset dimensions for each version."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_iso_01",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 800, "height": 600},
+                            "boxes": [{"label": "box", "x": 100, "y": 100, "w": 200, "h": 200}],
+                        }
+                    },
+                    "assets": [
+                        {
+                            "asset_id": "ast_v1",
+                            "role": "primary_image",
+                            "dimensions": {"width": 800, "height": 600},
+                        }
+                    ],
+                }
+            ]
+        }
+
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_iso_01",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 1920, "height": 1080},
+                            "boxes": [{"label": "box", "x": 300, "y": 300, "w": 400, "h": 400}],
+                        }
+                    },
+                    "assets": [
+                        {
+                            "asset_id": "ast_v2",
+                            "role": "primary_image",
+                            "dimensions": {"width": 1920, "height": 1080},
+                        }
+                    ],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        def mock_get_version(session, vid):
+            return v1 if vid == "v1" else v2
+
+        def mock_get_manifest(session, vid):
+            return v1_manifest if vid == "v1" else v2_manifest
+
+        monkeypatch.setattr(VersioningService, "get_version", mock_get_version)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", mock_get_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        spatial_diffs = diff["spatial_diffs"]
+        assert len(spatial_diffs) == 1
+        item = spatial_diffs[0]
+
+        # Verify dimension isolation: V1 dimensions must be 800x600, V2 dimensions 1920x1080
+        assert item["image_dimensions_v1"] == {"width": 800, "height": 600}
+        assert item["image_dimensions_v2"] == {"width": 1920, "height": 1080}
+        assert item["asset_dimensions_v1"] == {"width": 800, "height": 600}
+        assert item["asset_dimensions_v2"] == {"width": 1920, "height": 1080}
+
+    def test_version_diff_uncalibrated_payload_preservation(self, monkeypatch):
+        """Historical annotations with missing coordinate metadata are not stamped as intrinsic."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_hist_01",
+                    "annotation": {
+                        "payload": {
+                            # No coordinate_system, no image_dimensions
+                            "boxes": [{"label": "legacy_box", "x": 150, "y": 200, "w": 100, "h": 80}],
+                        }
+                    },
+                    "assets": [],
+                }
+            ]
+        }
+
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_hist_01",
+                    "annotation": {
+                        "payload": {
+                            "coordinate_system": "pixel-intrinsic",
+                            "image_dimensions": {"width": 640, "height": 480},
+                            "boxes": [{"label": "new_box", "x": 200, "y": 250, "w": 120, "h": 90}],
+                        }
+                    },
+                    "assets": [],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        def mock_get_version(session, vid):
+            return v1 if vid == "v1" else v2
+
+        def mock_get_manifest(session, vid):
+            return v1_manifest if vid == "v1" else v2_manifest
+
+        monkeypatch.setattr(VersioningService, "get_version", mock_get_version)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", mock_get_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        spatial_diffs = diff["spatial_diffs"]
+        assert len(spatial_diffs) == 1
+        item = spatial_diffs[0]
+
+        # v1 must retain None coordinate_system and None dimensions
+        assert item["coordinate_system_v1"] is None
+        assert item["image_dimensions_v1"] is None
+        assert item["coordinate_system_v2"] == "pixel-intrinsic"
+        assert item["image_dimensions_v2"] == {"width": 640, "height": 480}
+
+    def test_coco_export_preserves_historical_payload_without_corruption(self):
+        """COCO export does not mutate or corrupt historical records lacking coordinate metadata."""
+        manifest = {
+            "dataset_name": "HistoricalCOCO",
+            "records": [
+                {
+                    "record_id": "rec_hist_coco",
+                    "annotation": {
+                        "payload": {
+                            "boxes": [{"label": "defect", "x": 50.0, "y": 60.0, "w": 70.0, "h": 80.0}]
+                        }
+                    },
+                    "assets": [],
+                }
+            ],
+        }
+
+        coco_data = json.loads(export_to_coco(manifest).decode("utf-8"))
+        assert len(coco_data["annotations"]) == 1
+        assert coco_data["annotations"][0]["bbox"] == [50.0, 60.0, 70.0, 80.0]
+        # Payload coordinate values remain intact
+        assert manifest["records"][0]["annotation"]["payload"].get("coordinate_system") is None
+
