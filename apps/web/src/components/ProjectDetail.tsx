@@ -1,11 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, ShieldCheck, Archive, Database, LayoutGrid, List, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  Plus,
+  ArrowLeft,
+  ShieldCheck,
+  Archive,
+  Database,
+  LayoutGrid,
+  List,
+  ChevronRight,
+  Search,
+  X,
+  Layers,
+  PenTool,
+} from 'lucide-react';
 import { archiveProject, fetchDatasets, fetchProject } from '../api';
-import { Dataset, Project } from '../types';
+import { Dataset, Project, TaskType } from '../types';
 import { CreateDatasetModal } from './CreateDatasetModal';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
+import { CustomSelect } from './ui/CustomSelect';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -27,6 +41,10 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [localSearch, setLocalSearch] = useState('');
+  const [selectedTaskType, setSelectedTaskType] = useState<string>('');
+
+  const effectiveSearch = searchQuery || localSearch;
 
   const loadData = async () => {
     setLoading(true);
@@ -76,12 +94,22 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
     }
   };
 
-  const filteredDatasets = datasets.filter((d) => {
-    const q = searchQuery.toLowerCase();
-    return d.name.toLowerCase().includes(q) || (d.description && d.description.toLowerCase().includes(q));
-  });
+  const uniqueTaskTypes = useMemo(() => {
+    return Array.from(new Set(datasets.map((d) => d.task_type)));
+  }, [datasets]);
 
-  const uniqueTaskTypes = Array.from(new Set(datasets.map((d) => d.task_type)));
+  const filteredDatasets = useMemo(() => {
+    return datasets.filter((d) => {
+      const q = effectiveSearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        d.name.toLowerCase().includes(q) ||
+        (d.description && d.description.toLowerCase().includes(q)) ||
+        d.id.toLowerCase().includes(q);
+      const matchesType = !selectedTaskType || d.task_type === selectedTaskType;
+      return matchesSearch && matchesType;
+    });
+  }, [datasets, effectiveSearch, selectedTaskType]);
 
   if (loading) {
     return (
@@ -106,12 +134,28 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
       {/* Project Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          marginBottom: '1.5rem',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ minWidth: 0, flex: '1 1 500px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+            <h1
+              style={{
+                fontSize: '1.55rem',
+                fontWeight: 700,
+                letterSpacing: '-0.025em',
+                color: 'var(--text-primary)',
+              }}
+            >
               {project.name}
             </h1>
             {project.is_archived ? (
@@ -119,68 +163,150 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
             ) : (
               <span className="badge badge-emerald">Active</span>
             )}
+            <span
+              style={{
+                fontSize: '0.74rem',
+                fontFamily: 'var(--font-mono)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-hairline)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              ID: {project.id.slice(0, 12)}...
+            </span>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '680px', lineHeight: 1.5 }}>
+
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', maxWidth: '720px', lineHeight: 1.5 }}>
             {project.description || 'No project description provided.'}
           </p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            <span>Project ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{project.id}</code></span>
+
+          <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
+            <span>Total Datasets: <strong style={{ color: 'var(--text-primary)' }}>{datasets.length}</strong></span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <SpringButton variant="secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quota Settings">
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <SpringButton variant="secondary" onClick={onBack} title="Return to projects overview">
+            <ArrowLeft size={15} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            <span>Projects</span>
+          </SpringButton>
+
+          <SpringButton variant="secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quotas">
             <ShieldCheck size={15} strokeWidth={1.75} style={{ marginRight: '4px' }} />
             <span>Governance & Quotas</span>
           </SpringButton>
+
           {!project.is_archived && (
             <SpringButton variant="secondary" onClick={handleArchive} title="Archive project">
               <Archive size={15} strokeWidth={1.75} style={{ marginRight: '4px' }} />
               <span>Archive</span>
             </SpringButton>
           )}
+
           <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
-            <Plus size={15} strokeWidth={2.2} style={{ marginRight: '4px' }} />
+            <Plus size={16} strokeWidth={2.2} style={{ marginRight: '4px' }} />
             <span>New Dataset</span>
           </SpringButton>
         </div>
       </div>
 
-      {/* Summary Chips */}
+      {/* Dataset Filter & Toolbar Bar */}
       <div
         style={{
           display: 'flex',
-          gap: '1rem',
           alignItems: 'center',
-          padding: '0.85rem 1.25rem',
+          justifyContent: 'space-between',
+          padding: '0.65rem 0.85rem',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-hairline)',
           borderRadius: 'var(--radius-md)',
-          marginBottom: '2rem',
-          fontSize: '0.85rem',
-          flexWrap: 'wrap',
           boxShadow: 'var(--shadow-sm)',
+          marginBottom: '1.25rem',
+          gap: '0.75rem',
+          flexWrap: 'wrap',
         }}
       >
-        <div>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>Total Datasets: </span>
-          <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{datasets.length}</strong>
+        {/* Search Input */}
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '180px' }}>
+          <Search
+            size={14}
+            strokeWidth={1.75}
+            style={{
+              position: 'absolute',
+              left: '0.65rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Search datasets in this project..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            style={{
+              width: '100%',
+              paddingLeft: '1.9rem',
+              paddingRight: localSearch ? '1.8rem' : '0.65rem',
+              height: '32px',
+              fontSize: '0.82rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-hairline)',
+              backgroundColor: 'var(--bg-elevated)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          {localSearch && (
+            <button
+              type="button"
+              onClick={() => setLocalSearch('')}
+              style={{
+                position: 'absolute',
+                right: '0.5rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                padding: '2px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              aria-label="Clear search"
+            >
+              <X size={13} strokeWidth={2} />
+            </button>
+          )}
         </div>
-        <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-hairline)' }} />
-        <div>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600 }}>Task Modalities: </span>
-          <strong style={{ color: 'var(--text-primary)' }}>{uniqueTaskTypes.length > 0 ? uniqueTaskTypes.join(', ') : 'None'}</strong>
-        </div>
-      </div>
 
-      {/* Datasets Section */}
-      <div style={{ marginTop: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
-            Project Datasets ({filteredDatasets.length})
-          </h2>
+        {/* Right Filter & View Mode Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          {/* Modality Filter */}
+          {uniqueTaskTypes.length > 0 && (
+            <CustomSelect
+              value={selectedTaskType}
+              onChange={(val) => setSelectedTaskType(val)}
+              options={[
+                { value: '', label: 'All Task Types' },
+                ...uniqueTaskTypes.map((t) => ({
+                  value: t,
+                  label: t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                })),
+              ]}
+              size="sm"
+              style={{ minWidth: '160px' }}
+              ariaLabel="Filter datasets by task type"
+            />
+          )}
 
+          {/* Grid vs Table View Mode */}
           <div
             style={{
               display: 'inline-flex',
@@ -191,6 +317,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
             }}
           >
             <button
+              type="button"
               onClick={() => setViewMode('grid')}
               style={{
                 background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent',
@@ -200,12 +327,16 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 cursor: 'pointer',
                 color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
                 boxShadow: viewMode === 'grid' ? 'var(--shadow-sm)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
               }}
               title="Card Grid View"
+              aria-label="Grid view"
             >
-              <LayoutGrid size={15} />
+              <LayoutGrid size={15} strokeWidth={1.75} />
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('table')}
               style={{
                 background: viewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
@@ -215,142 +346,234 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
                 cursor: 'pointer',
                 color: viewMode === 'table' ? 'var(--text-primary)' : 'var(--text-muted)',
                 boxShadow: viewMode === 'table' ? 'var(--shadow-sm)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
               }}
               title="Structured Table View"
+              aria-label="Table view"
             >
-              <List size={15} />
+              <List size={15} strokeWidth={1.75} />
             </button>
           </div>
         </div>
+      </div>
 
-        <TriStateView<Dataset[]>
-          skeletonName="project-datasets-grid"
-          loading={loading}
-          data={filteredDatasets}
-          isEmpty={(items) => items.length === 0}
-          boneyardFixture={
+      {/* Dataset Inventory Content */}
+      <TriStateView<Dataset[]>
+        skeletonName="project-datasets-grid"
+        loading={loading}
+        data={filteredDatasets}
+        isEmpty={(items) => items.length === 0}
+        emptyState={
+          <div className="empty-state">
+            <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+              <Database size={36} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <h3 className="empty-title">No datasets found</h3>
+            <p className="empty-desc">
+              {effectiveSearch || selectedTaskType
+                ? 'No datasets match your active filters. Try clearing the search or modality filter.'
+                : 'Create your first dataset to start ingesting media assets, configuring label schemas, and running annotation.'}
+            </p>
+            {effectiveSearch || selectedTaskType ? (
+              <SpringButton
+                variant="secondary"
+                onClick={() => {
+                  setLocalSearch('');
+                  setSelectedTaskType('');
+                }}
+              >
+                <span>Reset Filters</span>
+              </SpringButton>
+            ) : (
+              <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
+                <Plus size={15} strokeWidth={2} style={{ marginRight: '5px' }} />
+                <span>Create First Dataset</span>
+              </SpringButton>
+            )}
+          </div>
+        }
+      >
+        {(items) =>
+          viewMode === 'grid' ? (
             <div className="cards-grid">
-              {[1, 2, 3].map((n) => (
+              {items.map((ds) => (
                 <div
-                  key={n}
+                  key={ds.id}
+                  className="card"
+                  onClick={() => onSelectDataset(ds.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectDataset(ds.id);
+                    }
+                  }}
                   style={{
-                    height: '140px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-hairline)',
-                    padding: '1.25rem',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
+                    minHeight: '150px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                  <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                        <Database size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
+                        <h3 className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ds.name}
+                        </h3>
+                      </div>
+                      <span className="badge badge-neutral" style={{ flexShrink: 0 }}>v{ds.schema_version}</span>
+                    </div>
+
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      {getTaskBadge(ds.task_type)}
+                    </div>
+
+                    <p
+                      className="card-desc"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        fontSize: '0.82rem',
+                        lineHeight: 1.45,
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {ds.description || 'No description provided.'}
+                    </p>
+                  </div>
+
+                  <div className="card-footer" style={{ marginTop: '0.85rem', paddingTop: '0.65rem' }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.74rem',
+                        color: 'var(--text-muted)',
+                        backgroundColor: 'var(--bg-elevated)',
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-hairline)',
+                      }}
+                    >
+                      {ds.id.slice(0, 8)}...
+                    </span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <span>{new Date(ds.created_at).toLocaleDateString()}</span>
+                      <ChevronRight size={13} strokeWidth={1.75} />
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
-          }
-          emptyState={
-            <div className="empty-state">
-              <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
-                <Database size={36} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
-              </div>
-              <h3 className="empty-title">No datasets found</h3>
-              <p className="empty-desc">
-                {searchQuery
-                  ? `No datasets match "${searchQuery}".`
-                  : 'This project currently has no datasets. Create your first dataset to start importing and labeling data.'}
-              </p>
-              {!searchQuery && (
-                <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
-                  <Plus size={15} strokeWidth={2} style={{ marginRight: '4px' }} />
-                  <span>Create First Dataset</span>
-                </SpringButton>
-              )}
-            </div>
-          }
-        >
-          {(items) =>
-            viewMode === 'grid' ? (
-              <div className="cards-grid">
-                {items.map((ds) => (
-                  <div key={ds.id} className="card" onClick={() => onSelectDataset(ds.id)}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem' }}>
-                      <h3 className="card-title">{ds.name}</h3>
-                      {getTaskBadge(ds.task_type)}
-                    </div>
-                    <p className="card-desc">{ds.description || 'No description provided.'}</p>
-                    <div className="card-footer">
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{ds.id}</span>
-                      <span className="badge badge-neutral">v{ds.schema_version}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="data-table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Dataset Name & Description</th>
-                      <th>Task Modality</th>
-                      <th>Schema</th>
-                      <th>Identifier</th>
-                      <th>Created</th>
-                      <th style={{ textAlign: 'right' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((ds) => (
-                      <tr key={ds.id} onClick={() => onSelectDataset(ds.id)}>
-                        <td>
+          ) : (
+            <div className="data-table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Dataset Name & Description</th>
+                    <th>Task Type</th>
+                    <th>Schema</th>
+                    <th>Created</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((ds) => (
+                    <tr
+                      key={ds.id}
+                      onClick={() => onSelectDataset(ds.id)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectDataset(ds.id);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <Database size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ds.name}</div>
-                          {ds.description && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              {ds.description}
-                            </div>
-                          )}
-                        </td>
-                        <td>{getTaskBadge(ds.task_type)}</td>
-                        <td>
-                          <span className="badge badge-neutral">v{ds.schema_version}</span>
-                        </td>
-                        <td>
-                          <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            {ds.id}
-                          </code>
-                        </td>
-                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {new Date(ds.created_at).toLocaleDateString()}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-interactive)' }}>
-                            <span>Open</span>
-                            <ChevronRight size={14} />
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          }
-        </TriStateView>
-      </div>
+                        </div>
+                        {ds.description && (
+                          <div
+                            style={{
+                              fontSize: '0.8rem',
+                              color: 'var(--text-secondary)',
+                              marginTop: '2px',
+                              maxWidth: '420px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {ds.description}
+                          </div>
+                        )}
+                      </td>
+                      <td>{getTaskBadge(ds.task_type)}</td>
+                      <td>
+                        <code
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.78rem',
+                            color: 'var(--text-muted)',
+                            backgroundColor: 'var(--bg-elevated)',
+                            padding: '0.15rem 0.4rem',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-hairline)',
+                          }}
+                        >
+                          v{ds.schema_version}
+                        </code>
+                      </td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(ds.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            color: 'var(--accent-interactive)',
+                          }}
+                        >
+                          <span>Explore</span>
+                          <ChevronRight size={14} strokeWidth={2} />
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </TriStateView>
 
+      {/* Modals */}
       <CreateDatasetModal
         projectId={projectId}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onCreated={(newDs) => {
+        onCreated={(dataset) => {
           setIsModalOpen(false);
-          setDatasets([newDs, ...datasets]);
-          onSelectDataset(newDs.id);
+          setDatasets((prev) => [dataset, ...prev]);
         }}
       />
 
-      {isSettingsOpen && (
+      {isSettingsOpen && project && (
         <ProjectSettingsModal
           project={project}
           onClose={() => setIsSettingsOpen(false)}

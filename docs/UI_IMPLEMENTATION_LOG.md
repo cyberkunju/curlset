@@ -368,6 +368,53 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
   - Tablet (768×1024): 64px compact rail auto-enabled, expanded breadcrumb space, 2-column lifecycle cards.
   - Mobile (390×844): Slide-out drawer with backdrop, 34px compact search icon button, single-column responsive lifecycle cards.
 
+---
 
+## 10. Phase R3: Projects & Dataset Management Redesign
 
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
 
+### 10.1 Work Delivered
+
+1. **Projects Overview Redesign (`apps/web/src/components/ProjectList.tsx`):**
+   - **Summary Metrics Bar**: Accurately computes and surfaces Total Projects, Active Projects, and Archived Projects from real loaded project data.
+   - **Refined Filter & Action Bar**: Integrated real-time search input with clear button, sorting dropdown (`Newest First`, `Oldest First`, `Name (A-Z)`), archive toggle (`Include Archived`), view toggle (Grid / Table), and primary "New Project" action button.
+   - **Semantic Table View**: Genuine HTML `<table>` with columns for Project Name & Identifier, Description, Creation Date, Status (`Active` / `Archived`), and direct row actions (`Open`, `Archive`).
+   - **Compact Grid View**: Balanced card heights, consistent typography, status badges, and deliberate hover/focus states without decorative fluff.
+   - **Filtered & Empty States**: Clean feedback when search yields no matches, with 1-click "Reset All Filters" CTA.
+
+2. **Project Details & Dataset Inventory (`apps/web/src/components/ProjectDetail.tsx`):**
+   - **Structured Workspace Header**: Clear project name and identifier display, status badge, creation date, and action grouping (New Dataset, Governance & Quotas, Archive toggle).
+   - **Dataset Inventory Toolbar**: Real-time search filter, task-type filter dropdown (Object Detection, Text Classification, Speech, etc.), and Table/Grid view toggle.
+   - **Dataset Cards & Table Presentation**: Shows genuine task type, schema version, creation timestamp, and direct "Explore" and "Settings" actions.
+   - **Clean Modals Integration**: Properly connected `ProjectSettingsModal` and `CreateDatasetModal` without accidental route propagation.
+
+3. **Dataset Details & Records Explorer (`apps/web/src/components/DatasetDetail.tsx`):**
+   - **Layout Inversion**: Refactored the oversized 5-stage lifecycle section (~700px height) into a sleek 5-stage compact pipeline dock (<90px height), placing the **Records Explorer front and center**.
+   - **12 Preserved Modal Workflows**: Preserved 100% of modal triggers and event handlers:
+     - Stage 01: Ingestion & Sources (Import Media, Sources & Rights)
+     - Stage 02: Annotation & AI (Annotation Workbench, AI Auto-Label)
+     - Stage 03: Quality & Invariants (Quality Checks, Spatial Augmentation, Synthetic Generation)
+     - Stage 04: Versioning & Diff (Snapshots, Visual Git-Diff, 2D Cluster Map, Model Evaluation)
+     - Stage 05: Framework Exports (Export Presets & Token Simulator)
+   - **Real-Time Metrics Ribbon**: Sits compactly below the header, displaying Total Records, Approved (emerald), Pending Review (blue), Needs Correction (amber), Rejected (rose), and an inline progress bar showing exact review percentage.
+   - **Collapsible Schema & Guidelines Drawer**: Toggled via header button to access configured classes and annotation instructions without taking permanent vertical space.
+   - **Primary Records Explorer**:
+     - Split filtering via `CustomSelect` (`All Splits`, `Train`, `Val`, `Test`, `Unassigned`).
+     - Review status filtering via `CustomSelect` (`All Statuses`, `Unannotated`, `Pending Review`, `Approved`, `Needs Correction`, `Rejected`).
+     - Real-time client-side search across record keys, IDs, filenames, and payload texts/labels.
+     - Semantic Table View and Grid View with instant toggle.
+     - Full pagination with record range indicator (`Showing 1–20 of X records`) and Previous/Next buttons.
+     - Direct "Annotate" trigger on each record row launching the `AnnotationWorkspace`.
+
+4. **Design System & CSS Extensions (`apps/web/src/index.css`):**
+   - Added `.lifecycle-dock` and `.lifecycle-stage` responsive grid utilities.
+   - Added `.record-grid` and `.record-card` styles for grid preview mode.
+   - Added `.records-pagination` controls layout with proper border and typography tokens.
+
+### 10.2 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 8.06s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 8.34s.
+- **Copy & Tone Verification**: Zero promotional puffery or marketing buzzwords; strictly neutral developer-tool tone.
+- **Responsive Inspection**: Grid columns adapt from 5 to 1 across viewports; tables provide horizontal overflow scrolling; toolbars wrap cleanly on tablet and mobile viewports.

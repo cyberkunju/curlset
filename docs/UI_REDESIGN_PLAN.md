@@ -220,7 +220,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 | **R0** | **Repository & UI Coverage Audit** | **COMPLETE** | `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`, 0 build/test regressions. |
 | **R1** | **Design System & Global Icon Standardization** | **COMPLETE** | `<ModalShell>`, standardized CSS backdrop & form tokens, 0 raw emojis/ad-hoc glyphs, `CreateProjectModal` & `CreateDatasetModal` migrated, 0 build/test regressions. |
 | **R2** | **Application Shell & Landing Page** | **COMPLETE** | Responsive sidebar rail (64px) & mobile drawer, `CommandPalette` (`Cmd+K`/`Ctrl+K`), rich breadcrumbs with real project/dataset data, tightened landing page with quick-start summary. |
-| **R3** | **Projects & Dataset Management** | PENDING AUTHORIZATION | Compact table/grid views, split distribution meters, quick-action menus. |
+| **R3** | **Projects & Dataset Management** | **COMPLETE** | ProjectList metrics & semantic table/grid views, ProjectDetail dataset inventory with task-type filtering, DatasetDetail layout inversion (compact 5-stage pipeline dock + primary Records Explorer with review status/split filtering & pagination). |
 | **R4** | **Annotation Workbench (Modality Workspaces)** | PENDING AUTHORIZATION | Modality-tailored canvases (Object Detection, Text Spans, Audio Waveform scrubber), hotkey inspector drawer. |
 | **R5** | **Generation, Quality, Versioning & Exports** | PENDING AUTHORIZATION | High-density quality scorecard, synthetic data diff preview, visual Git-diff canvas overlay, preset export simulator. |
 | **R6** | **Governance, Diagnostics, Settings & Modals** | PENDING AUTHORIZATION | Standardized modal containers, audit log table filtering, real-time health telemetry console. |
@@ -253,13 +253,15 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - Redesigned `LandingPage.tsx` with tightened hero padding, real quick-start workflow bar, and compact 5-stage lifecycle engineering cards.
 - **Exit Gate:** `npm run build` passed in 11.84s (0 errors); 104/104 backend tests passed in 11.19s; responsive rules verified.
 
-#### Phase R3: Projects & Dataset Management
+#### Phase R3: Projects & Dataset Management (COMPLETED)
 - **Objective:** Elevate project and dataset discovery into dense, professional developer views.
-- **Tasks:**
-  - In `ProjectList.tsx`: Add view toggle (Cards vs Dense Table), project summary metrics, and task type filters.
-  - In `ProjectDetail.tsx`: Restructure dataset inventory into a structured tabular list with split distribution meters (`train`/`val`/`test`) and quick-launch action buttons.
-  - In `DatasetDetail.tsx`: Replace heavy vertical stage cards with a compact lifecycle action bar or tabbed toolbar so records take primary focus; add tokenized filter pills.
-- **Exit Gate:** Projects and datasets list, filter, and navigate seamlessly with clear data density and zero layout clipping.
+- **Tasks Delivered:**
+  - `ProjectList.tsx`: Added summary metrics bar (Total, Active, Archived from real data), real-time search filter with clear action, sorting dropdown (`Newest First`, `Oldest First`, `Name (A-Z)`), archive toggle (`Include Archived`), view toggle (Grid / Table), genuine semantic HTML `<table>`, and compact, balanced grid cards.
+  - `ProjectDetail.tsx`: Redesigned workspace header with project status, creation timestamp, and direct action triggers (New Dataset, Governance & Quotas, Archive toggle). Added dataset inventory with search, task-type filter dropdown, and grid/table toggle. Fixed modal invocation for `ProjectSettingsModal`.
+  - `DatasetDetail.tsx`: Executed **Layout Inversion**, compacting the oversized ~700px 5-stage lifecycle section into a sleek 5-stage pipeline dock (<90px height) and placing the **Records Explorer front and center**. Wired real-time metrics ribbon (Total, Approved, Pending, Needs Correction, Rejected) with inline review progress bar. Added collapsible schema & guidelines drawer. Implemented live split filtering (`All Splits`, `Train`, `Val`, `Test`, `Unassigned`), review status filtering (`All Statuses`, `Unannotated`, `Pending Review`, `Approved`, `Needs Correction`, `Rejected`), client-side text search across records, genuine table/grid views, pagination controls, and 1-click direct "Annotate" triggers per record.
+  - Preserved all 12 dataset modal workflows with 100% existing wiring.
+- **Exit Gate:** `npm run build` passed in 8.06s (0 errors); 104/104 pytest tests passed in 8.34s; zero promotional puffery; zero layout clipping across viewports.
+
 
 #### Phase R4: Annotation Workbench (Modality Workspaces)
 - **Objective:** Transform `AnnotationWorkspace.tsx` into a high-performance, modality-tailored labeling environment.

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   ArrowLeft,
   HardDrive,
@@ -13,9 +13,26 @@ import {
   Database,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  X,
+  LayoutGrid,
+  List,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  XCircle,
+  HelpCircle,
+  Sparkles,
+  RefreshCw,
+  Copy,
+  Check,
+  Layers,
 } from 'lucide-react';
 import { fetchDatasetDetail, fetchDatasetQueue } from '../api';
-import { DatasetDetailResponse } from '../types';
+import { DatasetDetailResponse, RecordQueueItem } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { AIAnnotationModal } from './AIAnnotationModal';
 import { ImportModal } from './ImportModal';
@@ -36,6 +53,8 @@ interface DatasetDetailProps {
   onBack: () => void;
 }
 
+const PAGE_SIZE = 20;
+
 export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack }) => {
   const [data, setData] = useState<DatasetDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,10 +74,20 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isDiffOpen, setIsDiffOpen] = useState(false);
   const [isClusterMapOpen, setIsClusterMapOpen] = useState(false);
 
+  // Collapsible guidelines panel state
+  const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+
   // Live Records Preview Explorer state
-  const [sampleRecords, setSampleRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<RecordQueueItem[]>([]);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   const [recordsLoading, setRecordsLoading] = useState(false);
-  const [sampleSplit, setSampleSplit] = useState<string>('');
+  const [recordsError, setRecordsError] = useState<string | null>(null);
+  const [splitFilter, setSplitFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [page, setPage] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   const loadData = async () => {
     setLoading(true);
@@ -73,13 +102,22 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     }
   };
 
-  const loadSampleRecords = async () => {
+  const loadRecords = async (targetPage = page, split = splitFilter, status = statusFilter) => {
     setRecordsLoading(true);
+    setRecordsError(null);
     try {
-      const q = await fetchDatasetQueue(datasetId, sampleSplit || undefined, undefined, 10, 0);
-      setSampleRecords(q.items);
-    } catch (err) {
-      console.error('Failed to load sample records:', err);
+      const q = await fetchDatasetQueue(
+        datasetId,
+        split || undefined,
+        status || undefined,
+        PAGE_SIZE,
+        targetPage * PAGE_SIZE
+      );
+      setRecords(q.items || []);
+      setTotalRecords(q.total || 0);
+    } catch (err: any) {
+      console.error('Failed to load dataset records:', err);
+      setRecordsError(err.message || 'Failed to load records');
     } finally {
       setRecordsLoading(false);
     }
@@ -87,8 +125,54 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
 
   useEffect(() => {
     loadData();
-    loadSampleRecords();
-  }, [datasetId, sampleSplit]);
+  }, [datasetId]);
+
+  useEffect(() => {
+    loadRecords(page, splitFilter, statusFilter);
+  }, [datasetId, page, splitFilter, statusFilter]);
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const handleSplitChange = (val: string) => {
+    setSplitFilter(val);
+    setPage(0);
+  };
+
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val);
+    setPage(0);
+  };
+
+  const handleResetFilters = () => {
+    setSplitFilter('');
+    setStatusFilter('');
+    setSearchQuery('');
+    setPage(0);
+  };
+
+  // Filter records client-side by search query
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery.trim()) return records;
+    const q = searchQuery.toLowerCase().trim();
+    return records.filter((rec) => {
+      const idMatch = rec.id.toLowerCase().includes(q);
+      const keyMatch = rec.external_key ? rec.external_key.toLowerCase().includes(q) : false;
+      const labelMatch = rec.annotation_payload?.label
+        ? String(rec.annotation_payload.label).toLowerCase().includes(q)
+        : false;
+      const textMatch = rec.annotation_payload?.text
+        ? String(rec.annotation_payload.text).toLowerCase().includes(q)
+        : false;
+      const fileMatch = rec.primary_asset?.original_filename
+        ? rec.primary_asset.original_filename.toLowerCase().includes(q)
+        : false;
+      return idMatch || keyMatch || labelMatch || textMatch || fileMatch;
+    });
+  }, [records, searchQuery]);
 
   if (loading) {
     return (
@@ -117,6 +201,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
 
   const reviewedCount = stats.approved + stats.needs_correction;
   const reviewPct = stats.total_records > 0 ? Math.round((reviewedCount / stats.total_records) * 100) : 0;
+  const totalPages = Math.ceil(totalRecords / PAGE_SIZE) || 1;
 
   if (isWorkspaceOpen) {
     return (
@@ -125,6 +210,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         onBack={() => {
           setIsWorkspaceOpen(false);
           loadData();
+          loadRecords(page, splitFilter, statusFilter);
         }}
       />
     );
@@ -132,350 +218,586 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
+      {/* Breadcrumb & Navigation Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.4rem' }}>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={onBack}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+              title="Return to Project"
+            >
+              <ArrowLeft size={16} />
+              <span>Project</span>
+            </button>
+            <span style={{ color: 'var(--text-muted)' }}>/</span>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)', margin: 0 }}>
               {dataset.name}
             </h1>
             <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
             <span className="badge badge-neutral">Schema v{dataset.schema_version}</span>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '720px', lineHeight: 1.5 }}>
-            {dataset.description || 'No dataset description provided.'}
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            <span>Dataset ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{dataset.id}</code></span>
-            <span>Created: {new Date(dataset.created_at).toLocaleDateString()}</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <span>
+              ID:{' '}
+              <button
+                onClick={() => handleCopyId(dataset.id)}
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: '3px',
+                  padding: '0.1rem 0.4rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}
+                title="Click to copy full ID"
+              >
+                {copiedId ? <Check size={11} style={{ color: 'var(--emerald)' }} /> : <Copy size={11} />}
+                <span>{dataset.id.slice(0, 8)}...</span>
+              </button>
+            </span>
+            <span>Created {new Date(dataset.created_at).toLocaleDateString()}</span>
+            {dataset.description && (
+              <span style={{ color: 'var(--text-secondary)' }}>• {dataset.description}</span>
+            )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-          <SpringButton variant="secondary" onClick={onBack}>
-            <ArrowLeft size={15} style={{ marginRight: '4px' }} />
-            <span>Back</span>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <SpringButton
+            variant="secondary"
+            onClick={() => setIsGuidelinesOpen(!isGuidelinesOpen)}
+            style={{ fontSize: '0.85rem' }}
+          >
+            <Tag size={15} strokeWidth={1.75} style={{ marginRight: '5px' }} />
+            <span>Schema & Classes ({labels.length})</span>
+            {isGuidelinesOpen ? (
+              <ChevronUp size={14} style={{ marginLeft: '4px' }} />
+            ) : (
+              <ChevronDown size={14} style={{ marginLeft: '4px' }} />
+            )}
           </SpringButton>
-          <SpringButton variant="primary" onClick={() => setIsWorkspaceOpen(true)}>
-            <PenTool size={15} style={{ marginRight: '6px' }} />
+
+          <SpringButton
+            variant="primary"
+            onClick={() => setIsWorkspaceOpen(true)}
+            style={{ fontSize: '0.875rem' }}
+          >
+            <PenTool size={15} strokeWidth={1.75} style={{ marginRight: '6px' }} />
             <span>Launch Annotation Workbench</span>
           </SpringButton>
         </div>
       </div>
 
-      {/* Real-Time Annotation Metrics Grid */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          Real-Time Annotation Metrics
-        </h2>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <span className="stat-value">{stats.total_records}</span>
-            <span className="stat-label">Total Records</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-value" style={{ color: 'var(--emerald)' }}>{stats.approved}</span>
-            <span className="stat-label">Approved (Verified)</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-value" style={{ color: 'var(--accent-interactive)' }}>{stats.pending_review}</span>
-            <span className="stat-label">Pending Review</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-value" style={{ color: 'var(--amber)' }}>{stats.needs_correction}</span>
-            <span className="stat-label">Needs Correction</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-value" style={{ color: 'var(--rose)' }}>{stats.rejected}</span>
-            <span className="stat-label">Rejected</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Two Column Layout for Labels & Guidelines */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
-        <div className="card" style={{ cursor: 'default' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-primary)' }}>
-            <Tag size={16} strokeWidth={1.75} />
-            <span>Configured Classes ({labels.length})</span>
-          </h3>
-          {labels.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No classes defined in schema.</p>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-              {labels.map((lbl: string, idx: number) => (
-                <span key={idx} className="badge badge-blue" style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}>
-                  {lbl}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card" style={{ cursor: 'default' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-primary)' }}>
-            <FileText size={16} strokeWidth={1.75} />
-            <span>Annotation Guidelines</span>
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.55', whiteSpace: 'pre-wrap' }}>
-            {dataset.annotation_instructions || 'No special annotation guidelines specified. Annotators should apply standard labeling criteria.'}
-          </p>
-        </div>
-      </div>
-
-      {/* 5-Stage Dataset Engineering Pipeline Section */}
-      <div style={{ marginBottom: '3rem' }}>
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Dataset Engineering Lifecycle Hub
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Step through the 5 structured engineering stages with real-time pipeline status.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {/* Stage 1 */}
-          <div className="pipeline-stage-card">
-            <div>
-              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pipeline-stage-num">01</span>
-                  <HardDrive size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ingestion & Sources</h3>
-                </div>
-                {stats.total_records > 0 ? (
-                  <span className="badge badge-emerald">{stats.total_records} Ingested</span>
-                ) : (
-                  <span className="badge badge-amber">No Records</span>
-                )}
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Import local files, ZIP archives, URL feeds with SSRF defense, and document source rights & license attribution.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <SpringButton variant="primary" onClick={() => setIsImportOpen(true)}>
-                <span>Import Media</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsSourcesOpen(true)}>
-                <span>Sources & Rights</span>
-              </SpringButton>
-            </div>
-          </div>
-
-          {/* Stage 2 */}
-          <div className="pipeline-stage-card">
-            <div>
-              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pipeline-stage-num">02</span>
-                  <PenTool size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Annotation & AI</h3>
-                </div>
-                <span className="badge badge-blue">{reviewPct}% Reviewed</span>
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                Label bounding boxes with <strong>Sobel magnetic edge-snap</strong>, transcribe audio, or run local Ollama auto-labeling.
-              </p>
-              <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                  <span>Human/Model Reviewed</span>
-                  <span>{reviewedCount}/{stats.total_records} records</span>
-                </div>
-                <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${reviewPct}%` }} />
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <SpringButton variant="primary" onClick={() => setIsWorkspaceOpen(true)}>
-                <span>Open Workbench</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsAIOpen(true)}>
-                <Bot size={14} style={{ marginRight: '4px' }} />
-                <span>AI Auto-Label</span>
-              </SpringButton>
-            </div>
-          </div>
-
-          {/* Stage 3 */}
-          <div className="pipeline-stage-card">
-            <div>
-              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pipeline-stage-num">03</span>
-                  <FileCheck2 size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Quality & Invariants</h3>
-                </div>
-                {stats.rejected > 0 ? (
-                  <span className="badge badge-rose">{stats.rejected} Flagged</span>
-                ) : (
-                  <span className="badge badge-emerald">Invariants Healthy</span>
-                )}
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Detect train/val split leakage, apply geometry-aware spatial transforms, and generate diverse synthetic samples.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <SpringButton variant="secondary" onClick={() => setIsQualityOpen(true)}>
-                <span>Quality Checks</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsAugmentationOpen(true)}>
-                <span>Spatial Augment</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsSynthesisOpen(true)}>
-                <span>Synthesize Data</span>
-              </SpringButton>
-            </div>
-          </div>
-
-          {/* Stage 4 */}
-          <div className="pipeline-stage-card">
-            <div>
-              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pipeline-stage-num">04</span>
-                  <GitCompare size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Versioning & Diff</h3>
-                </div>
-                {stats.approved > 0 ? (
-                  <span className="badge badge-emerald">{stats.approved} Verified</span>
-                ) : (
-                  <span className="badge badge-neutral">Draft State</span>
-                )}
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Publish frozen SHA-256 manifests, compare visual bounding-box deltas ($v_1$ vs $v_2$), and evaluate baseline models.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <SpringButton variant="secondary" onClick={() => setIsVersionsOpen(true)}>
-                <span>Snapshots</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsDiffOpen(true)}>
-                <span>Visual Git-Diff</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsClusterMapOpen(true)}>
-                <span>2D Cluster Map</span>
-              </SpringButton>
-              <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)}>
-                <span>Evaluation</span>
-              </SpringButton>
-            </div>
-          </div>
-
-          {/* Stage 5 */}
-          <div className="pipeline-stage-card" style={{ borderLeft: '3px solid var(--accent-primary)' }}>
-            <div>
-              <div className="pipeline-stage-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <span className="pipeline-stage-num">05</span>
-                  <Download size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Framework Exports</h3>
-                </div>
-                {stats.approved > 0 ? (
-                  <span className="badge badge-blue">Ready for Export</span>
-                ) : (
-                  <span className="badge badge-neutral">Requires Approvals</span>
-                )}
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Export 1-click bundles for Unsloth, Axolotl, LLaMA-Factory, or Ultralytics YOLO with live multimodal token simulation.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <SpringButton variant="primary" onClick={() => setIsExportOpen(true)}>
-                <span>Export Presets & Simulator</span>
-              </SpringButton>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Dataset Records Explorer Table */}
-      <div style={{ marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+      {/* Collapsible Schema & Annotation Guidelines Drawer */}
+      {isGuidelinesOpen && (
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1.25rem',
+            marginBottom: '1.25rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Database size={18} style={{ color: 'var(--accent-interactive)' }} /> Dataset Records Explorer
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
+              <Tag size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
+              <span>Configured Classes ({labels.length})</span>
+            </div>
+            {labels.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No classes defined in schema.</p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {labels.map((lbl: string, idx: number) => (
+                  <span key={idx} className="badge badge-blue" style={{ padding: '0.2rem 0.55rem', fontSize: '0.78rem' }}>
+                    {lbl}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
+              <FileText size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
+              <span>Annotation Guidelines</span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>
+              {dataset.annotation_instructions || 'Standard verification guidelines apply. Label with boundary precision.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Metrics & Review Progress Ribbon */}
+      <div
+        style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-hairline)',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1.25rem',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Total Records
+            </div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+              {stats.total_records}
+            </div>
+          </div>
+
+          <div style={{ width: '1px', height: '28px', background: 'var(--border-hairline)' }} />
+
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Approved
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--emerald)', fontFamily: 'var(--font-mono)' }}>
+              {stats.approved}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Pending Review
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-interactive)', fontFamily: 'var(--font-mono)' }}>
+              {stats.pending_review}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Needs Correction
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>
+              {stats.needs_correction}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Rejected
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--rose)', fontFamily: 'var(--font-mono)' }}>
+              {stats.rejected}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ minWidth: '220px', flex: '1', maxWidth: '340px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
+            <span>Review Progress</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{reviewPct}% ({reviewedCount}/{stats.total_records})</span>
+          </div>
+          <div className="progress-track" style={{ height: '6px' }}>
+            <div className="progress-fill" style={{ width: `${reviewPct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Compact 5-Stage Dataset Engineering Lifecycle Dock */}
+      <div className="lifecycle-dock">
+        {/* Stage 1 */}
+        <div className="lifecycle-stage">
+          <div className="lifecycle-stage-top">
+            <div className="lifecycle-stage-title">
+              <span className="pipeline-stage-num">01</span>
+              <HardDrive size={15} strokeWidth={1.75} />
+              <span>Ingestion</span>
+            </div>
+            {stats.total_records > 0 ? (
+              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>{stats.total_records} Ingested</span>
+            ) : (
+              <span className="badge badge-amber" style={{ fontSize: '0.72rem' }}>No Records</span>
+            )}
+          </div>
+          <div className="lifecycle-stage-actions">
+            <SpringButton variant="secondary" onClick={() => setIsImportOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Import Media</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsSourcesOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Sources & Rights</span>
+            </SpringButton>
+          </div>
+        </div>
+
+        {/* Stage 2 */}
+        <div className="lifecycle-stage">
+          <div className="lifecycle-stage-top">
+            <div className="lifecycle-stage-title">
+              <span className="pipeline-stage-num">02</span>
+              <PenTool size={15} strokeWidth={1.75} />
+              <span>Annotation</span>
+            </div>
+            <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>{reviewPct}% Reviewed</span>
+          </div>
+          <div className="lifecycle-stage-actions">
+            <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Workbench</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsAIOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <Bot size={13} style={{ marginRight: '3px' }} />
+              <span>AI Auto-Label</span>
+            </SpringButton>
+          </div>
+        </div>
+
+        {/* Stage 3 */}
+        <div className="lifecycle-stage">
+          <div className="lifecycle-stage-top">
+            <div className="lifecycle-stage-title">
+              <span className="pipeline-stage-num">03</span>
+              <FileCheck2 size={15} strokeWidth={1.75} />
+              <span>Quality</span>
+            </div>
+            {stats.rejected > 0 ? (
+              <span className="badge badge-rose" style={{ fontSize: '0.72rem' }}>{stats.rejected} Flagged</span>
+            ) : (
+              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>Healthy</span>
+            )}
+          </div>
+          <div className="lifecycle-stage-actions">
+            <SpringButton variant="secondary" onClick={() => setIsQualityOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Quality</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsAugmentationOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Augment</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsSynthesisOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Synthesize</span>
+            </SpringButton>
+          </div>
+        </div>
+
+        {/* Stage 4 */}
+        <div className="lifecycle-stage">
+          <div className="lifecycle-stage-top">
+            <div className="lifecycle-stage-title">
+              <span className="pipeline-stage-num">04</span>
+              <GitCompare size={15} strokeWidth={1.75} />
+              <span>Versioning</span>
+            </div>
+            {stats.approved > 0 ? (
+              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>Verified</span>
+            ) : (
+              <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Draft</span>
+            )}
+          </div>
+          <div className="lifecycle-stage-actions">
+            <SpringButton variant="secondary" onClick={() => setIsVersionsOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Snapshots</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsDiffOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Visual Diff</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsClusterMapOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Clusters</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Evaluation</span>
+            </SpringButton>
+          </div>
+        </div>
+
+        {/* Stage 5 */}
+        <div className="lifecycle-stage" style={{ borderLeft: '3px solid var(--accent-interactive)' }}>
+          <div className="lifecycle-stage-top">
+            <div className="lifecycle-stage-title">
+              <span className="pipeline-stage-num">05</span>
+              <Download size={15} strokeWidth={1.75} />
+              <span>Exports</span>
+            </div>
+            {stats.approved > 0 ? (
+              <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>Ready</span>
+            ) : (
+              <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Requires Approval</span>
+            )}
+          </div>
+          <div className="lifecycle-stage-actions">
+            <SpringButton variant="primary" onClick={() => setIsExportOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem' }}>
+              <span>Export Presets & Simulator</span>
+            </SpringButton>
+          </div>
+        </div>
+      </div>
+
+      {/* Dataset Records Explorer — Primary Working Surface */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '0.85rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontSize: '1.15rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                margin: 0,
+              }}
+            >
+              <Database size={17} style={{ color: 'var(--accent-interactive)' }} />
+              <span>Dataset Records Explorer</span>
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
-              Inspect individual samples, assigned splits, and verified review decisions.
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.2rem', margin: 0 }}>
+              Showing {filteredRecords.length} {searchQuery ? `(matching "${searchQuery}")` : ''} of {totalRecords} records in dataset
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Filtering and View Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Search Input */}
+            <div style={{ position: 'relative', width: '220px' }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: '0.65rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search key, text, label..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '32px',
+                  padding: '0 1.75rem 0 2rem',
+                  fontSize: '0.825rem',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-hairline)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-primary)',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: '0.45rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                  }}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Split Filter */}
             <CustomSelect
-              value={sampleSplit}
-              onChange={(val) => setSampleSplit(val)}
+              value={splitFilter}
+              onChange={handleSplitChange}
               options={[
                 { value: '', label: 'All Splits' },
                 { value: 'train', label: 'Train' },
-                { value: 'val', label: 'Val' },
+                { value: 'val', label: 'Validation' },
                 { value: 'test', label: 'Test' },
+                { value: 'unassigned', label: 'Unassigned' },
               ]}
               size="sm"
-              style={{ minWidth: '130px' }}
-              ariaLabel="Filter samples by split"
+              style={{ minWidth: '120px' }}
+              ariaLabel="Filter records by split"
             />
 
-            <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.825rem', padding: '0.4rem 0.75rem' }}>
-              <span>Open in Full Workbench</span>
-              <ChevronRight size={14} style={{ marginLeft: '4px' }} />
-            </SpringButton>
+            {/* Status Filter */}
+            <CustomSelect
+              value={statusFilter}
+              onChange={handleStatusChange}
+              options={[
+                { value: '', label: 'All Review Statuses' },
+                { value: 'unannotated', label: 'Unannotated' },
+                { value: 'pending_review', label: 'Pending Review' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'needs_correction', label: 'Needs Correction' },
+                { value: 'rejected', label: 'Rejected' },
+              ]}
+              size="sm"
+              style={{ minWidth: '150px' }}
+              ariaLabel="Filter records by review status"
+            />
+
+            {/* View Mode Toggle */}
+            <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-sm)', padding: '2px' }}>
+              <button
+                onClick={() => setViewMode('table')}
+                style={{
+                  background: viewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '0.25rem 0.5rem',
+                  cursor: 'pointer',
+                  color: viewMode === 'table' ? 'var(--text-primary)' : 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Table view"
+              >
+                <List size={14} />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                style={{
+                  background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '0.25rem 0.5rem',
+                  cursor: 'pointer',
+                  color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Grid view"
+              >
+                <LayoutGrid size={14} />
+              </button>
+            </div>
+
+            {/* Refresh */}
+            <button
+              onClick={() => loadRecords(page, splitFilter, statusFilter)}
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-hairline)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.35rem 0.5rem',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Refresh records"
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
         </div>
 
+        {/* Records Content Area */}
         {recordsLoading ? (
-          <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Loading records preview...
+          <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div className="spinner" style={{ margin: '0 auto 0.75rem auto' }}></div>
+            <div>Loading records...</div>
           </div>
-        ) : sampleRecords.length === 0 ? (
-          <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>No records found in this dataset</p>
-            <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>Import media assets in Stage 01 to populate records.</p>
-            <SpringButton variant="primary" onClick={() => setIsImportOpen(true)}>
-              <span>Import Media Now</span>
+        ) : recordsError ? (
+          <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--rose)' }}>
+            <AlertTriangle size={24} style={{ margin: '0 auto 0.5rem auto' }} />
+            <p style={{ fontWeight: 600 }}>Failed to load records</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{recordsError}</p>
+            <SpringButton variant="secondary" onClick={() => loadRecords(page, splitFilter, statusFilter)}>
+              <span>Try Again</span>
             </SpringButton>
           </div>
-        ) : (
+        ) : totalRecords === 0 ? (
+          <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Database size={32} style={{ margin: '0 auto 0.75rem auto', color: 'var(--text-muted)', opacity: 0.6 }} />
+            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem', fontSize: '1rem' }}>
+              No records in this dataset
+            </p>
+            <p style={{ fontSize: '0.85rem', marginBottom: '1.25rem', maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
+              Import media files or raw archives in Stage 01 to populate records and start engineering your dataset.
+            </p>
+            <SpringButton variant="primary" onClick={() => setIsImportOpen(true)}>
+              <HardDrive size={15} style={{ marginRight: '6px' }} />
+              <span>Import Media Assets</span>
+            </SpringButton>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <FilterIcon size={24} style={{ margin: '0 auto 0.5rem auto', color: 'var(--text-muted)' }} />
+            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+              No records match your filters
+            </p>
+            <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
+              Adjust or clear your search term, split, or review status filters.
+            </p>
+            <SpringButton variant="secondary" onClick={handleResetFilters}>
+              <span>Reset All Filters</span>
+            </SpringButton>
+          </div>
+        ) : viewMode === 'table' ? (
           <div className="data-table-container">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: '60px' }}>#</th>
+                  <th style={{ width: '48px' }}>#</th>
                   <th>Record Key / UUID</th>
                   <th>Split</th>
-                  <th>Label / Payload</th>
+                  <th>Modality & Asset</th>
+                  <th>Annotation Payload Preview</th>
                   <th>Review Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sampleRecords.map((rec, idx) => {
-                  const statusClass =
-                    rec.review_status === 'approved'
-                      ? 'badge-emerald'
-                      : rec.review_status === 'rejected'
-                      ? 'badge-rose'
-                      : rec.review_status === 'needs_correction'
-                      ? 'badge-amber'
-                      : rec.review_status === 'pending_review'
-                      ? 'badge-blue'
-                      : 'badge-neutral';
+                {filteredRecords.map((rec, idx) => {
+                  const statusConfig = getStatusBadgeConfig(rec.review_status);
+                  const StatusIcon = statusConfig.icon;
+                  const rowNum = page * PAGE_SIZE + idx + 1;
 
                   return (
                     <tr key={rec.id}>
-                      <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
-                        #{idx + 1}
+                      <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                        #{rowNum}
                       </td>
                       <td>
                         <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                          {rec.external_key || rec.id.slice(0, 12)}
+                          {rec.external_key || rec.id.slice(0, 14)}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                           ID: {rec.id.slice(0, 8)}...
                         </div>
                       </td>
@@ -485,52 +807,221 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                         </span>
                       </td>
                       <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          <Layers size={13} style={{ color: 'var(--text-muted)' }} />
+                          <span>{rec.primary_asset?.modality || 'media'}</span>
+                          {rec.primary_asset?.original_filename && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                              ({rec.primary_asset.original_filename})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
                         {rec.annotation_payload?.label ? (
                           <span className="badge badge-blue">{rec.annotation_payload.label}</span>
+                        ) : rec.annotation_payload?.boxes && Array.isArray(rec.annotation_payload.boxes) ? (
+                          <span className="badge badge-neutral">
+                            {rec.annotation_payload.boxes.length} bounding box{rec.annotation_payload.boxes.length === 1 ? '' : 'es'}
+                          </span>
                         ) : rec.annotation_payload?.text ? (
-                          <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                            {rec.annotation_payload.text.slice(0, 40)}...
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '280px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {rec.annotation_payload.text}
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Unlabeled</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Unlabeled</span>
                         )}
                       </td>
                       <td>
-                        <span className={`badge ${statusClass}`} style={{ fontSize: '0.75rem' }}>
-                          {rec.review_status.replace(/_/g, ' ')}
+                        <span className={`badge ${statusConfig.className}`} style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <StatusIcon size={11} strokeWidth={2} />
+                          <span>{rec.review_status.replace(/_/g, ' ')}</span>
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn-secondary"
+                        <SpringButton
+                          variant="secondary"
                           onClick={() => setIsWorkspaceOpen(true)}
-                          style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}
+                          style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem' }}
                         >
-                          Annotate →
-                        </button>
+                          <PenTool size={12} style={{ marginRight: '4px' }} />
+                          <span>Annotate</span>
+                        </SpringButton>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            <div className="records-pagination">
+              <div>
+                Showing{' '}
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalRecords)}
+                </span>{' '}
+                of <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{totalRecords}</span> records
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <button
+                  className="btn btn-secondary"
+                  disabled={page === 0 || recordsLoading}
+                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                  style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center' }}
+                  title="Previous page"
+                >
+                  <ChevronLeft size={14} style={{ marginRight: '2px' }} />
+                  <span>Previous</span>
+                </button>
+
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', padding: '0 0.35rem' }}>
+                  Page {page + 1} of {totalPages}
+                </span>
+
+                <button
+                  className="btn btn-secondary"
+                  disabled={(page + 1) * PAGE_SIZE >= totalRecords || recordsLoading}
+                  onClick={() => setPage((prev) => prev + 1)}
+                  style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center' }}
+                  title="Next page"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={14} style={{ marginLeft: '2px' }} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Grid View */
+          <div>
+            <div className="record-grid">
+              {filteredRecords.map((rec, idx) => {
+                const statusConfig = getStatusBadgeConfig(rec.review_status);
+                const StatusIcon = statusConfig.icon;
+                const rowNum = page * PAGE_SIZE + idx + 1;
+
+                return (
+                  <div key={rec.id} className="record-card">
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
+                          #{rowNum}
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <span className="badge badge-neutral" style={{ textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                            {rec.split || 'train'}
+                          </span>
+                          <span className={`badge ${statusConfig.className}`} style={{ fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <StatusIcon size={10} strokeWidth={2} />
+                            <span>{rec.review_status.replace(/_/g, ' ')}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.25rem' }}>
+                        {rec.external_key || rec.id.slice(0, 14)}
+                      </div>
+
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                        ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{rec.id.slice(0, 8)}...</code>
+                      </div>
+
+                      {/* Payload preview */}
+                      <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', fontSize: '0.8rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+                        {rec.annotation_payload?.label ? (
+                          <span className="badge badge-blue">{rec.annotation_payload.label}</span>
+                        ) : rec.annotation_payload?.boxes && Array.isArray(rec.annotation_payload.boxes) ? (
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {rec.annotation_payload.boxes.length} bounding box{rec.annotation_payload.boxes.length === 1 ? '' : 'es'}
+                          </span>
+                        ) : rec.annotation_payload?.text ? (
+                          <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {rec.annotation_payload.text}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Unlabeled</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-hairline)' }}>
+                      <SpringButton
+                        variant="secondary"
+                        onClick={() => setIsWorkspaceOpen(true)}
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}
+                      >
+                        <PenTool size={12} style={{ marginRight: '4px' }} />
+                        <span>Annotate</span>
+                      </SpringButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination Controls for Grid View */}
+            <div className="records-pagination" style={{ marginTop: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div>
+                Showing{' '}
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalRecords)}
+                </span>{' '}
+                of <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{totalRecords}</span> records
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <button
+                  className="btn btn-secondary"
+                  disabled={page === 0 || recordsLoading}
+                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                  style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center' }}
+                  title="Previous page"
+                >
+                  <ChevronLeft size={14} style={{ marginRight: '2px' }} />
+                  <span>Previous</span>
+                </button>
+
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', padding: '0 0.35rem' }}>
+                  Page {page + 1} of {totalPages}
+                </span>
+
+                <button
+                  className="btn btn-secondary"
+                  disabled={(page + 1) * PAGE_SIZE >= totalRecords || recordsLoading}
+                  onClick={() => setPage((prev) => prev + 1)}
+                  style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center' }}
+                  title="Next page"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={14} style={{ marginLeft: '2px' }} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Modals */}
+      {/* 12 Preserved Modals */}
       <ImportModal
         datasetId={datasetId}
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
-        onImportComplete={() => loadData()}
+        onImportComplete={() => {
+          loadData();
+          loadRecords(page, splitFilter, statusFilter);
+        }}
       />
 
       <AIAnnotationModal
         datasetId={datasetId}
         isOpen={isAIOpen}
         onClose={() => setIsAIOpen(false)}
-        onRunComplete={() => loadData()}
+        onRunComplete={() => {
+          loadData();
+          loadRecords(page, splitFilter, statusFilter);
+        }}
       />
 
       <QualityDashboardModal
@@ -568,7 +1059,10 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         datasetId={datasetId}
         isOpen={isAugmentationOpen}
         onClose={() => setIsAugmentationOpen(false)}
-        onAugmentationComplete={() => loadData()}
+        onAugmentationComplete={() => {
+          loadData();
+          loadRecords(page, splitFilter, statusFilter);
+        }}
       />
 
       <ClusterMapModal
@@ -582,7 +1076,10 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         datasetId={datasetId}
         isOpen={isSourcesOpen}
         onClose={() => setIsSourcesOpen(false)}
-        onImportComplete={() => loadData()}
+        onImportComplete={() => {
+          loadData();
+          loadRecords(page, splitFilter, statusFilter);
+        }}
       />
 
       <SyntheticGenerationModal
@@ -590,7 +1087,10 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         labels={labels}
         isOpen={isSynthesisOpen}
         onClose={() => setIsSynthesisOpen(false)}
-        onGenerationComplete={() => loadData()}
+        onGenerationComplete={() => {
+          loadData();
+          loadRecords(page, splitFilter, statusFilter);
+        }}
       />
 
       <EvaluationModal
@@ -602,3 +1102,37 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     </div>
   );
 };
+
+// Helper for review status styling and icons
+function getStatusBadgeConfig(status: string) {
+  switch (status) {
+    case 'approved':
+      return { className: 'badge-emerald', icon: CheckCircle2 };
+    case 'rejected':
+      return { className: 'badge-rose', icon: XCircle };
+    case 'needs_correction':
+      return { className: 'badge-amber', icon: AlertTriangle };
+    case 'pending_review':
+      return { className: 'badge-blue', icon: Clock };
+    case 'unannotated':
+    default:
+      return { className: 'badge-neutral', icon: HelpCircle };
+  }
+}
+
+// Small icon helper
+const FilterIcon: React.FC<{ size?: number; style?: React.CSSProperties }> = ({ size = 16, style }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={style}
+  >
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+);
