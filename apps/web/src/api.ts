@@ -259,4 +259,57 @@ export function getExportDownloadUrl(artifactId: string): string {
   return `${API_BASE}/exports/${artifactId}/download`;
 }
 
+export async function searchCandidateSources(query = '', maxResults = 10): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (query) params.append('query', query);
+  params.append('max_results', String(maxResults));
+  const res = await fetch(`${API_BASE}/sources/candidates?${params.toString()}`);
+  return handleResponse<any[]>(res);
+}
+
+export async function inspectSourceUrl(url: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/sources/inspect-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  return handleResponse(res);
+}
+
+export async function importCandidateSource(
+  datasetId: string,
+  sourceId: string,
+  split = 'train'
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/sources/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataset_id: datasetId, source_id: sourceId, split }),
+  });
+  return handleResponse(res);
+}
+
+export async function recordRightsReview(
+  recordId: string,
+  payload: {
+    license_status: string;
+    evidence_text: string;
+    terms_notes?: string;
+    attribution_text?: string;
+  }
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/records/${recordId}/rights-review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchDatasetSources(datasetId: string): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/sources`);
+  return handleResponse<any[]>(res);
+}
+
+
 

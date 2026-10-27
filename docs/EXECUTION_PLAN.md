@@ -389,29 +389,37 @@ PASSED: Verified with 51 passing automated tests in 6.05s, 0 ruff errors, and cl
 
 ## 14. Phase 11 — Public dataset discovery and source review
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 7; basic product is stable
 
 ### Goals
 Help users discover suitable data while making source evidence and rights limitations explicit.
 
 ### Tasks
-- [ ] Define source-provider interface for search metadata.
-- [ ] Start with permitted APIs/catalogs rather than unrestricted scraping.
-- [ ] Save query, result URL/identifier, retrieval time and source metadata.
-- [ ] Distinguish a discovered reference from a downloaded asset.
-- [ ] Add rights review states, attribution fields and usage notes.
-- [ ] Add import-from-reference flow only where access and license permit.
-- [ ] Treat retrieved text and metadata as untrusted input.
-- [ ] Add SSRF protections for any server-side URL retrieval.
-- [ ] Test unknown-license and restricted-source behavior.
-- [ ] Document that public accessibility is not training permission.
+- [x] Define source-provider interface for search metadata.
+- [x] Start with permitted APIs/catalogs rather than unrestricted scraping.
+- [x] Save query, result URL/identifier, retrieval time and source metadata.
+- [x] Distinguish a discovered reference from a downloaded asset.
+- [x] Add rights review states, attribution fields and usage notes.
+- [x] Add import-from-reference flow only where access and license permit.
+- [x] Treat retrieved text and metadata as untrusted input.
+- [x] Add SSRF protections for any server-side URL retrieval.
+- [x] Test unknown-license and restricted-source behavior.
+- [x] Document that public accessibility is not training permission.
 
 ### Deliverables
-Research/source catalog, provenance and review UI.
+- Enterprise SSRF defense engine in `packages/dataset_sources/ssrf_guard.py` blocking loopback, private ranges, link-local, cloud metadata services (e.g. 169.254.169.254), internal suffixes, and non-HTTP schemes.
+- Discovered candidate data models and rights contracts in `packages/dataset_sources/models.py`.
+- Permitted catalog adapter and mock repository in `packages/dataset_sources/catalog_adapter.py`.
+- Sandboxed safe HTTP fetcher with strict size caps (10MB) in `packages/dataset_sources/safe_fetcher.py`.
+- Source discovery and provenance service in `packages/dataset_sources/service.py` managing search, URL verification, candidate import, rights review recording, and dataset source audit queries.
+- REST API endpoints (`GET /api/v1/sources/candidates`, `POST /api/v1/sources/inspect-url`, `POST /api/v1/sources/import`, `POST /api/v1/records/{id}/rights-review`, `GET /api/v1/datasets/{id}/sources`) in `services/api/routes/sources.py`.
+- Interactive web dialog in `apps/web/src/components/SourceDiscoveryModal.tsx` and integration into `apps/web/src/components/DatasetDetail.tsx`.
+- Automated integration test suite in `tests/integration/test_source_discovery_and_rights.py`.
 
 ### Exit gate
-A user can research and track candidate sources without the system falsely marking uncertain content as cleared for training.
+PASSED: Verified with 60 passing automated tests across the workspace in 6.56s, 0 ruff errors, and clean frontend production build (`tsc -b && vite build` built in 1.65s). Users can discover public catalog candidates, safely inspect URLs with SSRF protection, import candidates with non-cleared defaults (`REVIEW_REQUIRED`), enforce rejection of restricted content, and submit auditable rights justification evidence.
+
 
 ## 15. Phase 12 — Synthetic-data generation
 

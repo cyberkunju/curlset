@@ -7,6 +7,7 @@ import { ImportModal } from './ImportModal';
 import { QualityDashboardModal } from './QualityDashboardModal';
 import { VersionSnapshotsModal } from './VersionSnapshotsModal';
 import { ExportModal } from './ExportModal';
+import { SourceDiscoveryModal } from './SourceDiscoveryModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -23,6 +24,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isQualityOpen, setIsQualityOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -186,6 +188,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsExportOpen(true)} title="Export Dataset Package (Phase 8)">
             <span>📦</span> Export (CSV / JSONL)
           </button>
+          <button className="btn btn-secondary" onClick={() => setIsSourcesOpen(true)} title="Source Discovery & Rights Review (Phase 11)">
+            <span>🌐</span> Sources & Rights
+          </button>
         </div>
       </div>
 
@@ -226,6 +231,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         onOpenVersions={() => setIsVersionsOpen(true)}
+      />
+
+      <SourceDiscoveryModal
+        datasetId={datasetId}
+        isOpen={isSourcesOpen}
+        onClose={() => setIsSourcesOpen(false)}
+        onImportComplete={() => loadData()}
       />
     </div>
   );

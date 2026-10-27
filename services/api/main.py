@@ -31,6 +31,7 @@ from services.api.routes import (
     ingestion,
     projects,
     records,
+    sources,
     validation,
     versions,
 )
@@ -134,6 +135,7 @@ app.include_router(inference.router)
 app.include_router(validation.router)
 app.include_router(versions.router)
 app.include_router(exports.router)
+app.include_router(sources.router)
 
 
 

@@ -79,3 +79,26 @@ class PublishingBlockedError(DomainError):
             code="PUBLISHING_BLOCKED",
             details={"blocking_count": blocking_count, "findings": findings or []},
         )
+
+
+class SSRFBlockedError(DomainError):
+    """Raised when an outbound URL fetch targets a forbidden private or loopback IP."""
+
+    def __init__(self, target_url: str, reason: str):
+        super().__init__(
+            f"Outbound request to '{target_url}' blocked by SSRF defense: {reason}",
+            code="SSRF_TARGET_BLOCKED",
+            details={"target_url": target_url, "reason": reason},
+        )
+
+
+class RightsViolationError(DomainError):
+    """Raised when an action violates dataset rights or license policies."""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message,
+            code="RIGHTS_VIOLATION",
+            details=details or {},
+        )
+

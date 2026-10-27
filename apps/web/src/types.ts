@@ -214,3 +214,39 @@ export interface ExportArtifact {
   created_at: string;
 }
 
+export type LicenseStatus = 
+  | 'unknown'
+  | 'review_required'
+  | 'approved_for_intended_use'
+  | 'restricted'
+  | 'rejected';
+
+export interface DiscoveredSource {
+  source_id: string;
+  url: string;
+  title: string;
+  publisher?: string;
+  description: string;
+  retrieval_timestamp: string;
+  license_evidence?: string;
+  attribution_required?: string;
+  license_status: LicenseStatus;
+  raw_content_preview?: string;
+  content_sha256?: string;
+  media_type: string;
+  estimated_records: number;
+  terms_notes?: string;
+}
+
+export interface SourceProvenanceSummary {
+  record_id: string;
+  source_id: string;
+  source_uri?: string;
+  source_type: string;
+  license_status: LicenseStatus;
+  creator_attribution?: string;
+  retrieved_at?: string;
+  terms_notes?: string;
+}
+
+
