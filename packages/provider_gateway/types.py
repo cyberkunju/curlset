@@ -13,6 +13,8 @@ class ProviderCapability(str, Enum):
     OBJECT_DETECTION = "object_detection"
     STRUCTURED_OUTPUT = "structured_output"
     EMBEDDINGS = "embeddings"
+    TEXT_GENERATION = "text_generation"
+    IMAGE_GENERATION = "image_generation"
 
 
 class ProviderRequest(BaseModel):

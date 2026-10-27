@@ -109,6 +109,15 @@ def generate_dataset_card_markdown(
     else:
         lines.append("*Origin metadata unavailable.*")
 
+    synth_count = origin_counts.get("synthetic", 0)
+    if synth_count > 0:
+        synth_pct = (synth_count / total * 100) if total > 0 else 0
+        lines.extend([
+            "",
+            "> [!NOTE]",
+            f"> **Synthetic Data Disclosure**: This version contains {synth_count:,} ({synth_pct:.1f}%) synthetically generated sample(s). Full generation parameters, prompts, and provider lineage are retained in the version manifest.",
+        ])
+
     lines.extend([
         "",
         "## Annotation Guidelines",

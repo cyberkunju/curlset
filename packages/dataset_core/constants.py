@@ -16,6 +16,7 @@ class AnnotationOrigin(str, Enum):
     MODEL = "model"
     IMPORTED = "imported"
     RULE_GENERATED = "rule_generated"
+    SYNTHETIC = "synthetic"
 
 
 class ReviewStatus(str, Enum):

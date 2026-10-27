@@ -8,6 +8,7 @@ import { QualityDashboardModal } from './QualityDashboardModal';
 import { VersionSnapshotsModal } from './VersionSnapshotsModal';
 import { ExportModal } from './ExportModal';
 import { SourceDiscoveryModal } from './SourceDiscoveryModal';
+import { SyntheticGenerationModal } from './SyntheticGenerationModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -25,6 +26,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
+  const [isSynthesisOpen, setIsSynthesisOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -191,6 +193,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsSourcesOpen(true)} title="Source Discovery & Rights Review (Phase 11)">
             <span>🌐</span> Sources & Rights
           </button>
+          <button className="btn btn-secondary" onClick={() => setIsSynthesisOpen(true)} title="Synthetic Data Generation (Phase 12)">
+            <span>🧬</span> Synthesize Data
+          </button>
         </div>
       </div>
 
@@ -239,7 +244,16 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         onClose={() => setIsSourcesOpen(false)}
         onImportComplete={() => loadData()}
       />
+
+      <SyntheticGenerationModal
+        datasetId={datasetId}
+        labels={labels}
+        isOpen={isSynthesisOpen}
+        onClose={() => setIsSynthesisOpen(false)}
+        onGenerationComplete={() => loadData()}
+      />
     </div>
   );
 };
+
 

@@ -311,5 +311,32 @@ export async function fetchDatasetSources(datasetId: string): Promise<any[]> {
   return handleResponse<any[]>(res);
 }
 
+export async function triggerSyntheticGeneration(
+  datasetId: string,
+  params: {
+    target_class: string;
+    count: number;
+    prompt_template?: string;
+    template_version?: string;
+    provider_name?: string;
+    model_name?: string;
+    seed?: number;
+    split?: string;
+  }
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchSyntheticLineage(datasetId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/synthetic-lineage`);
+  return handleResponse(res);
+}
+
+
 
 

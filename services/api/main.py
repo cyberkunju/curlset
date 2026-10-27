@@ -32,11 +32,13 @@ from services.api.routes import (
     projects,
     records,
     sources,
+    synthesis,
     validation,
     versions,
 )
 
 START_TIME = time.time()
+
 
 
 
@@ -136,6 +138,7 @@ app.include_router(validation.router)
 app.include_router(versions.router)
 app.include_router(exports.router)
 app.include_router(sources.router)
+app.include_router(synthesis.router)
 
 
 

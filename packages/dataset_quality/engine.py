@@ -7,7 +7,13 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from packages.dataset_core.constants import ReviewStatus, RunStatus, RunType, TaskType
+from packages.dataset_core.constants import (
+    AnnotationOrigin,
+    ReviewStatus,
+    RunStatus,
+    RunType,
+    TaskType,
+)
 from packages.dataset_core.db.models import (
     DatasetModel,
     DatasetRecordModel,
@@ -246,6 +252,23 @@ class QualityEngine:
                         count=most_common_count,
                     )
                 )
+
+        # 9. Synthetic proportion disclosure
+        synth_count = origin_counter.get(AnnotationOrigin.SYNTHETIC.value, 0)
+        if synth_count > 0:
+            synth_ratio = round((synth_count / total_records) * 100, 1) if total_records > 0 else 0
+            findings.append(
+                ValidationFinding(
+                    rule_id="INFO_SYNTHETIC_PROPORTION",
+                    severity=ValidationSeverity.INFO,
+                    title=f"Synthetic Content Disclosed ({synth_ratio}%)",
+                    description=f"Dataset contains {synth_count} synthetically generated records ({synth_ratio}% of dataset). Ensure lineage is preserved.",
+                    remediation="Verify synthetic candidate annotations in the workbench prior to publishing.",
+                    affected_record_ids=[],
+                    count=synth_count,
+                )
+            )
+
 
         blocking_count = sum(1 for f in findings if f.severity == ValidationSeverity.BLOCKING)
         warning_count = sum(1 for f in findings if f.severity == ValidationSeverity.WARNING)

@@ -25,6 +25,8 @@ class FakeProvider(BaseProvider):
         ProviderCapability.IMAGE_CLASSIFICATION,
         ProviderCapability.OBJECT_DETECTION,
         ProviderCapability.STRUCTURED_OUTPUT,
+        ProviderCapability.TEXT_GENERATION,
+        ProviderCapability.IMAGE_GENERATION,
     }
 
     def __init__(self, simulation_mode: str = "normal"):
@@ -35,7 +37,10 @@ class FakeProvider(BaseProvider):
             "fake-classifier-v1",
             "fake-vision-v1",
             "fake-detector-v1",
+            "fake-text-generator-v1",
+            "fake-image-generator-v1",
         ]
+
 
     def annotate(self, request: ProviderRequest) -> ProviderResponse:
         start_time = time.time()
@@ -98,3 +103,74 @@ class FakeProvider(BaseProvider):
             raw_response={"fake_decision": chosen_class, "seed_hash": hash_val},
             latency_ms=round(latency_ms, 2),
         )
+
+    def generate(self, request: ProviderRequest) -> ProviderResponse:
+        """Generate synthetic text or image samples deterministically."""
+        start_time = time.time()
+
+        if self.simulation_mode == "timeout":
+            raise ProviderTimeoutError("Synthetic generation timed out after 30s.", provider=self.name)
+        if self.simulation_mode == "rate_limit":
+            raise ProviderRateLimitError("Rate limit exceeded for synthetic generation.", provider=self.name)
+        if self.simulation_mode == "auth_error":
+            raise ProviderAuthenticationError("Unauthorized generation request.", provider=self.name)
+        if self.simulation_mode == "malformed":
+            return ProviderResponse(
+                payload={"corrupted_gen": True},
+                confidence=0.0,
+                model=request.model,
+                usage=ProviderUsage(input_tokens=5, output_tokens=2, total_tokens=7),
+            )
+
+        target_class = request.parameters.get("target_class", "positive")
+        index = request.parameters.get("index", 0)
+        seed = request.parameters.get("seed", 42)
+
+        # Diverse template pools for text generation
+        sample_corpora = {
+            "positive": [
+                "Exceptional performance and outstanding reliability under heavy production load.",
+                "The interface is remarkably responsive, intuitive, and beautifully designed.",
+                "Clean implementation with superb error diagnostics and comprehensive documentation.",
+                "Delivered accurate predictions with exceptionally low latency and high stability.",
+                "Outstanding user experience, highly recommended for professional enterprise workflows.",
+            ],
+            "negative": [
+                "Encountered unexpected system degradation, unhandled exceptions, and poor performance.",
+                "Defective output schema caused critical pipeline interruption during processing.",
+                "Extremely sluggish response times with frequent connection timeouts under normal usage.",
+                "Inconsistent validation checks failed to identify corrupt and malformed input records.",
+                "Frustrating UX with confusing navigation, dead ends, and missing error feedback.",
+            ],
+            "neutral": [
+                "The model processed the incoming batch and returned standard status code 200.",
+                "Telemetry shows typical baseline resource utilization during the evaluation cycle.",
+                "Standard data formatting was applied according to configuration schema version 1.",
+                "The scheduled backup script executed at standard midnight interval as configured.",
+                "The sensor reported nominal ambient temperature and pressure readings without anomaly.",
+            ],
+        }
+
+        pool = sample_corpora.get(target_class, sample_corpora["neutral"])
+        selected_text = pool[(index + seed) % len(pool)]
+        # Inject deterministic unique salt per index so duplicates only happen if requested
+        unique_text = f"{selected_text} [Synth-{target_class.upper()} #{index}]"
+
+        payload = {
+            "text": unique_text,
+            "target_class": target_class,
+            "prompt_template": request.prompt_template or "Generate high-quality samples for {class_name}",
+            "index": index,
+        }
+
+        latency_ms = (time.time() - start_time) * 1000
+
+        return ProviderResponse(
+            payload=payload,
+            confidence=0.95,
+            model=request.model or "fake-text-generator-v1",
+            usage=ProviderUsage(input_tokens=40, output_tokens=25, total_tokens=65, estimated_cost_usd=0.0),
+            raw_response={"synthetic_mode": True, "index": index, "target_class": target_class},
+            latency_ms=round(latency_ms, 2),
+        )
+

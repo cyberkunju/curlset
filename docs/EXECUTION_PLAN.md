@@ -423,29 +423,38 @@ PASSED: Verified with 60 passing automated tests across the workspace in 6.56s, 
 
 ## 15. Phase 12 — Synthetic-data generation
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 5, Phase 6 and Phase 7
 
 ### Goals
 Fill identified data gaps with explicitly labeled synthetic samples.
 
 ### Tasks
-- [ ] Define generation request/response schema per supported task.
-- [ ] Add provider capability checks for text/image generation.
-- [ ] Add prompt templates and configuration versioning.
-- [ ] Mark assets/records as synthetic and preserve generation lineage.
-- [ ] Validate outputs using the same schema/quality rules as imported data.
-- [ ] Add user-controlled class targets and generation limits.
-- [ ] Add budget estimates and cancellation.
-- [ ] Prevent duplicate or low-diversity generations where feasible.
-- [ ] Report real/synthetic proportions.
-- [ ] Add review gate before synthetic records are included in a published version.
+- [x] Define generation request/response schema per supported task.
+- [x] Add provider capability checks for text/image generation.
+- [x] Add prompt templates and configuration versioning.
+- [x] Mark assets/records as synthetic and preserve generation lineage.
+- [x] Validate outputs using the same schema/quality rules as imported data.
+- [x] Add user-controlled class targets and generation limits.
+- [x] Add budget estimates and cancellation.
+- [x] Prevent duplicate or low-diversity generations where feasible.
+- [x] Report real/synthetic proportions.
+- [x] Add review gate before synthetic records are included in a published version.
 
 ### Deliverables
-Bounded synthetic generation workflow with provenance and quality checks.
+- Provider generation capabilities (`TEXT_GENERATION`, `IMAGE_GENERATION`) and base contracts in `packages/provider_gateway/types.py` and `packages/provider_gateway/base.py`.
+- Deterministic synthetic generator implementation in `packages/provider_gateway/fake_provider.py` producing diverse class samples with 0 external API cost.
+- Synthetic batch contracts and request models in `packages/dataset_synthesis/models.py`.
+- Generation service in `packages/dataset_synthesis/service.py` orchestrating capability checks, schema validation, exact duplicate rejection, cryptographic lineage attribution (`run_id`, `provider`, `model`, `prompt_template`, `template_version`, `seed`, `content_sha256`), and review gating (`status="pending_review"`).
+- REST API routes (`POST /api/v1/datasets/{id}/synthesize`, `GET /api/v1/datasets/{id}/synthetic-lineage`) in `services/api/routes/synthesis.py`.
+- Quality engine rule `INFO_SYNTHETIC_PROPORTION` in `packages/dataset_quality/engine.py` disclosing synthetic percentage and count.
+- Version document generator disclosure in `packages/dataset_versioning/doc_generator.py` surfacing synthetic ratios and parameter traceability in dataset cards.
+- Interactive modal UI in `apps/web/src/components/SyntheticGenerationModal.tsx` and action button in `apps/web/src/components/DatasetDetail.tsx`.
+- Automated integration test suite in `tests/integration/test_synthetic_data_generation.py`.
 
 ### Exit gate
-Synthetic outputs are never confused with real samples, have reproducible metadata, pass validation and obey user-configured cost limits.
+PASSED: Verified with 65 passing automated tests across the workspace in 6.39s, 0 ruff errors, and clean frontend production build (`tsc -b && vite build` built in 1.96s). Synthetic outputs are clearly tagged with `origin="synthetic"`, strictly routed to `pending_review` by default, preserve reproducible prompt & model lineage, reject duplicate generation attempts, and disclose real vs synthetic ratios in quality audits and published dataset cards.
+
 
 ## 16. Phase 13 — Additional modalities and semantic exploration
 

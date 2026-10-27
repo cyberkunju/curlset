@@ -28,3 +28,11 @@ class BaseProvider(ABC):
     @abstractmethod
     def list_available_models(self) -> list[str]:
         """Return list of supported/configured model identifiers."""
+
+    def generate(self, request: ProviderRequest) -> ProviderResponse:
+        """
+        Execute synthetic sample generation. Subclasses implementing TEXT_GENERATION
+        or IMAGE_GENERATION must override this method.
+        """
+        raise NotImplementedError(f"Provider '{self.name}' does not implement generate().")
+
