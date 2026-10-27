@@ -31,7 +31,7 @@ import {
   Check,
   Layers,
 } from 'lucide-react';
-import { fetchDatasetDetail, fetchDatasetQueue } from '../api';
+import { fetchDatasetDetail, fetchDatasetQueue, fetchRecordDetail } from '../api';
 import { DatasetDetailResponse, RecordQueueItem } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { AIAnnotationModal } from './AIAnnotationModal';
@@ -89,6 +89,17 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [page, setPage] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
+  // Finding record navigation & filter exclusion communication
+  const [highlightedRecordId, setHighlightedRecordId] = useState<string | null>(null);
+  const [targetRecordLoading, setTargetRecordLoading] = useState<boolean>(false);
+  const [targetRecordNotice, setTargetRecordNotice] = useState<{
+    type: 'excluded_by_filter' | 'not_found' | 'error';
+    recordId: string;
+    recSplit?: string;
+    recStatus?: string;
+    message: string;
+  } | null>(null);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -102,7 +113,12 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     }
   };
 
-  const loadRecords = async (targetPage = page, split = splitFilter, status = statusFilter) => {
+  const loadRecords = async (
+    targetPage = page,
+    split = splitFilter,
+    status = statusFilter,
+    search = searchQuery
+  ) => {
     setRecordsLoading(true);
     setRecordsError(null);
     try {
@@ -111,7 +127,8 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         split || undefined,
         status || undefined,
         PAGE_SIZE,
-        targetPage * PAGE_SIZE
+        targetPage * PAGE_SIZE,
+        search.trim() || undefined
       );
       setRecords(q.items || []);
       setTotalRecords(q.total || 0);
@@ -128,8 +145,18 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   }, [datasetId]);
 
   useEffect(() => {
-    loadRecords(page, splitFilter, statusFilter);
-  }, [datasetId, page, splitFilter, statusFilter]);
+    loadRecords(page, splitFilter, statusFilter, searchQuery);
+  }, [datasetId, page, splitFilter, statusFilter, searchQuery]);
+
+  // Auto-scroll to located target finding record
+  useEffect(() => {
+    if (highlightedRecordId && records.some((r) => r.id === highlightedRecordId)) {
+      const el = document.getElementById(`record-${highlightedRecordId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightedRecordId, records]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -151,28 +178,65 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     setSplitFilter('');
     setStatusFilter('');
     setSearchQuery('');
+    setHighlightedRecordId(null);
+    setTargetRecordNotice(null);
     setPage(0);
   };
 
-  // Filter records client-side by search query
-  const filteredRecords = useMemo(() => {
-    if (!searchQuery.trim()) return records;
-    const q = searchQuery.toLowerCase().trim();
-    return records.filter((rec) => {
-      const idMatch = rec.id.toLowerCase().includes(q);
-      const keyMatch = rec.external_key ? rec.external_key.toLowerCase().includes(q) : false;
-      const labelMatch = rec.annotation_payload?.label
-        ? String(rec.annotation_payload.label).toLowerCase().includes(q)
-        : false;
-      const textMatch = rec.annotation_payload?.text
-        ? String(rec.annotation_payload.text).toLowerCase().includes(q)
-        : false;
-      const fileMatch = rec.primary_asset?.original_filename
-        ? rec.primary_asset.original_filename.toLowerCase().includes(q)
-        : false;
-      return idMatch || keyMatch || labelMatch || textMatch || fileMatch;
-    });
-  }, [records, searchQuery]);
+  // Locate affected record from quality dashboard findings regardless of server page
+  const handleLocateRecord = async (targetId: string) => {
+    setIsQualityOpen(false);
+    setTargetRecordNotice(null);
+    setTargetRecordLoading(true);
+
+    try {
+      // 1. Fetch exact record detail to check dataset membership, split, and status
+      const recordDetail = await fetchRecordDetail(targetId);
+      if (!recordDetail || recordDetail.dataset_id !== datasetId) {
+        setTargetRecordNotice({
+          type: 'not_found',
+          recordId: targetId,
+          message: `Record "${targetId}" does not belong to dataset "${datasetId}".`,
+        });
+        setTargetRecordLoading(false);
+        return;
+      }
+
+      const recSplit = recordDetail.split || 'unassigned';
+      const recStatus = recordDetail.annotation?.status || 'unannotated';
+
+      const splitMismatch = Boolean(splitFilter && splitFilter !== recSplit);
+      const statusMismatch = Boolean(statusFilter && statusFilter !== recStatus);
+
+      if (splitMismatch || statusMismatch) {
+        // Record exists in dataset, but is excluded by active filters
+        setTargetRecordNotice({
+          type: 'excluded_by_filter',
+          recordId: targetId,
+          recSplit,
+          recStatus,
+          message: `Target record "${targetId}" is in split "${recSplit}" with review status "${recStatus}", but is excluded by current active filters.`,
+        });
+      } else {
+        // Record matches active filters or filters are open
+        setTargetRecordNotice(null);
+        setSearchQuery(targetId);
+        setHighlightedRecordId(targetId);
+        setPage(0);
+      }
+    } catch (err: any) {
+      setTargetRecordNotice({
+        type: 'error',
+        recordId: targetId,
+        message: err.message || `Failed to locate record "${targetId}".`,
+      });
+    } finally {
+      setTargetRecordLoading(false);
+    }
+  };
+
+  // Filtered records from server queue
+  const filteredRecords = records;
 
   if (loading) {
     return (
@@ -726,6 +790,93 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           </div>
         </div>
 
+        {/* Target Record Navigation Feedback Banner */}
+        {targetRecordLoading && (
+          <div
+            style={{
+              padding: '0.65rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1rem',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-hairline)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+            <span>Locating target finding record in dataset queue...</span>
+          </div>
+        )}
+
+        {targetRecordNotice && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1rem',
+              background:
+                targetRecordNotice.type === 'not_found' || targetRecordNotice.type === 'error'
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : 'rgba(245, 158, 11, 0.08)',
+              border: `1px solid ${
+                targetRecordNotice.type === 'not_found' || targetRecordNotice.type === 'error'
+                  ? 'var(--rose)'
+                  : 'var(--amber)'
+              }`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              fontSize: '0.825rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle
+                size={16}
+                strokeWidth={1.75}
+                style={{
+                  color:
+                    targetRecordNotice.type === 'not_found' || targetRecordNotice.type === 'error'
+                      ? 'var(--rose)'
+                      : 'var(--amber)',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ color: 'var(--text-primary)' }}>{targetRecordNotice.message}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+              {targetRecordNotice.type === 'excluded_by_filter' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                  onClick={() => {
+                    setSplitFilter('');
+                    setStatusFilter('');
+                    setSearchQuery(targetRecordNotice.recordId);
+                    setHighlightedRecordId(targetRecordNotice.recordId);
+                    setPage(0);
+                    setTargetRecordNotice(null);
+                  }}
+                >
+                  Clear Filters & Show Record
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                onClick={() => setTargetRecordNotice(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Records Content Area */}
         {recordsLoading ? (
           <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -789,13 +940,34 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                   const rowNum = page * PAGE_SIZE + idx + 1;
 
                   return (
-                    <tr key={rec.id}>
+                    <tr
+                      key={rec.id}
+                      id={`record-${rec.id}`}
+                      style={
+                        rec.id === highlightedRecordId
+                          ? {
+                              background: 'rgba(37, 99, 235, 0.08)',
+                              boxShadow: 'inset 3px 0 0 var(--accent-interactive)',
+                            }
+                          : {}
+                      }
+                    >
                       <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                         #{rowNum}
                       </td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                          {rec.external_key || rec.id.slice(0, 14)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                            {rec.external_key || rec.id.slice(0, 14)}
+                          </span>
+                          {rec.id === highlightedRecordId && (
+                            <span
+                              className="badge badge-blue"
+                              style={{ fontSize: '0.68rem', padding: '1px 6px', textTransform: 'uppercase' }}
+                            >
+                              Target Finding
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                           ID: {rec.id.slice(0, 8)}...
@@ -903,13 +1075,34 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 const rowNum = page * PAGE_SIZE + idx + 1;
 
                 return (
-                  <div key={rec.id} className="record-card">
+                  <div
+                    key={rec.id}
+                    id={`record-${rec.id}`}
+                    className="record-card"
+                    style={
+                      rec.id === highlightedRecordId
+                        ? {
+                            borderColor: 'var(--accent-interactive)',
+                            boxShadow: '0 0 0 2px var(--accent-interactive)',
+                            background: 'rgba(37, 99, 235, 0.04)',
+                          }
+                        : {}
+                    }
+                  >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                         <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
                           #{rowNum}
                         </span>
-                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                          {rec.id === highlightedRecordId && (
+                            <span
+                              className="badge badge-blue"
+                              style={{ fontSize: '0.65rem', padding: '1px 5px', textTransform: 'uppercase' }}
+                            >
+                              Target Finding
+                            </span>
+                          )}
                           <span className="badge badge-neutral" style={{ textTransform: 'uppercase', fontSize: '0.68rem' }}>
                             {rec.split || 'train'}
                           </span>
@@ -1034,11 +1227,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           setIsQualityOpen(false);
           loadData();
         }}
-        onFilterRecords={(recordIdOrQuery) => {
-          setIsQualityOpen(false);
-          setSearchQuery(recordIdOrQuery);
-          setPage(0);
-        }}
+        onFilterRecords={handleLocateRecord}
         onOpenWorkspace={() => {
           setIsQualityOpen(false);
           setIsWorkspaceOpen(true);

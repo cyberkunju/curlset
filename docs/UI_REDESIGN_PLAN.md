@@ -283,6 +283,17 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - `ExportModal.tsx`: Replaced narrow types with full `ExportFormatType` covering all 9 supported formats (`csv`, `jsonl`, `coco`, `yolo`, `webvtt`, `unsloth_sharegpt_vlm`, `axolotl_alpaca_chatml`, `llama_factory_bundle`, `ultralytics_yolo_v8_v11`); format-specific illustrative code preview templates; removal of hardcoded token estimates in favor of real server-side `POST /api/v1/datasets/{dataset_id}/token-simulation` endpoint; context window tick markers (2,048, 4,096, 8,192, 32,768); and clear heuristic disclosures.
 - **Exit Gate:** `npm run build` passed (0 errors); 104/104 pytest tests passed; ruff lint clean; all modal wiring, data integrity rules, and real API integrations verified.
 
+#### Phase R5.1: UI Contract & Interaction Integrity Corrections (COMPLETED)
+- **Objective:** Fix interaction contracts, pagination cross-navigation, schema previews, provider capability filtering, geometry scaling, and race conditions.
+- **Tasks Delivered:**
+  - `QualityDashboardModal.tsx` & `DatasetDetail.tsx`: Cross-page affected record navigation via backend queue search/record_id filtering; filter-exclusion banners with 1-click filter reset; auto-scroll and visual target badge. Categorical palette updated to neutral-first tokens.
+  - `AIAnnotationModal.tsx` & `SyntheticGenerationModal.tsx`: Purged fabricated scores/coordinates; added truthful illustrative task schema templates with disclaimers; enforced target class validation against dataset schema.
+  - Provider Gateway Capability Filtering: Enforced provider-level capability match against `dataset.task_type`; disabled incompatible providers with grounded copy; disabled execution when no compatible provider exists.
+  - `VersionDiffModal.tsx`: Implemented `<SpatialDiffViewer>` with letterboxing offset calculation ($X_{offset}, Y_{offset}$) for `object-fit: contain`; eliminated fake asset URLs; enforced strict onion-skin 0%/100% layer hiding.
+  - `ExportModal.tsx`: Prevented token simulation race conditions via `simRequestIdRef` and `AbortController`; cleared stale results during calculation; ensured capacity and utilization always reference `simResult.target_context_window`.
+- **Exit Gate:** `npm run build` passed (7.48s); 104/104 pytest passed (12.24s); ruff lint passed; zero promotional puffery.
+
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**

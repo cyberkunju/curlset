@@ -100,23 +100,62 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
   // Schema matching status
   const isClassInSchema = labels.length === 0 || labels.includes(targetClass);
 
-  // Live schema preview derived from task type and form state
+  // Honest illustrative task schema preview derived from task type and form state
   const schemaPreview = useMemo(() => {
     const previewPayload: Record<string, any> = {
-      label: targetClass,
       task_type: taskType,
       origin: 'synthetic',
       review_status: 'pending_review',
+      target_class: targetClass || '<unspecified_target_class>',
       provenance: {
         prompt_template: promptTemplate,
         template_version: templateVersion,
         seed: Number(seed),
         target_split: split,
       },
+      payload: {},
     };
 
     if (taskType === 'text_classification') {
-      previewPayload.text = `[Synthetic generation output for class: ${targetClass}]`;
+      previewPayload.payload = {
+        label: targetClass || '<target_class>',
+        text: `[Synthesized text output for class: ${targetClass || 'sample'}]`,
+      };
+    } else if (taskType === 'image_classification') {
+      previewPayload.payload = {
+        label: targetClass || '<target_class>',
+        notes: `[Synthesized sample metadata for class: ${targetClass || 'sample'}]`,
+      };
+    } else if (taskType === 'object_detection') {
+      previewPayload.payload = {
+        boxes: [
+          {
+            label: targetClass || '<target_class>',
+            x: '<norm_x_min_0.0_to_1.0>',
+            y: '<norm_y_min_0.0_to_1.0>',
+            width: '<norm_width_0.0_to_1.0>',
+            height: '<norm_height_0.0_to_1.0>',
+          },
+        ],
+      };
+    } else if (taskType === 'audio_transcription') {
+      previewPayload.payload = {
+        text: `[Synthesized audio transcript for ${targetClass || 'sample'}]`,
+        language: 'en',
+      };
+      previewPayload.media_note =
+        'Acoustic synthesis requires audio processing pipeline; generation produces transcript and metadata only.';
+    } else if (taskType === 'document_ocr') {
+      previewPayload.payload = {
+        text: `[Synthesized document text for ${targetClass || 'sample'}]`,
+        words: [],
+      };
+      previewPayload.media_note =
+        'Document image rendering requires visual OCR asset pipeline; generation produces structured text only.';
+    } else {
+      previewPayload.payload = {
+        label: targetClass || '<target_class>',
+      };
     }
 
     return JSON.stringify(previewPayload, null, 2);
@@ -361,6 +400,33 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
                 )}
               </div>
 
+              {/* Class Schema Mismatch Blocker */}
+              {!isClassInSchema && labels.length > 0 && (
+                <div
+                  style={{
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: '0.65rem',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid var(--rose)',
+                    color: 'var(--rose)',
+                    fontSize: '0.76rem',
+                    display: 'flex',
+                    gap: '0.45rem',
+                    alignItems: 'center',
+                  }}
+                >
+                  <AlertTriangle size={15} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+                  <span>
+                    Target class <strong>"{targetClass}"</strong> is not in the dataset's configured class list: [{labels.join(', ')}]. Generation disabled until an allowed class is selected.
+                  </span>
+                </div>
+              )}
+
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontStyle: 'italic' }}>
+                Illustrative schema template only — not a generated record. Synthetic samples will be routed to pending_review upon generation.
+              </div>
+
               <pre
                 style={{
                   margin: 0,
@@ -392,7 +458,11 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
               <SpringButton type="button" variant="secondary" onClick={onClose} disabled={isGenerating}>
                 Cancel
               </SpringButton>
-              <SpringButton type="submit" variant="primary" disabled={isGenerating}>
+              <SpringButton
+                type="submit"
+                variant="primary"
+                disabled={isGenerating || (!isClassInSchema && labels.length > 0) || !targetClass.trim()}
+              >
                 {isGenerating ? 'Synthesizing Samples...' : `Generate ${count} Synthetic Samples`}
               </SpringButton>
             </div>

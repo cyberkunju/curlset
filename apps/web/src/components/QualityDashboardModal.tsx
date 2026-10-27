@@ -24,16 +24,16 @@ export interface QualityDashboardModalProps {
   onOpenWorkspace?: () => void;
 }
 
-// Accessible categorical palette for proportional distributions
+// Accessible categorical palette for proportional distributions (restrained neutral-first design contract)
 const PALETTE = [
   'var(--accent-interactive)',
   'var(--emerald)',
   'var(--amber)',
   'var(--cyan)',
   'var(--rose)',
-  '#8B5CF6',
-  '#EC4899',
-  '#14B8A6',
+  '#475569',
+  '#0D9488',
+  '#64748B',
 ];
 
 export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({

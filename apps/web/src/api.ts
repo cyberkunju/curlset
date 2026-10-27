@@ -104,11 +104,15 @@ export async function fetchDatasetQueue(
   split?: string,
   reviewStatus?: string,
   limit = 50,
-  offset = 0
+  offset = 0,
+  search?: string,
+  recordId?: string
 ): Promise<{ items: any[]; total: number; limit: number; offset: number }> {
   const params = new URLSearchParams();
   if (split) params.set('split', split);
   if (reviewStatus) params.set('review_status', reviewStatus);
+  if (search) params.set('search', search);
+  if (recordId) params.set('record_id', recordId);
   params.set('limit', limit.toString());
   params.set('offset', offset.toString());
 
@@ -261,12 +265,14 @@ export function getExportDownloadUrl(artifactId: string): string {
 
 export async function simulateDatasetTokens(
   datasetId: string,
-  params: { target_context_window?: number; system_prompt?: string } = {}
+  params: { target_context_window?: number; system_prompt?: string } = {},
+  signal?: AbortSignal
 ): Promise<TokenSimulationResponse> {
   const res = await fetch(`${API_BASE}/datasets/${datasetId}/token-simulation`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
+    signal,
   });
   return handleResponse<TokenSimulationResponse>(res);
 }

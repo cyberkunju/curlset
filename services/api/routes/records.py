@@ -25,6 +25,8 @@ def get_dataset_queue(
     dataset_id: str,
     split: str | None = Query(None, description="Filter by split (train, val, test, unassigned)"),
     review_status: str | None = Query(None, description="Filter by review status (unannotated, pending_review, approved, rejected, needs_correction)"),
+    search: str | None = Query(None, description="Search by record ID, external key, payload label, text, or file"),
+    record_id: str | None = Query(None, description="Directly filter by record ID"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_db),
@@ -34,6 +36,8 @@ def get_dataset_queue(
         dataset_id=dataset_id,
         split=split,
         review_status=review_status,
+        search=search,
+        record_id=record_id,
         limit=limit,
         offset=offset,
     )

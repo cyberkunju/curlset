@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   GitCompare,
   Layers,
@@ -19,6 +19,333 @@ export interface VersionDiffModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+interface SpatialDiffViewerProps {
+  assetUrl: string | null;
+  boxesV1: any[];
+  boxesV2: any[];
+  viewMode: 'overlay' | 'sideBySide';
+  v1Opacity: number;
+  v2Opacity: number;
+  recordId: string;
+}
+
+const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
+  assetUrl,
+  boxesV1,
+  boxesV2,
+  viewMode,
+  v1Opacity,
+  v2Opacity,
+  recordId,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [naturalDims, setNaturalDims] = useState<{ width: number; height: number } | null>(null);
+  const [containerDims, setContainerDims] = useState<{ width: number; height: number }>({ width: 300, height: 170 });
+  const [imgError, setImgError] = useState(false);
+
+  // Measure container dimensions with ResizeObserver
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        setContainerDims({
+          width: containerRef.current.clientWidth || 300,
+          height: containerRef.current.clientHeight || (viewMode === 'overlay' ? 170 : 140),
+        });
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [viewMode]);
+
+  // Compute image-relative bounding box dimensions accounting for object-fit: contain letterbox offsets
+  const computeBoxStyle = (box: any) => {
+    const cw = containerDims.width;
+    const ch = containerDims.height;
+    const bx = Number(box.x) || 0;
+    const by = Number(box.y) || 0;
+    const bw = Number(box.w ?? box.width) || 0;
+    const bh = Number(box.h ?? box.height) || 0;
+
+    const isNormalized = bx <= 1 && by <= 1 && bw <= 1 && bh <= 1 && (bw > 0 || bh > 0);
+
+    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0 && !imgError) {
+      const nw = naturalDims.width;
+      const nh = naturalDims.height;
+      const rImg = nw / nh;
+      const rCont = cw / ch;
+
+      let renderedW = cw;
+      let renderedH = ch;
+      let offX = 0;
+      let offY = 0;
+
+      if (rCont > rImg) {
+        // Horizontal letterboxing (margins on left and right)
+        renderedH = ch;
+        renderedW = ch * rImg;
+        offX = (cw - renderedW) / 2;
+        offY = 0;
+      } else {
+        // Vertical letterboxing (margins on top and bottom)
+        renderedW = cw;
+        renderedH = cw / rImg;
+        offX = 0;
+        offY = (ch - renderedH) / 2;
+      }
+
+      let scaledX = 0;
+      let scaledY = 0;
+      let scaledW = 0;
+      let scaledH = 0;
+
+      if (isNormalized) {
+        scaledX = bx * renderedW;
+        scaledY = by * renderedH;
+        scaledW = bw * renderedW;
+        scaledH = bh * renderedH;
+      } else {
+        const scaleX = renderedW / nw;
+        const scaleY = renderedH / nh;
+        scaledX = bx * scaleX;
+        scaledY = by * scaleY;
+        scaledW = bw * scaleX;
+        scaledH = bh * scaleY;
+      }
+
+      // Clamp within displayed image bounds
+      const clampedX = Math.max(0, Math.min(renderedW, scaledX));
+      const clampedY = Math.max(0, Math.min(renderedH, scaledY));
+      const clampedW = Math.max(2, Math.min(renderedW - clampedX, scaledW));
+      const clampedH = Math.max(2, Math.min(renderedH - clampedY, scaledH));
+
+      return {
+        left: `${offX + clampedX}px`,
+        top: `${offY + clampedY}px`,
+        width: `${clampedW}px`,
+        height: `${clampedH}px`,
+      };
+    }
+
+    // Fallback when image asset or natural dimensions are unavailable
+    const normX = isNormalized ? bx : Math.min(1, Math.max(0, bx / 640));
+    const normY = isNormalized ? by : Math.min(1, Math.max(0, by / 480));
+    const normW = isNormalized ? bw : Math.min(1, Math.max(0.01, bw / 640));
+    const normH = isNormalized ? bh : Math.min(1, Math.max(0.01, bh / 480));
+
+    return {
+      left: `${normX * cw}px`,
+      top: `${normY * ch}px`,
+      width: `${Math.max(2, normW * cw)}px`,
+      height: `${Math.max(2, normH * ch)}px`,
+    };
+  };
+
+  const renderBoxesLayer = (boxes: any[], isV1: boolean, opacity: number) => {
+    if (opacity <= 0) return null;
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity,
+          transition: 'opacity 0.05s ease',
+          pointerEvents: 'none',
+        }}
+      >
+        {boxes.map((b: any, idx: number) => {
+          const style = computeBoxStyle(b);
+          return (
+            <div
+              key={`${isV1 ? 'v1' : 'v2'}_${idx}`}
+              style={{
+                position: 'absolute',
+                ...style,
+                border: isV1 ? '2px dashed var(--rose)' : '2px solid var(--emerald)',
+                background: isV1 ? 'rgba(239, 68, 68, 0.18)' : 'rgba(16, 185, 129, 0.28)',
+                borderRadius: '2px',
+                boxSizing: 'border-box',
+              }}
+              title={`${isV1 ? 'v1 Baseline' : 'v2 Target'}: ${b.label || 'box'}`}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-14px',
+                  left: 0,
+                  fontSize: '0.62rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-mono)',
+                  color: isV1 ? 'var(--rose)' : 'var(--emerald)',
+                  background: 'var(--bg-canvas)',
+                  padding: '0 2px',
+                  borderRadius: '2px',
+                  whiteSpace: 'nowrap',
+                  lineHeight: '1.2',
+                }}
+              >
+                {b.label || (isV1 ? 'v1' : 'v2')}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const hasValidAsset = Boolean(assetUrl && !imgError);
+
+  if (viewMode === 'overlay') {
+    return (
+      <div
+        ref={containerRef}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '170px',
+          background: 'var(--bg-surface)',
+          borderRadius: '4px',
+          overflow: 'hidden',
+          border: '1px solid var(--border-hairline)',
+        }}
+      >
+        {hasValidAsset ? (
+          <img
+            src={assetUrl!}
+            alt={`Record ${recordId} asset canvas`}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                setNaturalDims({ width: img.naturalWidth, height: img.naturalHeight });
+              }
+            }}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background:
+                'repeating-linear-gradient(45deg, var(--bg-surface), var(--bg-surface) 10px, var(--bg-elevated) 10px, var(--bg-elevated) 20px)',
+              color: 'var(--text-muted)',
+              fontSize: '0.72rem',
+              padding: '0.5rem',
+              textAlign: 'center',
+            }}
+          >
+            <span>Geometry-only canvas (media asset unavailable)</span>
+          </div>
+        )}
+
+        {renderBoxesLayer(boxesV1, true, v1Opacity)}
+        {renderBoxesLayer(boxesV2, false, v2Opacity)}
+      </div>
+    );
+  }
+
+  // Side-by-side mode
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+      <div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--rose)', fontWeight: 600, marginBottom: '0.2rem' }}>
+          v1 Baseline ({boxesV1.length} boxes)
+        </div>
+        <div
+          ref={containerRef}
+          style={{
+            position: 'relative',
+            height: '140px',
+            background: 'var(--bg-surface)',
+            borderRadius: '3px',
+            overflow: 'hidden',
+            border: '1px solid var(--border-hairline)',
+          }}
+        >
+          {hasValidAsset ? (
+            <img
+              src={assetUrl!}
+              alt={`Record ${recordId} v1 canvas`}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  setNaturalDims({ width: img.naturalWidth, height: img.naturalHeight });
+                }
+              }}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-muted)',
+                fontSize: '0.7rem',
+              }}
+            >
+              Geometry only
+            </div>
+          )}
+          {renderBoxesLayer(boxesV1, true, 1.0)}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--emerald)', fontWeight: 600, marginBottom: '0.2rem' }}>
+          v2 Target ({boxesV2.length} boxes)
+        </div>
+        <div
+          style={{
+            position: 'relative',
+            height: '140px',
+            background: 'var(--bg-surface)',
+            borderRadius: '3px',
+            overflow: 'hidden',
+            border: '1px solid var(--border-hairline)',
+          }}
+        >
+          {hasValidAsset ? (
+            <img
+              src={assetUrl!}
+              alt={`Record ${recordId} v2 canvas`}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-elevated)',
+                color: 'var(--text-muted)',
+                fontSize: '0.7rem',
+              }}
+            >
+              Geometry only
+            </div>
+          )}
+          {renderBoxesLayer(boxesV2, false, 1.0)}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   datasetId,
@@ -93,14 +420,15 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
     }
   };
 
-  // V1 and V2 layer opacities for the onion-skin overlay
+  // V1 and V2 layer opacities for the onion-skin overlay (endpoints strictly hide the opposite layer)
   const v1LayerOpacity = useMemo(() => {
-    // When opacity slider is 50%, both are visible (0.8). At 0%, v1 is 1.0, v2 is 0.0.
-    return Math.max(0.1, (100 - onionSkinOpacity) / 100);
+    if (onionSkinOpacity === 100) return 0.0;
+    return Math.max(0.0, (100 - onionSkinOpacity) / 100);
   }, [onionSkinOpacity]);
 
   const v2LayerOpacity = useMemo(() => {
-    return Math.max(0.1, onionSkinOpacity / 100);
+    if (onionSkinOpacity === 0) return 0.0;
+    return Math.max(0.0, onionSkinOpacity / 100);
   }, [onionSkinOpacity]);
 
   if (!isOpen) return null;
@@ -461,7 +789,7 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                       {diffData.spatial_diffs.slice(0, 4).map((item: any) => {
                         const rawAssetUrl = item.asset_url
                           ? item.asset_url.replace('/file', '/raw')
-                          : `/api/v1/assets/${item.record_id}/raw`;
+                          : null;
 
                         return (
                           <div
@@ -480,181 +808,15 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                               </span>
                             </div>
 
-                            {viewMode === 'overlay' ? (
-                              /* Overlay View with Onion-Skin Opacity Control */
-                              <div
-                                style={{
-                                  position: 'relative',
-                                  width: '100%',
-                                  height: '170px',
-                                  background: 'var(--bg-surface)',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden',
-                                  border: '1px solid var(--border-hairline)',
-                                }}
-                              >
-                                {/* Background Image */}
-                                <img
-                                  src={rawAssetUrl}
-                                  alt="Record asset canvas"
-                                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
-                                  onError={(e) => {
-                                    (e.target as HTMLElement).style.display = 'none';
-                                  }}
-                                />
-
-                                {/* v1 Baseline Boxes Layer with Opacity */}
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    opacity: v1LayerOpacity,
-                                    transition: 'opacity 0.05s ease',
-                                    pointerEvents: 'none',
-                                  }}
-                                >
-                                  {item.boxes_v1.map((b: any, bi: number) => {
-                                    const w = b.w ?? b.width ?? 0;
-                                    const h = b.h ?? b.height ?? 0;
-                                    return (
-                                      <div
-                                        key={`v1_${bi}`}
-                                        style={{
-                                          position: 'absolute',
-                                          left: `${b.x}px`,
-                                          top: `${b.y}px`,
-                                          width: `${w}px`,
-                                          height: `${h}px`,
-                                          border: '2px dashed var(--rose)',
-                                          background: 'rgba(239, 68, 68, 0.18)',
-                                          borderRadius: '2px',
-                                          boxSizing: 'border-box',
-                                        }}
-                                        title={`v1 ${b.label || 'box'}`}
-                                      />
-                                    );
-                                  })}
-                                </div>
-
-                                {/* v2 Current Boxes Layer with Opacity */}
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    opacity: v2LayerOpacity,
-                                    transition: 'opacity 0.05s ease',
-                                    pointerEvents: 'none',
-                                  }}
-                                >
-                                  {item.boxes_v2.map((b: any, bi: number) => {
-                                    const w = b.w ?? b.width ?? 0;
-                                    const h = b.h ?? b.height ?? 0;
-                                    return (
-                                      <div
-                                        key={`v2_${bi}`}
-                                        style={{
-                                          position: 'absolute',
-                                          left: `${b.x}px`,
-                                          top: `${b.y}px`,
-                                          width: `${w}px`,
-                                          height: `${h}px`,
-                                          border: '2px solid var(--emerald)',
-                                          background: 'rgba(16, 185, 129, 0.28)',
-                                          borderRadius: '2px',
-                                          boxSizing: 'border-box',
-                                        }}
-                                        title={`v2 ${b.label || 'box'}`}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ) : (
-                              /* Side-by-Side Comparison */
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-                                {/* Left: v1 Baseline */}
-                                <div>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--rose)', fontWeight: 600, marginBottom: '0.2rem' }}>
-                                    v1 Baseline ({item.boxes_v1.length} boxes)
-                                  </div>
-                                  <div
-                                    style={{
-                                      position: 'relative',
-                                      height: '140px',
-                                      background: 'var(--bg-surface)',
-                                      borderRadius: '3px',
-                                      overflow: 'hidden',
-                                      border: '1px solid var(--border-hairline)',
-                                    }}
-                                  >
-                                    <img
-                                      src={rawAssetUrl}
-                                      alt="Record asset canvas"
-                                      style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
-                                      onError={(e) => {
-                                        (e.target as HTMLElement).style.display = 'none';
-                                      }}
-                                    />
-                                    {item.boxes_v1.map((b: any, bi: number) => (
-                                      <div
-                                        key={`v1_side_${bi}`}
-                                        style={{
-                                          position: 'absolute',
-                                          left: `${b.x}px`,
-                                          top: `${b.y}px`,
-                                          width: `${b.w ?? b.width ?? 0}px`,
-                                          height: `${b.h ?? b.height ?? 0}px`,
-                                          border: '2px dashed var(--rose)',
-                                          background: 'rgba(239, 68, 68, 0.22)',
-                                          borderRadius: '2px',
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Right: v2 Target */}
-                                <div>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--emerald)', fontWeight: 600, marginBottom: '0.2rem' }}>
-                                    v2 Current ({item.boxes_v2.length} boxes)
-                                  </div>
-                                  <div
-                                    style={{
-                                      position: 'relative',
-                                      height: '140px',
-                                      background: 'var(--bg-surface)',
-                                      borderRadius: '3px',
-                                      overflow: 'hidden',
-                                      border: '1px solid var(--border-hairline)',
-                                    }}
-                                  >
-                                    <img
-                                      src={rawAssetUrl}
-                                      alt="Record asset canvas"
-                                      style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.65 }}
-                                      onError={(e) => {
-                                        (e.target as HTMLElement).style.display = 'none';
-                                      }}
-                                    />
-                                    {item.boxes_v2.map((b: any, bi: number) => (
-                                      <div
-                                        key={`v2_side_${bi}`}
-                                        style={{
-                                          position: 'absolute',
-                                          left: `${b.x}px`,
-                                          top: `${b.y}px`,
-                                          width: `${b.w ?? b.width ?? 0}px`,
-                                          height: `${b.h ?? b.height ?? 0}px`,
-                                          border: '2px solid var(--emerald)',
-                                          background: 'rgba(16, 185, 129, 0.32)',
-                                          borderRadius: '2px',
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            <SpatialDiffViewer
+                              assetUrl={rawAssetUrl}
+                              boxesV1={item.boxes_v1 || []}
+                              boxesV2={item.boxes_v2 || []}
+                              viewMode={viewMode}
+                              v1Opacity={v1LayerOpacity}
+                              v2Opacity={v2LayerOpacity}
+                              recordId={item.record_id}
+                            />
                           </div>
                         );
                       })}

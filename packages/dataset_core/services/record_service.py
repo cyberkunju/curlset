@@ -269,10 +269,14 @@ class RecordService:
         dataset_id: str,
         split: str | None = None,
         review_status: str | None = None,
+        search: str | None = None,
+        record_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[dict[str, Any]], int]:
         stmt = select(DatasetRecordModel).where(DatasetRecordModel.dataset_id == dataset_id)
+        if record_id:
+            stmt = stmt.where(DatasetRecordModel.id == record_id)
         if split:
             stmt = stmt.where(DatasetRecordModel.split == split)
 
@@ -306,6 +310,25 @@ class RecordService:
                     "dimensions": pa.dimensions,
                     "original_filename": pa.original_filename,
                 }
+
+            if search:
+                q = search.lower().strip()
+                id_match = q in r.id.lower()
+                key_match = bool(r.external_key and q in r.external_key.lower())
+                label_match = False
+                text_match = False
+                if latest_payload and isinstance(latest_payload, dict):
+                    if "label" in latest_payload:
+                        label_match = q in str(latest_payload["label"]).lower()
+                    if "text" in latest_payload:
+                        text_match = q in str(latest_payload["text"]).lower()
+                file_match = bool(
+                    primary_asset
+                    and primary_asset.get("original_filename")
+                    and q in primary_asset["original_filename"].lower()
+                )
+                if not (id_match or key_match or label_match or text_match or file_match):
+                    continue
 
             filtered_items.append({
                 "id": r.id,

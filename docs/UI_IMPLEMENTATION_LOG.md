@@ -659,5 +659,61 @@ Redesigned the five core dataset engineering modals and integrated parent wiring
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Environmental Note**: Browser automation execution remains constrained by offline sandbox environment (cannot download browser binaries). Code-level types, boundary conditions, parent/child component wiring, and test suites are 100% verified.
 
+---
+
+## 16. Phase R5.1 — UI Contract & Interaction Integrity Corrections
+
+**Status:** COMPLETE  
+**Base Commit Inspected:** `d3bda9c3559239251b2ae1b7eab223ca4e36340e`  
+**Quality Gates Passed:** `npm run build` (0 TypeScript errors), `pytest tests/ -q` (104 passed), `ruff check .` (0 lint errors).
+
+### 16.1 Objectives & Deliverables Completed
+
+1. **Cross-Page Affected Record Navigation (`QualityDashboardModal.tsx`, `DatasetDetail.tsx`, backend `records.py` & `record_service.py`):**
+   - **Backend Search & Record ID Filtering**: Augmented `get_dataset_queue` and `RecordService.list_records_with_status` with `search` and `record_id` parameters, allowing direct lookup of specific record IDs and substring queries across IDs, external keys, payloads, and asset filenames regardless of pagination offsets.
+   - **Server-Side Queue Search**: Updated `fetchDatasetQueue` in `apps/web/src/api.ts` to forward `search` and `record_id`.
+   - **Intelligent Record Location (`handleLocateRecord`)**: In `DatasetDetail.tsx`, clicking an affected record ID from the Quality Dashboard executes an explicit lookup. If existing split/status filters exclude the target record, a clear banner alerts the user (`Target record ... exists in split ... with status ..., but is hidden by active filters`) with a 1-click **"Clear Filters & Show Target Record"** button.
+   - **Auto-Scroll and Visual Highlight**: Automatically scrolls the located record row or card into view, applies a distinct highlight border, and badges the target with a visible `Target Finding` pill badge.
+   - **Zero State Mutation**: Locating a record never alters review states or annotation data.
+
+2. **Honest AI & Synthetic Schema Previews (`AIAnnotationModal.tsx`, `SyntheticGenerationModal.tsx`):**
+   - **Purged Fabricated Inference Outputs**: Completely removed hardcoded confidence scores (`0.88`, `0.91`, `0.85`) and fake bounding box coordinates from proposal previews.
+   - **Task Contract Fidelity**: Previews now explicitly derive structure from `packages/dataset_core/task_schemas.py` (`text_classification`, `image_classification`, `object_detection`, `audio_transcription`, `document_ocr`).
+   - **Unmistakable Placeholders & Disclaimers**: Added prominent italic disclaimers:
+     - AI Modal: *"Illustrative schema only — values are placeholders, not model predictions."*
+     - Synthetic Modal: *"Illustrative schema template only — not a generated record. Synthetic samples will be routed to pending_review upon generation."*
+   - **Schema Class Validation**: Synthetic modal checks target class against configured label schema. If configured labels exist and target class is not among them, generation is blocked with a clear notice and the submit button is disabled.
+
+3. **Grounded Provider Capability Filtering (`AIAnnotationModal.tsx`):**
+   - **Contract-Based Compatibility**: Inspects `capabilities` returned by `GET /api/v1/providers` against the active dataset's `task_type`.
+   - **Truthful Provider Selection**: Incompatible providers are clearly grouped and disabled with explanatory text (e.g., `(Incompatible: lacks 'object_detection')`).
+   - **Disabled Submission**: If no compatible provider/model combination exists, execution is disabled with a helpful setup warning (`No configured AI provider in your gateway currently advertises capability for ...`).
+   - **Provider State Reset**: Selecting a provider automatically selects the first valid model, preventing stale model IDs.
+   - **Demo Provider Transparency**: `fake` and `fake-classifier-v1` providers remain explicitly badged as demo/testing-only.
+
+4. **Image-Relative Geometry with Letterboxing Correction (`VersionDiffModal.tsx`):**
+   - **`<SpatialDiffViewer>` Subcomponent**: Implemented container dimension measurement via `ResizeObserver` and image natural dimension tracking (`onLoad`).
+   - **Aspect-Ratio Letterboxing Offsets**: Accurately computes horizontal ($X_{offset}$) or vertical ($Y_{offset}$) letterbox margins introduced by `object-fit: contain` when container aspect ratio diverges from natural image aspect ratio ($R_{cont} \ne R_{img}$).
+   - **Coordinate Transformation**: Transforms raw pixel bounding boxes $(x, y, w, h)$ or normalized coordinates into $(X_{offset} + x_{scaled}, Y_{offset} + y_{scaled})$ clamped strictly to the displayed image frame.
+   - **Truthful Geometry Fallback**: Eliminated the buggy URL construction `/api/v1/assets/${item.record_id}/raw` (record IDs are not asset IDs). If asset URL is unavailable or errored, renders a clean, truthful geometry-only canvas fallback without associating unrelated assets.
+   - **Strict Onion-Skin Endpoints**: Enforced that at `0%` slider position, $v_2$ layer opacity is strictly `0.0` ($v_1$ dominant), and at `100%`, $v_1$ layer opacity is strictly `0.0` ($v_2$ dominant).
+
+5. **Token Simulation Response Race Prevention (`ExportModal.tsx`, `api.ts`):**
+   - **Request ID Ref & Monotonicity**: Introduced `simRequestIdRef = useRef<number>(0)` to reject out-of-order responses from earlier context selections.
+   - **In-Flight Cancellation**: Added `AbortController` support to `simulateDatasetTokens` in `api.ts` and cancelled prior requests in `runTokenSimulation`.
+   - **Stale State Clearing**: Clears previous simulation results while a new calculation is in progress, preventing display of stale token utilization for a newly chosen context window.
+   - **Reported Context Synchronization**: Guaranteed that displayed capacity, P95 utilization percentage, and warning badges all reference `simResult.target_context_window` returned by the server.
+   - **Explicit Zero-Record State**: Displays clear feedback when zero records were evaluated in the dataset.
+
+6. **Neutral Design Consistency (`QualityDashboardModal.tsx`):**
+   - Replaced saturated purple (`#8B5CF6`) and pink (`#EC4899`) in `PALETTE` with restrained neutral-slate and muted teal tokens (`#475569`, `#0D9488`, `#64748B`), conforming to the repository's neutral-first design contract.
+
+### 16.2 Verification Summary
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 errors, 7.48s).
+- **Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **104 passed**, 0 failures in 12.24s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser automation subagent tools remain constrained by sandbox environment (external browser download unavailable); verified through static type checking, contract verification, and test suites.
+
+
 
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Package,
   Lock,
@@ -134,12 +134,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Real Token & Context Simulator State
+  // Real Token & Context Simulator State with race-condition prevention
   const [targetContext, setTargetContext] = useState<string>('4096');
   const [simResult, setSimResult] = useState<TokenSimulationResponse | null>(null);
   const [simLoading, setSimLoading] = useState<boolean>(false);
   const [simError, setSimError] = useState<string | null>(null);
   const [showTemplatePreview, setShowTemplatePreview] = useState<boolean>(false);
+
+  // Monotonically increasing request identifier and abort controller to prevent out-of-order race conditions
+  const simRequestIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadVersions = async () => {
     setLoadingVersions(true);
@@ -167,20 +171,41 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
-  // Run real server-side token simulation
+  // Run real server-side token simulation with race-prevention and stale-clearing
   const runTokenSimulation = async (targetCtx: number) => {
+    // Abort in-flight request if present
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const currentReqId = ++simRequestIdRef.current;
     setSimLoading(true);
     setSimError(null);
+    // Clear old results while newer simulation is in flight so stale context utilization is not displayed
+    setSimResult(null);
+
     try {
-      const res = await simulateDatasetTokens(datasetId, {
-        target_context_window: targetCtx,
-      });
-      setSimResult(res);
+      const res = await simulateDatasetTokens(
+        datasetId,
+        { target_context_window: targetCtx },
+        controller.signal
+      );
+      if (currentReqId === simRequestIdRef.current) {
+        setSimResult(res);
+        setSimLoading(false);
+      }
     } catch (err: any) {
-      setSimError(err.message || 'Token simulation request failed');
-      setSimResult(null);
-    } finally {
-      setSimLoading(false);
+      if (err?.name === 'AbortError') {
+        // Ignored as superseded by newer simulation request
+        return;
+      }
+      if (currentReqId === simRequestIdRef.current) {
+        setSimError(err.message || 'Token simulation request failed');
+        setSimResult(null);
+        setSimLoading(false);
+      }
     }
   };
 
@@ -189,6 +214,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       loadVersions();
       runTokenSimulation(parseInt(targetContext, 10) || 4096);
     }
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [isOpen, datasetId]);
 
   const handleContextChange = (newVal: string) => {
@@ -225,10 +255,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   if (!isOpen) return null;
 
-  const targetCtxNum = parseInt(targetContext, 10) || 4096;
+  const reportedContextNum = simResult ? simResult.target_context_window : (parseInt(targetContext, 10) || 4096);
   const p95UtilizationPct =
-    simResult && targetCtxNum > 0
-      ? Math.min(100, Math.round((simResult.p95_tokens / targetCtxNum) * 100))
+    simResult && reportedContextNum > 0
+      ? Math.min(100, Math.round((simResult.p95_tokens / reportedContextNum) * 100))
       : 0;
 
   return (
@@ -484,108 +514,127 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {simLoading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
                     <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                    <span>Evaluating record token distributions...</span>
+                    <span>Evaluating record token distributions for {targetContext} context window...</span>
                   </div>
                 ) : simError ? (
                   <div style={{ fontSize: '0.75rem', color: 'var(--rose)', padding: '0.35rem 0' }}>
                     Token simulation unavailable: {simError}
                   </div>
                 ) : simResult ? (
-                  <div>
-                    {/* Simulator Metrics Row */}
+                  simResult.total_records_evaluated === 0 ? (
                     <div
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                        gap: '0.5rem',
-                        marginBottom: '0.65rem',
+                        padding: '0.75rem',
+                        background: 'var(--bg-canvas)',
+                        borderRadius: 'var(--radius-xs)',
+                        border: '1px solid var(--border-hairline)',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
                       }}
                     >
-                      <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Records Evaluated</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.total_records_evaluated}</div>
-                      </div>
-                      <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Average Tokens</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.avg_tokens_per_record}</div>
-                      </div>
-                      <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>P95 Tokens</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{simResult.p95_tokens}</div>
-                      </div>
-                      <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Maximum Tokens</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.max_tokens}</div>
-                      </div>
-                      <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Truncated Records</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: simResult.records_truncated > 0 ? 'var(--rose)' : 'var(--emerald)' }}>
-                          {simResult.records_truncated} ({simResult.truncation_percentage}%)
-                        </div>
-                      </div>
+                      <AlertTriangle size={14} />
+                      <span>No records found in dataset to evaluate. Add or import records before simulating token capacity.</span>
                     </div>
-
-                    {/* Context Utilization Visual Bar */}
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
-                        <span>P95 Context Utilization ({p95UtilizationPct}%)</span>
-                        <span>Capacity: {targetCtxNum.toLocaleString()} tokens</span>
-                      </div>
+                  ) : (
+                    <div>
+                      {/* Simulator Metrics Row */}
                       <div
                         style={{
-                          width: '100%',
-                          height: '6px',
-                          background: 'var(--bg-canvas)',
-                          borderRadius: '3px',
-                          overflow: 'hidden',
-                          border: '1px solid var(--border-hairline)',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: '0.5rem',
+                          marginBottom: '0.65rem',
                         }}
                       >
+                        <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Records Evaluated</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.total_records_evaluated}</div>
+                        </div>
+                        <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Average Tokens</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.avg_tokens_per_record}</div>
+                        </div>
+                        <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>P95 Tokens</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{simResult.p95_tokens}</div>
+                        </div>
+                        <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Maximum Tokens</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{simResult.max_tokens}</div>
+                        </div>
+                        <div style={{ padding: '0.45rem 0.6rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-hairline)' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Truncated Records</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: simResult.records_truncated > 0 ? 'var(--rose)' : 'var(--emerald)' }}>
+                            {simResult.records_truncated} ({simResult.truncation_percentage}%)
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Context Utilization Visual Bar */}
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                          <span>P95 Context Utilization ({p95UtilizationPct}%)</span>
+                          <span>Capacity: {reportedContextNum.toLocaleString()} tokens</span>
+                        </div>
                         <div
                           style={{
-                            width: `${Math.min(100, p95UtilizationPct)}%`,
-                            height: '100%',
-                            background:
-                              simResult.records_truncated > 0
-                                ? 'var(--rose)'
-                                : p95UtilizationPct > 85
-                                ? 'var(--amber)'
-                                : 'var(--emerald)',
-                            transition: 'width 0.2s ease',
+                            width: '100%',
+                            height: '6px',
+                            background: 'var(--bg-canvas)',
+                            borderRadius: '3px',
+                            overflow: 'hidden',
+                            border: '1px solid var(--border-hairline)',
                           }}
-                        />
+                        >
+                          <div
+                            style={{
+                              width: `${Math.min(100, p95UtilizationPct)}%`,
+                              height: '100%',
+                              background:
+                                simResult.records_truncated > 0
+                                  ? 'var(--rose)'
+                                  : p95UtilizationPct > 85
+                                  ? 'var(--amber)'
+                                  : 'var(--emerald)',
+                              transition: 'width 0.2s ease',
+                            }}
+                          />
+                        </div>
+
+                        {/* Context Tick Marks */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                          <span>0</span>
+                          <span>2,048</span>
+                          <span>4,096</span>
+                          <span>8,192</span>
+                          <span>32,768</span>
+                        </div>
                       </div>
 
-                      {/* Context Tick Marks */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem', fontFamily: 'var(--font-mono)' }}>
-                        <span>0</span>
-                        <span>2,048</span>
-                        <span>4,096</span>
-                        <span>8,192</span>
-                        <span>32,768</span>
+                      {/* Status Notice */}
+                      <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {simResult.records_truncated > 0 ? (
+                          <span style={{ color: 'var(--rose)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <AlertTriangle size={13} strokeWidth={1.75} />
+                            {simResult.records_truncated} record(s) exceed {reportedContextNum.toLocaleString()} context limit.
+                          </span>
+                        ) : simResult.records_at_risk > 0 ? (
+                          <span style={{ color: 'var(--amber)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <AlertTriangle size={13} strokeWidth={1.75} />
+                            {simResult.records_at_risk} record(s) within 90% of context limit.
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <CheckCircle2 size={13} strokeWidth={1.75} />
+                            All evaluated records fit within {reportedContextNum.toLocaleString()} tokens.
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    {/* Status Notice */}
-                    <div style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      {simResult.records_truncated > 0 ? (
-                        <span style={{ color: 'var(--rose)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <AlertTriangle size={13} strokeWidth={1.75} />
-                          {simResult.records_truncated} record(s) exceed {targetCtxNum.toLocaleString()} context limit.
-                        </span>
-                      ) : simResult.records_at_risk > 0 ? (
-                        <span style={{ color: 'var(--amber)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <AlertTriangle size={13} strokeWidth={1.75} />
-                          {simResult.records_at_risk} record(s) within 90% of context limit.
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <CheckCircle2 size={13} strokeWidth={1.75} />
-                          All evaluated records fit within {targetCtxNum.toLocaleString()} tokens.
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  )
                 ) : null}
 
                 {/* Heuristic Estimator Disclosure */}

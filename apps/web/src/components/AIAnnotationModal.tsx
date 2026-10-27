@@ -45,10 +45,15 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
       fetchProviders()
         .then((data) => {
           setProviders(data);
-          if (data.length > 0) {
-            setSelectedProvider(data[0].name);
-            if (data[0].models?.length > 0) {
-              setSelectedModel(data[0].models[0]);
+          const compatible = data.filter(
+            (p: any) => Array.isArray(p.capabilities) && p.capabilities.includes(taskType)
+          );
+          if (compatible.length > 0) {
+            setSelectedProvider(compatible[0].name);
+            if (compatible[0].models?.length > 0) {
+              setSelectedModel(compatible[0].models[0]);
+            } else {
+              setSelectedModel('');
             }
           } else {
             setSelectedProvider('');
@@ -58,10 +63,23 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
         .catch((err) => setError(err.message || 'Failed to fetch providers'))
         .finally(() => setLoadingProviders(false));
     }
-  }, [isOpen]);
+  }, [isOpen, taskType]);
 
   const currentProviderObj = providers.find((p) => p.name === selectedProvider);
   const availableModels = currentProviderObj?.models || [];
+
+  // Filter providers by actual backend capability contract
+  const compatibleProviders = useMemo(() => {
+    return providers.filter(
+      (p) => Array.isArray(p.capabilities) && p.capabilities.includes(taskType)
+    );
+  }, [providers, taskType]);
+
+  const incompatibleProviders = useMemo(() => {
+    return providers.filter(
+      (p) => !Array.isArray(p.capabilities) || !p.capabilities.includes(taskType)
+    );
+  }, [providers, taskType]);
 
   // Update selected model when provider changes
   const handleProviderChange = (provName: string) => {
@@ -106,28 +124,76 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
     return name;
   };
 
-  // Live schema preview
+  // Honest illustrative task schema preview with zero fabricated confidence or coordinates
   const proposalSchemaPreview = useMemo(() => {
     const payload: Record<string, any> = {
       task_type: taskType,
       origin: 'model',
       review_status: 'pending_review',
       model_metadata: {
-        provider: selectedProvider,
-        model: selectedModel,
+        provider: selectedProvider || '<selected_provider>',
+        model: selectedModel || '<selected_model>',
         consensus_enabled: enableConsensus,
       },
+      payload: {},
     };
 
-    if (taskType === 'image_classification' || taskType === 'text_classification') {
-      const sampleLabel = labelSchema?.labels?.[0] || labelSchema?.classes?.[0] || 'predicted_class';
-      payload.payload = { label: sampleLabel, confidence: 0.88 };
-    } else if (taskType === 'object_detection') {
+    if (taskType === 'text_classification') {
+      const sampleLabel = labelSchema?.labels?.[0] || labelSchema?.classes?.[0] || '<class_label_placeholder>';
       payload.payload = {
-        boxes: [{ x: 12, y: 18, width: 140, height: 95, label: 'sample_object', confidence: 0.91 }],
+        label: sampleLabel,
+        confidence: '<float_0.0_to_1.0_when_provided>',
+        rationale: '<optional_model_rationale_text>',
+      };
+    } else if (taskType === 'image_classification') {
+      const sampleLabel = labelSchema?.labels?.[0] || labelSchema?.classes?.[0] || '<class_label_placeholder>';
+      payload.payload = {
+        label: sampleLabel,
+        confidence: '<float_0.0_to_1.0_when_provided>',
+        notes: '<optional_model_notes>',
+      };
+    } else if (taskType === 'object_detection') {
+      const sampleLabel = labelSchema?.labels?.[0] || labelSchema?.classes?.[0] || '<class_label_placeholder>';
+      payload.payload = {
+        boxes: [
+          {
+            label: sampleLabel,
+            x: '<norm_x_min_0.0_to_1.0>',
+            y: '<norm_y_min_0.0_to_1.0>',
+            width: '<norm_width_0.0_to_1.0>',
+            height: '<norm_height_0.0_to_1.0>',
+            confidence: '<optional_box_confidence_0.0_to_1.0>',
+          },
+        ],
+      };
+    } else if (taskType === 'audio_transcription') {
+      payload.payload = {
+        text: '<transcribed_audio_text_placeholder>',
+        segments: [
+          {
+            start: '<start_seconds>',
+            end: '<end_seconds>',
+            text: '<speech_segment_text>',
+          },
+        ],
+        language: '<iso_language_code>',
+      };
+    } else if (taskType === 'document_ocr') {
+      payload.payload = {
+        text: '<extracted_document_text_placeholder>',
+        words: [
+          {
+            word: '<token_string>',
+            box: ['<x1>', '<y1>', '<x2>', '<y2>'],
+            page: 1,
+          },
+        ],
       };
     } else {
-      payload.payload = { output: 'model_inference_prediction', confidence: 0.85 };
+      payload.payload = {
+        output: '<task_specific_model_prediction>',
+        confidence: '<float_0.0_to_1.0_when_provided>',
+      };
     }
 
     return JSON.stringify(payload, null, 2);
@@ -282,6 +348,31 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
           </div>
         ) : (
           <form onSubmit={handleStartInference}>
+            {/* Task Compatibility Warning when no provider supports task */}
+            {compatibleProviders.length === 0 && (
+              <div
+                style={{
+                  padding: '0.75rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  marginBottom: '1rem',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid var(--amber)',
+                  color: 'var(--amber)',
+                  fontSize: '0.8rem',
+                  lineHeight: '1.45',
+                  display: 'flex',
+                  gap: '0.5rem',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <AlertTriangle size={16} strokeWidth={1.75} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong>No Compatible Providers for Task: </strong>
+                  None of the registered gateway providers ({providers.map((p) => p.name).join(', ')}) advertise support for <code>{taskType}</code>. Capabilities are enforced at the provider gateway level. Batch model inference is disabled.
+                </div>
+              </div>
+            )}
+
             {/* Provider and Model Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', marginBottom: '0.85rem' }}>
               <div>
@@ -291,13 +382,28 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 <CustomSelect
                   value={selectedProvider}
                   onChange={handleProviderChange}
-                  options={providers.map((p) => ({
-                    value: p.name,
-                    label: formatProviderLabel(p.name),
-                  }))}
+                  options={providers.map((p) => {
+                    const isComp = Array.isArray(p.capabilities) && p.capabilities.includes(taskType);
+                    return {
+                      value: p.name,
+                      label: isComp
+                        ? formatProviderLabel(p.name)
+                        : `${formatProviderLabel(p.name)} (Incompatible: lacks '${taskType}')`,
+                      disabled: !isComp,
+                    };
+                  })}
                   style={{ width: '100%' }}
                   ariaLabel="Select gateway provider"
                 />
+                {currentProviderObj && (!Array.isArray(currentProviderObj.capabilities) || currentProviderObj.capabilities.length === 0) ? (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--amber)', marginTop: '0.25rem' }}>
+                    Warning: Provider '{currentProviderObj.name}' does not publish capabilities. Compatibility unverified.
+                  </div>
+                ) : currentProviderObj ? (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Gateway capabilities for {currentProviderObj.name}: <code>{currentProviderObj.capabilities.join(', ')}</code>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -311,7 +417,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                     value: m,
                     label: m === 'fake-classifier-v1' ? `${m} (Demo)` : m,
                   }))}
-                  disabled={availableModels.length === 0}
+                  disabled={availableModels.length === 0 || compatibleProviders.length === 0}
                   style={{ width: '100%' }}
                   ariaLabel="Select provider model"
                 />
@@ -386,7 +492,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 marginBottom: '1rem',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Code2 size={14} strokeWidth={1.75} style={{ color: 'var(--cyan)' }} />
                   Proposal Schema Preview ({taskType})
@@ -394,6 +500,9 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   State: <code>pending_review</code>
                 </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontStyle: 'italic' }}>
+                Illustrative schema only — values are placeholders, not model predictions.
               </div>
               <pre
                 style={{
@@ -405,7 +514,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.725rem',
                   color: 'var(--text-secondary)',
-                  maxHeight: '110px',
+                  maxHeight: '120px',
                   overflowY: 'auto',
                 }}
               >
@@ -426,7 +535,11 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
               <SpringButton type="button" variant="secondary" onClick={onClose} disabled={loading}>
                 Cancel
               </SpringButton>
-              <SpringButton type="submit" variant="primary" disabled={loading || !selectedProvider}>
+              <SpringButton
+                type="submit"
+                variant="primary"
+                disabled={loading || !selectedProvider || compatibleProviders.length === 0}
+              >
                 {loading ? 'Processing Inference Batch...' : `Run Inference on ${limit} Items`}
               </SpringButton>
             </div>
