@@ -217,6 +217,39 @@ export interface VersionDiff {
   net_record_change: number;
 }
 
+export type ExportFormatType =
+  | 'csv'
+  | 'jsonl'
+  | 'coco'
+  | 'yolo'
+  | 'webvtt'
+  | 'unsloth_sharegpt_vlm'
+  | 'axolotl_alpaca_chatml'
+  | 'llama_factory_bundle'
+  | 'ultralytics_yolo_v8_v11';
+
+export interface TokenSimulationResponse {
+  dataset_id: string;
+  target_context_window: number;
+  total_records_evaluated: number;
+  avg_tokens_per_record: number;
+  p95_tokens: number;
+  max_tokens: number;
+  records_truncated: number;
+  truncation_percentage: number;
+  records_at_risk: number;
+  sample_breakdowns: Array<{
+    record_id: string;
+    text_tokens: number;
+    image_tokens: number;
+    system_tokens: number;
+    total_tokens: number;
+    fits_target: boolean;
+    truncation_risk: boolean;
+    utilization_pct: number;
+  }>;
+}
+
 export interface ExportArtifact {
   id: string;
   version_id: string;

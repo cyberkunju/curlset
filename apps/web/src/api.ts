@@ -1,4 +1,4 @@
-import { Dataset, DatasetDetailResponse, Project } from './types';
+import { Dataset, DatasetDetailResponse, Project, TokenSimulationResponse } from './types';
 
 const API_BASE = '/api/v1';
 
@@ -257,6 +257,18 @@ export async function fetchVersionExports(versionId: string): Promise<any[]> {
 
 export function getExportDownloadUrl(artifactId: string): string {
   return `${API_BASE}/exports/${artifactId}/download`;
+}
+
+export async function simulateDatasetTokens(
+  datasetId: string,
+  params: { target_context_window?: number; system_prompt?: string } = {}
+): Promise<TokenSimulationResponse> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/token-simulation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return handleResponse<TokenSimulationResponse>(res);
 }
 
 export async function searchCandidateSources(query = '', maxResults = 10): Promise<any[]> {

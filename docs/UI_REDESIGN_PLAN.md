@@ -222,7 +222,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 | **R2** | **Application Shell & Landing Page** | **COMPLETE** | Responsive sidebar rail (64px) & mobile drawer, `CommandPalette` (`Cmd+K`/`Ctrl+K`), rich breadcrumbs with real project/dataset data, tightened landing page with quick-start summary. |
 | **R3** | **Projects & Dataset Management** | **COMPLETE** | ProjectList metrics & semantic table/grid views, ProjectDetail dataset inventory with task-type filtering, DatasetDetail layout inversion (compact 5-stage pipeline dock + primary Records Explorer with review status/split filtering & pagination). |
 | **R4** | **Annotation Workbench (Modality Workspaces)** | **COMPLETE** | Synchronized queue ID tracking, image classification metadata containment, ObjectDetectionCanvas with zoom/pan & 8-class color palette, audio transcription waveform scrubber & active speech cue tracking, reader typography for text classification, ShortcutHelpModal. |
-| **R5** | **Generation, Quality, Versioning & Exports** | PENDING AUTHORIZATION | High-density quality scorecard, synthetic data diff preview, visual Git-diff canvas overlay, preset export simulator. |
+| **R5** | **Generation, Quality, Versioning & Exports** | **COMPLETE** | High-density quality scorecard with proportional distribution bars & record filtering; synthetic generation schema preview; AI annotation demo provider labeling & capability validation; Version diff interactive onion-skin opacity slider & class delta table; Export modal 9 presets, illustrative code previews & real server-side token simulator. |
 | **R6** | **Governance, Diagnostics, Settings & Modals** | PENDING AUTHORIZATION | Standardized modal containers, audit log table filtering, real-time health telemetry console. |
 | **R7** | **Full Application Visual QA & Verification** | PENDING AUTHORIZATION | Cross-viewport testing (1440px, 1280px, 768px, 390px), responsive regression testing, final sign-off. |
 
@@ -273,14 +273,15 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 - **Exit Gate:** `npm run build` passed in 18.87s (0 errors); 104/104 pytest tests passed in 7.91s; ruff lint clean; bounding box coordinate integrity preserved.
 
 
-#### Phase R5: Generation, Quality, Versioning & Exports
-- **Objective:** Refactor remaining core dataset engineering workflows.
-- **Tasks:**
-  - `QualityDashboardModal.tsx`: High-density quality scorecard, interactive class balance charts, 1-click filter deep-links for failing invariants.
-  - `SyntheticGenerationModal.tsx` & `AIAnnotationModal.tsx`: Live schema preview, split configuration panel, step-by-step generation logs with perceptual progress bars.
-  - `VersionDiffModal.tsx`: Split-screen / onion-skin slider for visual bounding box diffs ($v_1$ vs $v_2$).
-  - `ExportModal.tsx`: Framework preset selector tabs with live format code previews and token simulator context tick markers.
-- **Exit Gate:** Generation jobs, quality checks, diff calculations, and exports execute cleanly with informative visual feedback.
+#### Phase R5: Generation, Quality, Versioning & Exports (COMPLETED)
+- **Objective:** Refactor remaining core dataset engineering workflows into high-density, trustworthy developer workspaces.
+- **Tasks Delivered:**
+  - `QualityDashboardModal.tsx`: High-density scorecard displaying actual blocking, warning, and info invariant counts; proportional class and split distribution bars; provenance breakdown; actionable severity filter tabs (`all`, `blocking`, `warning`, `info`); request race condition protection (`requestIdRef`); and 1-click affected record filtering wiring to parent `DatasetDetail`.
+  - `SyntheticGenerationModal.tsx`: Live task-aware label schema preview with configuration mismatch warnings; proportional real vs synthetic lineage stacked bars; honest indeterminate execution feedback without fabricated logs.
+  - `AIAnnotationModal.tsx`: Explicit demo provider labeling (`fake` marked as testing-only); live provider capability validation; task-aware proposal schema preview; and mandatory human review requirement disclosure.
+  - `VersionDiffModal.tsx`: Interactive onion-skin opacity slider (`0%`–`100%`) for visual bounding box geometry comparison; overlay vs side-by-side mode toggle; class distribution delta table; and safe media-relative coordinate scaling.
+  - `ExportModal.tsx`: Replaced narrow types with full `ExportFormatType` covering all 9 supported formats (`csv`, `jsonl`, `coco`, `yolo`, `webvtt`, `unsloth_sharegpt_vlm`, `axolotl_alpaca_chatml`, `llama_factory_bundle`, `ultralytics_yolo_v8_v11`); format-specific illustrative code preview templates; removal of hardcoded token estimates in favor of real server-side `POST /api/v1/datasets/{dataset_id}/token-simulation` endpoint; context window tick markers (2,048, 4,096, 8,192, 32,768); and clear heuristic disclosures.
+- **Exit Gate:** `npm run build` passed (0 errors); 104/104 pytest tests passed; ruff lint clean; all modal wiring, data integrity rules, and real API integrations verified.
 
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.

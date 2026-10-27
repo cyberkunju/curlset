@@ -1016,12 +1016,15 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
 
       <AIAnnotationModal
         datasetId={datasetId}
+        taskType={dataset.task_type}
+        labelSchema={dataset.label_schema}
         isOpen={isAIOpen}
         onClose={() => setIsAIOpen(false)}
         onRunComplete={() => {
           loadData();
           loadRecords(page, splitFilter, statusFilter);
         }}
+        onOpenWorkspace={() => setIsWorkspaceOpen(true)}
       />
 
       <QualityDashboardModal
@@ -1030,6 +1033,15 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         onClose={() => {
           setIsQualityOpen(false);
           loadData();
+        }}
+        onFilterRecords={(recordIdOrQuery) => {
+          setIsQualityOpen(false);
+          setSearchQuery(recordIdOrQuery);
+          setPage(0);
+        }}
+        onOpenWorkspace={() => {
+          setIsQualityOpen(false);
+          setIsWorkspaceOpen(true);
         }}
       />
 
@@ -1085,12 +1097,15 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
       <SyntheticGenerationModal
         datasetId={datasetId}
         labels={labels}
+        taskType={dataset.task_type}
+        labelSchema={dataset.label_schema}
         isOpen={isSynthesisOpen}
         onClose={() => setIsSynthesisOpen(false)}
         onGenerationComplete={() => {
           loadData();
           loadRecords(page, splitFilter, statusFilter);
         }}
+        onOpenWorkspace={() => setIsWorkspaceOpen(true)}
       />
 
       <EvaluationModal
