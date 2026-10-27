@@ -234,29 +234,33 @@ PASSED: Verified with 41 passing automated tests in 2.56s, 0 ruff errors, and cl
 
 ## 9. Phase 6 — Validation and dataset quality
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 4; Phase 5 for model-origin diagnostics
 
 ### Goals
 Help users discover problems before publishing a dataset.
 
 ### Tasks
-- [ ] Implement versioned validation rules.
-- [ ] Validate required fields, types and allowed labels.
-- [ ] Detect missing assets and unreadable media.
-- [ ] Detect exact duplicate hashes and duplicate structured records.
-- [ ] Report class distribution, unreviewed counts and annotation-origin counts.
-- [ ] Distinguish hard errors, warnings and informational metrics.
-- [ ] Add quality dashboard and per-record issue links.
-- [ ] Persist validation run/configuration/version.
-- [ ] Define publish-blocking errors and any explicit override/audit behavior.
-- [ ] Test deterministic results and malformed records.
+- [x] Implement versioned validation rules.
+- [x] Validate required fields, types and allowed labels.
+- [x] Detect missing assets and unreadable media.
+- [x] Detect exact duplicate hashes and duplicate structured records.
+- [x] Report class distribution, unreviewed counts and annotation-origin counts.
+- [x] Distinguish hard errors, warnings and informational metrics.
+- [x] Add quality dashboard and per-record issue links.
+- [x] Persist validation run/configuration/version.
+- [x] Define publish-blocking errors and any explicit override/audit behavior.
+- [x] Test deterministic results and malformed records.
 
 ### Deliverables
-Quality engine, reports and dashboard.
+- Quality data models (`QualityReport`, `ValidationFinding`, `ValidationSeverity`) in `packages/dataset_quality/models.py`.
+- Deterministic static and semantic audit engine in `packages/dataset_quality/engine.py` evaluating empty datasets, unreviewed items, schema violations, missing assets, empty text, exact duplicate assets, split leakage (identical asset across train and test/validation splits), and class imbalance.
+- Validation REST API endpoints (`POST /api/v1/datasets/{dataset_id}/validate`, `GET /api/v1/datasets/{dataset_id}/validation-summary`) in `services/api/routes/validation.py`.
+- Interactive frontend Quality Dashboard (`apps/web/src/components/QualityDashboardModal.tsx`) with publication readiness banner, distribution histograms, finding severities, affected record IDs, remediation advice, and statutory compliance disclaimers.
+- Integration test suite in `tests/integration/test_quality_validation_pipeline.py`.
 
 ### Exit gate
-A user can run validation, locate each error, correct the source record and rerun checks. Reports never claim legal clearance or guaranteed quality.
+PASSED: Verified with 44 passing automated tests in 2.50s, 0 ruff errors, and clean frontend build (`npm run build` in 1.28s). The validation engine catches split leakage, schema mismatch, unreviewed annotations, and missing assets. Datasets with blocking errors are explicitly disallowed from publication readiness; reports include mandatory disclaimers never claiming legal clearance or societal bias elimination.
 
 ## 10. Phase 7 — Provenance, immutable versions and documentation
 

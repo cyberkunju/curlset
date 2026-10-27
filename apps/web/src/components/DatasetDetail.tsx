@@ -4,6 +4,7 @@ import { DatasetDetailResponse } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { AIAnnotationModal } from './AIAnnotationModal';
 import { ImportModal } from './ImportModal';
+import { QualityDashboardModal } from './QualityDashboardModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -17,6 +18,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isQualityOpen, setIsQualityOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -171,7 +173,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsAIOpen(true)} title="Trigger AI Inference (Phase 5)">
             <span>🤖</span> AI Auto-Labeling
           </button>
-          <button className="btn btn-secondary" title="Run Quality Checks (Phase 6)">
+          <button className="btn btn-secondary" onClick={() => setIsQualityOpen(true)} title="Run Quality Checks (Phase 6)">
             <span>🛡️</span> Quality Engine
           </button>
           <button className="btn btn-secondary" title="Publish Dataset Version (Phase 7)">
@@ -195,6 +197,15 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         isOpen={isAIOpen}
         onClose={() => setIsAIOpen(false)}
         onRunComplete={() => loadData()}
+      />
+
+      <QualityDashboardModal
+        datasetId={datasetId}
+        isOpen={isQualityOpen}
+        onClose={() => {
+          setIsQualityOpen(false);
+          loadData();
+        }}
       />
     </div>
   );

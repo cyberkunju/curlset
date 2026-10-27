@@ -138,3 +138,28 @@ export interface RecordDetail {
   review_events: ReviewEvent[];
 }
 
+export interface ValidationFinding {
+  rule_id: string;
+  severity: 'blocking' | 'warning' | 'info';
+  title: string;
+  description: string;
+  remediation: string;
+  affected_record_ids: string[];
+  count: number;
+}
+
+export interface QualityReport {
+  dataset_id: string;
+  schema_version: number;
+  is_publishable: boolean;
+  total_records: number;
+  blocking_count: number;
+  warning_count: number;
+  info_count: number;
+  findings: ValidationFinding[];
+  class_distribution: Record<string, number>;
+  split_distribution: Record<string, number>;
+  origin_distribution: Record<string, number>;
+  disclaimer: string;
+}
+

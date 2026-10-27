@@ -190,4 +190,16 @@ export async function triggerAIAnnotation(
   return handleResponse(res);
 }
 
+export async function runDatasetValidation(datasetId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/validate`, {
+    method: 'POST',
+  });
+  return handleResponse(res);
+}
+
+export async function fetchValidationSummary(datasetId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/validation-summary`);
+  return handleResponse(res);
+}
+
 

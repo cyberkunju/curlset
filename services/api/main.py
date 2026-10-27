@@ -29,6 +29,7 @@ from services.api.routes import (
     ingestion,
     projects,
     records,
+    validation,
 )
 
 START_TIME = time.time()
@@ -119,6 +120,7 @@ app.include_router(records.router)
 app.include_router(annotations.router)
 app.include_router(assets.router)
 app.include_router(inference.router)
+app.include_router(validation.router)
 
 
 
