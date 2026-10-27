@@ -17,8 +17,10 @@ from packages.dataset_core.exceptions import (
     ResourceNotFoundError,
 )
 from packages.dataset_core.id_generator import generate_id
+from packages.dataset_export.coco_exporter import export_to_coco
 from packages.dataset_export.csv_exporter import export_to_csv
 from packages.dataset_export.jsonl_exporter import export_to_jsonl
+from packages.dataset_export.yolo_exporter import export_to_yolo_files
 from packages.dataset_io.storage import get_storage_backend
 from packages.dataset_versioning.service import VersioningService
 
@@ -42,9 +44,15 @@ class ExportService:
             raise ResourceNotFoundError("DatasetVersion", version_id)
 
         normalized_format = format_str.lower().strip()
-        if normalized_format not in {ExportFormat.CSV.value, ExportFormat.JSONL.value}:
+        supported_formats = {
+            ExportFormat.CSV.value,
+            ExportFormat.JSONL.value,
+            ExportFormat.COCO.value,
+            ExportFormat.YOLO.value,
+        }
+        if normalized_format not in supported_formats:
             raise DomainValidationError(
-                f"Unsupported export format '{format_str}'. Supported formats: ['csv', 'jsonl'].",
+                f"Unsupported export format '{format_str}'. Supported formats: {sorted(supported_formats)}.",
                 field="format",
             )
 
@@ -52,19 +60,22 @@ class ExportService:
         manifest_data = VersioningService.get_version_manifest(session, version_id)
         storage = get_storage_backend()
 
-        # 2. Generate formatted data bytes
-        if normalized_format == ExportFormat.CSV.value:
-            data_bytes = export_to_csv(manifest_data)
-            data_filename = "data.csv"
-        else:
-            data_bytes = export_to_jsonl(manifest_data)
-            data_filename = "data.jsonl"
-
-        # 3. Assemble complete distribution ZIP package
+        # 2. Assemble complete distribution ZIP package
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            # Add data file
-            zf.writestr(data_filename, data_bytes)
+            if normalized_format == ExportFormat.CSV.value:
+                data_bytes = export_to_csv(manifest_data)
+                zf.writestr("data.csv", data_bytes)
+            elif normalized_format == ExportFormat.JSONL.value:
+                data_bytes = export_to_jsonl(manifest_data)
+                zf.writestr("data.jsonl", data_bytes)
+            elif normalized_format == ExportFormat.COCO.value:
+                coco_bytes = export_to_coco(manifest_data)
+                zf.writestr("annotations/instances_default.json", coco_bytes)
+            elif normalized_format == ExportFormat.YOLO.value:
+                yolo_files = export_to_yolo_files(manifest_data)
+                for rel_path, file_bytes in yolo_files.items():
+                    zf.writestr(rel_path, file_bytes)
 
             # Add canonical version manifest
             zf.writestr(

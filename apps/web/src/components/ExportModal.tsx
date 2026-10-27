@@ -22,7 +22,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const [versions, setVersions] = useState<DatasetVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
-  const [format, setFormat] = useState<'csv' | 'jsonl'>('csv');
+  const [format, setFormat] = useState<'csv' | 'jsonl' | 'coco' | 'yolo'>('csv');
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -159,11 +159,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                   Target Training Format
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
                   <div
                     onClick={() => setFormat('csv')}
                     style={{
-                      padding: '1rem',
+                      padding: '0.85rem',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${format === 'csv' ? 'var(--indigo)' : 'var(--border-subtle)'}`,
                       background: format === 'csv' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.4)',
@@ -171,19 +171,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>📄 Standard CSV</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>📄 Standard CSV</span>
                       {format === 'csv' && <span style={{ color: 'var(--indigo)' }}>●</span>}
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.4' }}>
-                      Clean comma-separated table with metadata, approved label, origin, confidence, and media references.
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                      Comma-separated table with text, class labels, metadata, and media paths.
                     </p>
                   </div>
 
                   <div
                     onClick={() => setFormat('jsonl')}
                     style={{
-                      padding: '1rem',
+                      padding: '0.85rem',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${format === 'jsonl' ? 'var(--cyan)' : 'var(--border-subtle)'}`,
                       background: format === 'jsonl' ? 'rgba(6, 182, 212, 0.12)' : 'rgba(15, 23, 42, 0.4)',
@@ -191,12 +191,52 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>🧬 Structured JSONL</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🧬 Structured JSONL</span>
                       {format === 'jsonl' && <span style={{ color: 'var(--cyan)' }}>●</span>}
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.4' }}>
-                      Newline-delimited JSON with full schema dictionaries, complete annotations, asset hashes, and split bindings.
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                      Newline JSON with full schema dictionaries and nested asset signatures.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setFormat('coco')}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${format === 'coco' ? 'var(--emerald)' : 'var(--border-subtle)'}`,
+                      background: format === 'coco' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🖼️ MS-COCO JSON</span>
+                      {format === 'coco' && <span style={{ color: 'var(--emerald)' }}>●</span>}
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                      COCO format with images, bounding boxes, categories, and split references.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setFormat('yolo')}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${format === 'yolo' ? 'var(--amber)' : 'var(--border-subtle)'}`,
+                      background: format === 'yolo' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🎯 Ultralytics YOLO</span>
+                      {format === 'yolo' && <span style={{ color: 'var(--amber)' }}>●</span>}
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                      data.yaml and normalized label files (&lt;class&gt; &lt;x_c&gt; &lt;y_c&gt; &lt;w&gt; &lt;h&gt;).
                     </p>
                   </div>
                 </div>

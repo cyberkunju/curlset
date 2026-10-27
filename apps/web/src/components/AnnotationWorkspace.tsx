@@ -7,6 +7,7 @@ import {
   transitionReviewStatus,
 } from '../api';
 import { Dataset, RecordQueueItem, RecordDetail } from '../types';
+import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
 
 interface AnnotationWorkspaceProps {
   dataset: Dataset;
@@ -32,6 +33,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(1.0);
   const [notes, setNotes] = useState<string>('');
+  const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -82,16 +84,22 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         setConfidence(detail.annotation.confidence ?? 1.0);
         setNotes(detail.annotation.payload.notes || detail.annotation.payload.rationale || '');
       } else {
-        setSelectedLabel('');
+        setSelectedLabel(allowedClasses[0] || '');
         setConfidence(1.0);
         setNotes('');
+      }
+
+      if (detail.annotation?.payload?.boxes && Array.isArray(detail.annotation.payload.boxes)) {
+        setBoxes(detail.annotation.payload.boxes);
+      } else {
+        setBoxes([]);
       }
     } catch (err: any) {
       showToast(`Error: ${err.message}`);
     } finally {
       setLoadingRecord(false);
     }
-  }, []);
+  }, [allowedClasses]);
 
   useEffect(() => {
     if (queue.length > 0 && currentIndex < queue.length) {
@@ -105,14 +113,23 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const handleSaveAnnotation = async (customLabel?: string) => {
     if (!currentRecord) return;
     const labelToSave = customLabel || selectedLabel;
-    if (!labelToSave) {
+    if (dataset.task_type !== 'object_detection' && !labelToSave) {
       showToast('Please select or enter a label first.');
       return;
     }
 
     setSaving(true);
     try {
-      const payload: Record<string, any> = { label: labelToSave };
+      const payload: Record<string, any> = {};
+      if (dataset.task_type === 'object_detection') {
+        payload.boxes = boxes;
+        if (boxes.length > 0) {
+          payload.label = boxes[0].label;
+        }
+      } else {
+        payload.label = labelToSave;
+      }
+
       if (dataset.task_type === 'text_classification' && notes) {
         payload.rationale = notes;
       } else if (notes) {
@@ -491,6 +508,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       boxShadow: 'var(--shadow-lg)',
                       border: '1px solid var(--border-subtle)',
                     }}
+                  />
+                ) : dataset.task_type === 'object_detection' && activeAsset ? (
+                  <ObjectDetectionCanvas
+                    imageUrl={`/api/v1/assets/${activeAsset.id}/raw`}
+                    boxes={boxes}
+                    classes={allowedClasses}
+                    selectedClass={selectedLabel || allowedClasses[0] || 'object'}
+                    onChange={(newBoxes) => setBoxes(newBoxes)}
                   />
                 ) : (
                   <div

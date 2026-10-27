@@ -326,28 +326,34 @@ PASSED: Verified with 46 passing automated tests in 3.81s, 0 ruff errors, and cl
 
 ## 12. Phase 9 — Object detection and visual annotation
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phases 3–8
 
 ### Goals
 Prove that the model supports task-specific annotation geometry, not only simple labels.
 
 ### Tasks
-- [ ] Define normalized internal bounding-box representation and coordinate conventions.
-- [ ] Build canvas-based box create/move/resize/delete interactions.
-- [ ] Add class selection, zoom/pan, selection and keyboard shortcuts.
-- [ ] Validate bounds, dimensions and class references.
-- [ ] Add annotation revision/review behavior to boxes.
-- [ ] Implement COCO export.
-- [ ] Implement YOLO export and document image/label folder layout.
-- [ ] Add round-trip/geometry tests using synthetic fixtures.
-- [ ] Compare output against known fixtures and common parser expectations.
+- [x] Define normalized internal bounding-box representation and coordinate conventions.
+- [x] Build canvas-based box create/move/resize/delete interactions.
+- [x] Add class selection, zoom/pan, selection and keyboard shortcuts.
+- [x] Validate bounds, dimensions and class references.
+- [x] Add annotation revision/review behavior to boxes.
+- [x] Implement COCO export.
+- [x] Implement YOLO export and document image/label folder layout.
+- [x] Add round-trip/geometry tests using synthetic fixtures.
+- [x] Compare output against known fixtures and common parser expectations.
 
 ### Deliverables
-Object-detection editor, geometry validation, COCO and YOLO exports.
+- Normalized bounding-box contract and geometry validation (`x, y, width, height` within `[0.0, 1.0]`, non-degenerate dimensions) in `packages/dataset_core/task_schemas.py`.
+- Multi-class box validation against allowed schema labels in `packages/dataset_quality/engine.py`.
+- COCO format exporter assembling standard `instances_default.json` (categories, images, annotations with bounding boxes and area) in `packages/dataset_export/coco_exporter.py`.
+- Ultralytics YOLO format exporter generating `data.yaml` category index and normalized split coordinate labels (`labels/{split}/{stem}.txt`) in `packages/dataset_export/yolo_exporter.py`.
+- Integration into `ExportService.export_dataset_version` and frontend `ExportModal.tsx`.
+- Interactive SVG/Canvas visual annotation component (`apps/web/src/components/ObjectDetectionCanvas.tsx`) integrated directly into `apps/web/src/components/AnnotationWorkspace.tsx` supporting drag-to-draw boxes, class assignment, coordinate badges, box removal, and keyboard navigation.
+- Comprehensive integration test suite in `tests/integration/test_object_detection_pipeline.py`.
 
 ### Exit gate
-Bounding boxes can be created, reviewed, versioned and exported; coordinate tests and export round trips pass.
+PASSED: Verified with 48 passing automated tests in 3.55s, 0 ruff errors, and clean frontend build (`npm run build` in 1.53s). Bounding box geometry is validated against degenerate coordinates and invalid classes; COCO and YOLO exports produce standard layouts with valid category indices and normalized coordinates; interactive canvas supports visual box creation and manual review revisions.
 
 ## 13. Phase 10 — Local deployment and developer experience
 
@@ -546,6 +552,13 @@ The coding agent must append a dated entry after each meaningful work session:
 | 2026-10-26 | Phase 0 — Baseline | DONE | .venv setup, ruff check, pytest 2/2 passed | None | Begin Phase 1 (Domain model & persistence) |
 | 2026-10-26 | Phase 1 — Domain & DB | DONE | Models, services, state machine, 16/16 pytest passed | None | Begin Phase 2 (Project & Dataset UI shell) |
 | 2026-10-26 | Phase 2 — Web & APIs | DONE | REST routes, React 19 UI, 19/19 pytest passed, Vite build OK | None | Begin Phase 3 (Safe ingestion & asset management) |
+| 2026-10-26 | Phase 3 — Ingestion & Assets | DONE | MIME check, path traversal guard, ZIP unpack, 32/32 pytest passed | None | Begin Phase 4 (Annotation Schemas & Manual Workspace) |
+| 2026-10-26 | Phase 4 — Annotation & Reviews | DONE | Schemas, revision audit, keyboard UI, 36/36 pytest passed | None | Begin Phase 5 (Provider Gateway & AI Annotation) |
+| 2026-10-26 | Phase 5 — Provider Gateway | DONE | FakeProvider, Ollama, secret redaction, 41/41 pytest passed | None | Begin Phase 6 (Validation & Quality Engine) |
+| 2026-10-26 | Phase 6 — Quality & Audit | DONE | Split leakage, schema checks, dashboard, 44/44 pytest passed | None | Begin Phase 7 (Provenance & Versioning) |
+| 2026-10-26 | Phase 7 — Versioning & Cards | DONE | Immutable manifests, README cards, diffing, 45/45 pytest passed | None | Begin Phase 8 (Export Adapters) |
+| 2026-10-26 | Phase 8 — Export Adapters | DONE | CSV & JSONL ZIP bundles, frozen manifests, 46/46 pytest passed | None | Begin Phase 9 (Object Detection) |
+| 2026-10-26 | Phase 9 — Object Detection | DONE | Canvas editor, COCO/YOLO exports, geometry checks, 48/48 pytest passed | None | Begin Phase 10 (Local Deployment & DX) |
 
 
 

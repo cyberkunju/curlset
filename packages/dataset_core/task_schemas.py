@@ -118,3 +118,26 @@ def validate_annotation_payload(
                     f"Box label '{box_label}' at index {idx} is not in allowed classes: {allowed_classes}.",
                     field="boxes",
                 )
+            
+            # Geometry validation
+            w = box.get("w") if "w" in box else box.get("width")
+            h = box.get("h") if "h" in box else box.get("height")
+            x = box.get("x")
+            y = box.get("y")
+
+            if w is not None and h is not None:
+                if not isinstance(w, (int, float)) or not isinstance(h, (int, float)):
+                    raise DomainValidationError(f"Box dimensions at index {idx} must be numeric.", field="boxes")
+                if w <= 0 or h <= 0:
+                    raise DomainValidationError(
+                        f"Box at index {idx} has invalid non-positive dimensions (w={w}, h={h}). Area must be positive.",
+                        field="boxes",
+                    )
+            if x is not None and y is not None:
+                if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+                    raise DomainValidationError(f"Box coordinates at index {idx} must be numeric.", field="boxes")
+                if x < 0 or y < 0:
+                    raise DomainValidationError(
+                        f"Box coordinates at index {idx} cannot be negative (x={x}, y={y}).",
+                        field="boxes",
+                    )

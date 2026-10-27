@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from packages.dataset_core.constants import ReviewStatus, RunStatus, RunType
+from packages.dataset_core.constants import ReviewStatus, RunStatus, RunType, TaskType
 from packages.dataset_core.db.models import (
     DatasetModel,
     DatasetRecordModel,
@@ -88,13 +88,27 @@ class QualityEngine:
                     unresolved_record_ids.append(r.id)
 
                 # Class distribution & vocabulary check
-                lbl = latest_ann.payload.get("label")
-                if not lbl or not isinstance(lbl, str) or not lbl.strip():
-                    schema_mismatch_ids.append(r.id)
-                else:
-                    class_counter[lbl] += 1
-                    if allowed_classes is not None and lbl not in allowed_classes:
+                if dataset.task_type == TaskType.OBJECT_DETECTION.value:
+                    boxes = latest_ann.payload.get("boxes")
+                    if not isinstance(boxes, list) or len(boxes) == 0:
                         schema_mismatch_ids.append(r.id)
+                    else:
+                        for b in boxes:
+                            box_lbl = b.get("label")
+                            if not box_lbl or not isinstance(box_lbl, str):
+                                schema_mismatch_ids.append(r.id)
+                            else:
+                                class_counter[box_lbl] += 1
+                                if allowed_classes is not None and box_lbl not in allowed_classes:
+                                    schema_mismatch_ids.append(r.id)
+                else:
+                    lbl = latest_ann.payload.get("label")
+                    if not lbl or not isinstance(lbl, str) or not lbl.strip():
+                        schema_mismatch_ids.append(r.id)
+                    else:
+                        class_counter[lbl] += 1
+                        if allowed_classes is not None and lbl not in allowed_classes:
+                            schema_mismatch_ids.append(r.id)
 
             # Check text content emptiness
             if r.extra_metadata and ("text" in r.extra_metadata or "content" in r.extra_metadata):
