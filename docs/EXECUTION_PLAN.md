@@ -75,32 +75,34 @@ PASSED: Verified with clean pytest run (2 passed in 0.94s) and ruff linter check
 
 ## 4. Phase 1 — Domain contracts and foundation
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 0
 
 ### Goals
 Establish the data contracts and persistence boundaries before building UI features.
 
 ### Tasks
-- [ ] Define typed Project, Dataset, DatasetRecord, Asset, RecordAsset, Annotation, AnnotationRevision, SourceRecord, ProcessingRun, RunItem, DatasetVersion, VersionItem and ExportArtifact contracts.
-- [ ] Define stable ID strategy and UTC timestamp conventions.
-- [ ] Define schema versioning and task identifiers.
-- [ ] Define annotation origins and status state machine.
-- [ ] Set up database models, migrations and repositories.
-- [ ] Add health endpoints and validated configuration.
-- [ ] Create a small synthetic seed fixture.
-- [ ] Add unit tests for schema validation, status transitions and identifier handling.
-- [ ] Ensure local startup does not require an AI provider.
-- [ ] Document migrations and reset/development data policy.
+- [x] Define typed Project, Dataset, DatasetRecord, Asset, RecordAsset, Annotation, AnnotationRevision, SourceRecord, ProcessingRun, RunItem, DatasetVersion, VersionItem and ExportArtifact contracts.
+- [x] Define stable ID strategy and UTC timestamp conventions.
+- [x] Define schema versioning and task identifiers.
+- [x] Define annotation origins and status state machine.
+- [x] Set up database models, migrations and repositories.
+- [x] Add health endpoints and validated configuration.
+- [x] Create a small synthetic seed fixture.
+- [x] Add unit tests for schema validation, status transitions and identifier handling.
+- [x] Ensure local startup does not require an AI provider.
+- [x] Document migrations and reset/development data policy.
 
 ### Deliverables
-- Domain types and schema files.
-- Initial database migration.
-- Health and configuration behavior.
-- Unit tests.
+- Typed domain contracts in `packages/dataset_core/domain_models.py`.
+- Centralized review state machine in `packages/dataset_core/constants.py`.
+- SQLAlchemy ORM models with SQLite foreign-key enforcement & indexes in `packages/dataset_core/db/`.
+- Domain services (`ProjectService`, `DatasetService`, `RecordService`, `AnnotationService`) with append-only revisions and auditable review events in `packages/dataset_core/services/`.
+- FastAPI application with `/health` and `/readiness` endpoints and domain error mapping in `services/api/`.
 
 ### Exit gate
-A dataset and record can be persisted and retrieved with stable IDs; invalid state transitions and schema payloads are rejected; migrations work from a clean database.
+PASSED: Verified with 16 automated tests (`tests/unit/test_domain_models.py`, `tests/unit/test_review_state_machine.py`, `tests/integration/test_persistence_foundation.py`, `tests/integration/test_health_endpoints.py`) passing in 1.71s with 0 lint warnings. Zero external AI credentials required.
+
 
 ## 5. Phase 2 — Project, dataset and navigation UI
 
@@ -511,6 +513,8 @@ The coding agent must append a dated entry after each meaningful work session:
 | Date | Phase | Status | Evidence / commands | Blockers | Next action |
 |---|---|---|---|---|---|
 | 2026-10-26 | Phase 0 — Baseline | DONE | .venv setup, ruff check, pytest 2/2 passed | None | Begin Phase 1 (Domain model & persistence) |
+| 2026-10-26 | Phase 1 — Domain & DB | DONE | Models, services, state machine, 16/16 pytest passed | None | Begin Phase 2 (Project & Dataset UI shell) |
+
 
 
 Replace the initial row with actual evidence as soon as implementation begins. Do not claim a phase passed until commands were run and their results recorded.
