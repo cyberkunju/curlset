@@ -33,7 +33,7 @@ export const DirectionalPageTransition: React.FC<DirectionalTransitionProps> = (
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}>
       <AnimatePresence custom={direction} initial={false} mode="wait">
         <motion.div
           key={activeKey}
@@ -51,7 +51,7 @@ export const DirectionalPageTransition: React.FC<DirectionalTransitionProps> = (
                   filter: { duration: 0.15 },
                 }
           }
-          style={{ width: '100%' }}
+          style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}
         >
           {children}
         </motion.div>

@@ -322,6 +322,30 @@ body {
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Full-bleed workbench mode: remove page padding and max-width so the workbench sits edge-to-edge right below the header with 0 clipping */
+body.workbench-active .main-wrapper {
+  overflow: hidden;
+  height: 100vh;
+}
+
+body.workbench-active .content-body,
+.content-body:has(.workbench-viewport) {
+  padding: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  height: calc(100vh - 56px) !important;
+  max-height: calc(100vh - 56px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
 }
 
 /* Buttons */
@@ -775,22 +799,16 @@ body {
    ========================================================================== */
 
 .workbench-viewport {
-  margin: -2rem -2.25rem;
-  width: calc(100% + 4.5rem);
+  margin: 0 !important;
+  width: 100% !important;
   height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
   display: flex;
   flex-direction: column;
   background: var(--bg-canvas);
   overflow: hidden;
-}
-
-@media (max-width: 768px) {
-  .workbench-viewport {
-    margin: -1rem;
-    width: calc(100% + 2rem);
-    height: auto;
-    min-height: calc(100vh - 56px);
-  }
+  box-sizing: border-box;
+  flex: 1;
 }
 
 .workbench-top-bar {
@@ -802,7 +820,7 @@ body {
   border-bottom: 1px solid var(--border-hairline);
   flex-shrink: 0;
   gap: 1rem;
-  flex-wrap: wrap;
+  z-index: 5;
 }
 
 .workbench-body {
@@ -821,10 +839,32 @@ body {
 }
 
 @media (max-width: 900px) {
+  body.workbench-active .main-wrapper {
+    overflow-y: auto;
+    height: auto;
+  }
+  body.workbench-active .content-body,
+  .content-body:has(.workbench-viewport) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .workbench-viewport {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
   .workbench-body {
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: visible;
+  }
+  .workbench-panel-left,
+  .workbench-panel-center,
+  .workbench-panel-right {
+    overflow: visible;
+    height: auto;
+    max-height: none;
   }
 }
 
@@ -853,7 +893,7 @@ body {
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem 4rem 1.25rem;
   gap: 1.25rem;
 }
 

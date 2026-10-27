@@ -65,6 +65,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  useEffect(() => {
+    document.body.classList.add('workbench-active');
+    return () => {
+      document.body.classList.remove('workbench-active');
+    };
+  }, []);
+
   // Extract allowed classes from label_schema
   const allowedClasses: string[] = dataset.label_schema?.classes || dataset.label_schema?.labels || [];
 
