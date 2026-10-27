@@ -28,6 +28,8 @@ import {
   Plus,
   Trash2,
   Inbox,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 
 interface AnnotationWorkspaceProps {
@@ -1251,7 +1253,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <History size={14} /> Revision History ({currentRecord.revisions.length})
                 </span>
-                <span>{showHistory ? '▲' : '▼'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                  {showHistory ? <ChevronUp size={15} strokeWidth={1.75} /> : <ChevronDown size={15} strokeWidth={1.75} />}
+                </span>
               </button>
 
               {showHistory && (

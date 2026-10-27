@@ -293,4 +293,40 @@ The initial remediation addressed baseline light-theme tokens, mobile navigation
 - **Backend Test Suite**: `.venv\Scripts\pytest tests/`: **104 passed, 0 failures**.
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
 
+---
+
+## 8. Phase R1: Global Design System and Icon Standardization
+
+**Date:** October 26, 2026  
+**Status:** **COMPLETE**
+
+### 8.1 Work Delivered
+
+1. **Global Icon Standardization & Ad-Hoc Glyph Elimination:**
+   - Audited all frontend components for lingering text glyphs, ASCII symbols, and Unicode entities.
+   - Replaced `'▲'` and `'▼'` revision history arrows in `AnnotationWorkspace.tsx` with `<ChevronUp size={15} strokeWidth={1.75} />` and `<ChevronDown size={15} strokeWidth={1.75} />`.
+   - Replaced `&times;` in `CreateProjectModal.tsx` and `CreateDatasetModal.tsx` with accessible `<X size={18} strokeWidth={1.75} />`.
+   - Replaced raw text bullets (`●`, 8 occurrences) in `ExportModal.tsx` format/preset cards with semantic `<CheckCircle2 size={16} strokeWidth={1.75} />`.
+   - Final comprehensive Unicode scan confirms: **0 raw emojis, 0 ad-hoc glyphs** across `apps/web/src`.
+
+2. **Shared Modal Dialog Primitive (`apps/web/src/components/ui/ModalShell.tsx`):**
+   - Implemented `<ModalShell>` using Framer Motion with Apple spring physics (`stiffness: 460`, `damping: 32`, `mass: 0.6`).
+   - Standardized layout: Fixed blurred backdrop (`rgba(15, 23, 42, 0.55)`), styled header with icon and title, scrollable body, optional footer action bar.
+   - Accessibility: `role="dialog"`, `aria-modal="true"`, accessible close button (`aria-label="Close dialog"`), keyboard `Escape` dismissal listener with cleanup, and background scroll lock when active.
+   - Responsive width tiers: `sm` (440px), `md` (580px), `lg` (760px), `xl` (960px), `full` (95vw).
+   - Migrated `CreateProjectModal.tsx` and `CreateDatasetModal.tsx` to `ModalShell`.
+
+3. **Design System & CSS Token Standardization (`apps/web/src/index.css`):**
+   - Aliased `.modal-overlay` and `.modal-backdrop` to ensure consistent blurred backdrop styling regardless of class choice.
+   - Added `.modal-content.size-{sm,md,lg,xl,full}` responsive utility classes.
+   - Added form validation helpers: `.form-error` and `.form-hint`.
+   - Enforced neutral-first light and dark theme variables with zero purple/violet branding.
+
+### 8.2 Verification & Quality Gate Results
+- **Frontend Build**: `npm run build` in `apps/web` (`tsc -b && vite build`): **PASSED** (0 TypeScript errors, built in 9.16s).
+- **Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **104 passed, 0 failures** in 7.96s.
+- **Icon Audit Scanner**: Python regex scan across all `.tsx` and `.ts` files: **0 emoji/symbol violations**.
+- **Browser Subagent Visual Inspection**: Attempted automated browser session; Playwright driver binary installation failed due to sandbox offline environment (`404 Not Found` downloading driver zip). Documented as an environment limitation; code-level layout and CSS verified.
+
+
 

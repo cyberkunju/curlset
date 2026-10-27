@@ -101,3 +101,21 @@ To verify zero emoji leakage across user interface surfaces:
 ### Intentional Exceptions
 - **User-Authored Dataset Payloads**: Training text, sample records, or multimodal data containing Unicode emojis uploaded or labeled by users are preserved verbatim.
 - **Test Fixtures**: Tests validating raw Unicode handling in backend datasets are preserved.
+
+---
+
+## 6. Phase R1 Audit & Migration Additions
+
+During Phase R1 execution, a secondary scan for ad-hoc Unicode glyphs and ASCII characters uncovered and resolved the following:
+
+| Component | Pre-R1 Glyphs | Standardized Lucide Replacement | Purpose |
+|---|---|---|---|
+| `AnnotationWorkspace.tsx` | `'▲'` and `'▼'` text arrows | `<ChevronUp size={15} strokeWidth={1.75} />` and `<ChevronDown size={15} strokeWidth={1.75} />` | Revision history collapse toggle |
+| `CreateProjectModal.tsx` | `&times;` HTML entity | `<X size={18} strokeWidth={1.75} />` inside `<ModalShell>` | Accessible modal close control |
+| `CreateDatasetModal.tsx` | `&times;` HTML entity | `<X size={18} strokeWidth={1.75} />` inside `<ModalShell>` | Accessible modal close control |
+| `ExportModal.tsx` | `●` text bullets (8 occurrences) | `<CheckCircle2 size={16} strokeWidth={1.75} />` | Format & preset selection radio indicator |
+
+### Final Scanner Result
+- Comprehensive Unicode emoji/symbol pattern scan across `apps/web/src`: **0 occurrences**.
+- All UI icons utilize `lucide-react` with standard stroke width `1.75`.
+

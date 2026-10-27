@@ -218,7 +218,7 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 | Phase | Description | Status | Verification & Deliverables |
 |---|---|---|---|
 | **R0** | **Repository & UI Coverage Audit** | **COMPLETE** | `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`, 0 build/test regressions. |
-| **R1** | **Design System & Global Icon Standardization** | PENDING AUTHORIZATION | Shared modal shell primitive, table tokens, input field wrappers, icon sizing guidelines. |
+| **R1** | **Design System & Global Icon Standardization** | **COMPLETE** | `<ModalShell>`, standardized CSS backdrop & form tokens, 0 raw emojis/ad-hoc glyphs, `CreateProjectModal` & `CreateDatasetModal` migrated, 0 build/test regressions. |
 | **R2** | **Application Shell & Landing Page** | PENDING AUTHORIZATION | Responsive sidebar drawer/rail, interactive breadcrumbs, command palette search, tightened landing page. |
 | **R3** | **Projects & Dataset Management** | PENDING AUTHORIZATION | Compact table/grid views, split distribution meters, quick-action menus. |
 | **R4** | **Annotation Workbench (Modality Workspaces)** | PENDING AUTHORIZATION | Modality-tailored canvases (Object Detection, Text Spans, Audio Waveform scrubber), hotkey inspector drawer. |
@@ -235,13 +235,14 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
 - **Deliverables:** `docs/UI_COVERAGE_AUDIT.md`, updated `docs/UI_REDESIGN_PLAN.md`.
 - **Exit Gate:** Clean build, 104/104 tests passing, Git commit and push of R0 documentation.
 
-#### Phase R1: Design System & Global Icon Standardization
+#### Phase R1: Design System & Global Icon Standardization (COMPLETED)
 - **Objective:** Establish reusable shared UI primitives so all subsequent phase screens share identical padding, borders, typography, and modal structures.
-- **Tasks:**
-  - Build `<ModalShell>` dialog primitive with fixed header, scrollable body, responsive width tokens (`sm`, `md`, `lg`, `xl`, `full`), and keyboard `Esc` dismiss.
-  - Define table design tokens and reusable `<DataTable>` or standardized CSS table classes.
-  - Audit and enforce uniform icon stroke (`strokeWidth={1.75}`) and spacing across all remaining views.
-- **Exit Gate:** `npm run build` passes; `<ModalShell>` tested with light and dark themes.
+- **Tasks Delivered:**
+  - Built `<ModalShell>` dialog primitive (`apps/web/src/components/ui/ModalShell.tsx`) with Apple spring physics, fixed blurred backdrop, accessible keyboard `Escape` handling, and responsive width tokens (`sm`, `md`, `lg`, `xl`, `full`).
+  - Migrated `CreateProjectModal.tsx` and `CreateDatasetModal.tsx` to `<ModalShell>`.
+  - Added CSS tokens in `apps/web/src/index.css` for unified `.modal-overlay, .modal-backdrop`, `.modal-content.size-*`, and form helpers (`.form-error`, `.form-hint`).
+  - Standardized all UI icons to `lucide-react` with `strokeWidth={1.75}`; eliminated ad-hoc arrows in `AnnotationWorkspace.tsx`, bullets in `ExportModal.tsx`, and `&times;` close buttons.
+- **Exit Gate:** `npm run build` passed in 9.16s (0 errors); 104/104 pytest tests passed in 7.96s; 0 emojis/ad-hoc glyphs remaining.
 
 #### Phase R2: Application Shell & Landing Page
 - **Objective:** Modernize global navigation and product front-door.

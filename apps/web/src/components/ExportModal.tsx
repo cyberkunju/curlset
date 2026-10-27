@@ -194,7 +194,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <FileText size={16} /> Standard CSV
                       </span>
-                      {format === 'csv' && <span style={{ color: 'var(--accent-interactive)' }}>●</span>}
+                      {format === 'csv' && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       Comma-separated table with text, class labels, metadata, and media paths.
@@ -216,7 +216,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Database size={16} /> Structured JSONL
                       </span>
-                      {format === 'jsonl' && <span style={{ color: 'var(--cyan)' }}>●</span>}
+                      {format === 'jsonl' && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--cyan)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       Newline JSON with full schema dictionaries and nested asset signatures.
@@ -238,7 +238,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <ImageIcon size={16} /> MS-COCO JSON
                       </span>
-                      {format === 'coco' && <span style={{ color: 'var(--emerald)' }}>●</span>}
+                      {format === 'coco' && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--emerald)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       COCO format with images, bounding boxes, categories, and split references.
@@ -260,7 +260,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Crosshair size={16} /> Ultralytics YOLO
                       </span>
-                      {format === 'yolo' && <span style={{ color: 'var(--amber)' }}>●</span>}
+                      {format === 'yolo' && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--amber)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       data.yaml and normalized label files (&lt;class&gt; &lt;x_c&gt; &lt;y_c&gt; &lt;w&gt; &lt;h&gt;).
@@ -283,7 +283,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Sparkles size={16} /> Unsloth VLM
                       </span>
-                      {format === ('unsloth_sharegpt_vlm' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
+                      {format === ('unsloth_sharegpt_vlm' as any) && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       ShareGPT multi-modal conversation splits + ready-to-run <code>train_unsloth.py</code> script.
@@ -305,7 +305,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Terminal size={16} /> Axolotl ChatML
                       </span>
-                      {format === ('axolotl_alpaca_chatml' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
+                      {format === ('axolotl_alpaca_chatml' as any) && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       Alpaca/ChatML format splits paired with pre-configured <code>axolotl_config.yml</code>.
@@ -327,7 +327,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Layers size={16} /> LLaMA-Factory
                       </span>
-                      {format === ('llama_factory_bundle' as any) && <span style={{ color: '#FAFAFA' }}>●</span>}
+                      {format === ('llama_factory_bundle' as any) && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       Auto-registers dataset with <code>dataset_info.json</code> and SHA-256 integrity hashes.
@@ -349,7 +349,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Mic size={16} /> WebVTT Subtitles
                       </span>
-                      {format === 'webvtt' && <span style={{ color: 'var(--rose)' }}>●</span>}
+                      {format === 'webvtt' && <CheckCircle2 size={16} strokeWidth={1.75} style={{ color: 'var(--rose)' }} />}
                     </div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
                       W3C standard WebVTT subtitle and cue alignment files for speech/audio datasets.

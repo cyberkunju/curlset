@@ -632,16 +632,18 @@ select option {
   border-color: rgba(239, 68, 68, 0.25);
 }
 
-/* Modals */
-.modal-overlay {
+/* Modals & Dialog System */
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 1.5rem;
+  padding: 1.25rem;
 }
 
 .modal-content {
@@ -658,6 +660,13 @@ select option {
   max-height: 90vh;
   overflow-y: auto;
 }
+
+/* Modal Responsive Size Variants */
+.modal-content.size-sm { max-width: 440px; }
+.modal-content.size-md { max-width: 580px; }
+.modal-content.size-lg { max-width: 760px; }
+.modal-content.size-xl { max-width: 960px; }
+.modal-content.size-full { max-width: 95vw; max-height: 92vh; }
 
 @keyframes modalIn {
   from {
@@ -684,29 +693,51 @@ select option {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .modal-close {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 1.1rem;
-  padding: 0.25rem;
+  padding: 0.3rem;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .modal-close:hover {
   color: var(--text-primary);
   background: var(--bg-subtle-hover);
+  border-color: var(--border-hairline);
 }
 
-/* Form Controls */
+/* Form Controls & Validation Helpers */
 .form-group {
   margin-bottom: 1.1rem;
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--rose);
+  margin-top: 0.35rem;
+  font-weight: 500;
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  line-height: 1.35;
 }
 
 .form-label {
