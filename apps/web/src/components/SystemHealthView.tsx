@@ -65,8 +65,8 @@ export const SystemHealthView: React.FC = () => {
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
             {health?.privacy_mode === 'local_only'
-              ? 'Local-only privacy mode is active. No datasets or telemetry are transmitted to third-party providers. Offline workflows guaranteed.'
-              : 'External inference allowed upon explicit user authorization.'}
+              ? 'Local privacy mode is active. Operations run locally without external provider requests.'
+              : 'External inference allowed upon explicit configuration.'}
           </p>
         </div>
 

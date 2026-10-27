@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Layers,
   ArrowRight,
   ShieldCheck,
   Cpu,
@@ -9,11 +8,7 @@ import {
   HardDrive,
   Sparkles,
   Download,
-  Terminal,
   Activity,
-  Maximize2,
-  Database,
-  Lock,
 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 
@@ -31,25 +26,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '1rem 0 4rem 0' }}>
       {/* Hero Section */}
-      <section style={{ textAlign: 'center', padding: '3.5rem 1.5rem 4rem 1.5rem' }}>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.35rem 0.85rem',
-            borderRadius: '9999px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border-hairline)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <Lock size={13} strokeWidth={2} style={{ color: 'var(--emerald)' }} />
-          <span>Local-First & Offline &bull; $0 Paid AI Cost &bull; Zero Telemetry</span>
-        </div>
+      <section style={{ textAlign: 'center', padding: '3rem 1.5rem 3.5rem 1.5rem' }}>
 
         <h1
           style={{
@@ -136,7 +113,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              Interactive bounding-box canvas with <strong>Sobel magnetic edge-snapping</strong> (&lt;150ms). Audio transcription with segment scrubbing. Local zero-cost AI auto-labeling via Ollama with consensus review.
+              Interactive bounding-box canvas with <strong>Sobel magnetic edge-snapping</strong> (&lt;150ms). Audio transcription with segment scrubbing. Local AI model proposal generation via Ollama with consensus review.
             </p>
           </div>
 
@@ -202,53 +179,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
               Calculate subword text tokens + ViT $28\times 28$ patch tokens dynamically. Test against target context windows ($2048$, $4096$, $8192$) with live truncation risk alerts before training.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Local-First Architecture Guarantee */}
-      <section
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-hairline)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '2.5rem',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '2rem',
-          alignItems: 'center',
-        }}
-      >
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: 'var(--emerald)', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--emerald)' }} />
-            DATA PRIVACY & LOCAL-FIRST GUARANTEE
-          </div>
-          <h3 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-            100% On-Device Data Sovereignty
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.6 }}>
-            Your proprietary media, audio recordings, annotations, and training pairs never leave your workstation. The backend runs on native SQLite and local filesystem storage with zero cloud telemetry.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            <Database size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
-            <span>SQLite Embedded Database with Foreign-Key Rigidity</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            <Terminal size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
-            <span>Ollama Local Provider Adapter ($0 Paid API Keys)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            <ShieldCheck size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
-            <span>SSRF-Protected URL Ingestion with Allowed Schemes</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-            <HardDrive size={18} strokeWidth={1.75} style={{ color: 'var(--text-muted)' }} />
-            <span>Project Storage & Record Quotas with Sliding-Window Rate Limiting</span>
           </div>
         </div>
       </section>

@@ -168,9 +168,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
             >
               <Lock size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-interactive)' }} />
               <div>
-                <strong>Audit & Safety Guarantee:</strong> Model outputs will never be silently marked as ground truth.
-                All proposals are saved with status <code style={{ color: 'var(--text-accent)' }}>pending_review</code> and
-                attached model provenance for human verification.
+                <strong>Review Policy:</strong> Model proposals are created with status <code style={{ color: 'var(--text-accent)' }}>pending_review</code> and require human verification before inclusion.
               </div>
             </div>
 
@@ -185,7 +183,7 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 }}
                 options={providers.map((p) => ({
                   value: p.name,
-                  label: p.name === 'fake' ? 'Deterministic Local Fake (Offline/Zero Cost)' : p.name.toUpperCase(),
+                  label: p.name === 'fake' ? 'Local Deterministic Provider (Offline)' : p.name.toUpperCase(),
                 }))}
                 style={{ width: '100%' }}
                 ariaLabel="Select inference provider"

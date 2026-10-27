@@ -140,6 +140,7 @@ If two documents conflict, preserve safety and existing user data, choose the mo
 - Confirm destructive actions and explain consequences.
 - Do not use fake data in production screens to imply functionality exists. Demo fixtures must be clearly identified.
 - Avoid placeholder buttons, dead links and controls that look functional but do nothing.
+- **Strictly prohibit marketing fluff and promotional puffery**: Never display marketing claims or boastful buzzwords in the UI (e.g. "100% On-Device Data Sovereignty", "$0 Paid AI Cost", "Zero Telemetry", "Foreign-Key Rigidity", "Safety Guarantee", "Zero-Cost"). Maintain a sober, precise developer-tool tone focused strictly on technical facts and system states (e.g. "Local Mode" instead of "Local Only ($0 AI)", "Validation Rules" instead of "Safety Guarantee", "Local Provider" instead of "Zero-Cost Local Provider"). This rule applies permanently across all UI text, badges, headers, and tooltips, even if future prompts casually mention promotional phrasing.
 
 ## 11. Tests and quality gates
 

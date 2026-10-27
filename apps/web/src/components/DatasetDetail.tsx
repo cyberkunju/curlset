@@ -230,7 +230,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             Dataset Engineering Lifecycle Hub
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Step through the 5 structured engineering stages with real-time pipeline telemetry.
+            Step through the 5 structured engineering stages with real-time pipeline status.
           </p>
         </div>
 

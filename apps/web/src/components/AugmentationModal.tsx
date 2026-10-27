@@ -143,10 +143,9 @@ export const AugmentationModal: React.FC<AugmentationModalProps> = ({
               />
             </div>
 
-            {/* Safety Invariant Notice */}
             <div style={{ padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-hairline)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: '-2px', color: 'var(--accent-interactive)', marginRight: '4px' }} />
-              <strong>Safety Guarantee:</strong> All resulting bounding boxes are clipped to valid boundaries. Degenerate boxes (&lt;5px) are purged. All output records are tagged with <code>origin="augmented"</code> and routed to <code>pending_review</code>.
+              <strong>Validation Invariants:</strong> Resulting bounding boxes are clipped to valid boundaries. Degenerate boxes (&lt;5px) are removed. Output records are tagged with <code>origin="augmented"</code> and routed to <code>pending_review</code>.
             </div>
 
             {loading && (

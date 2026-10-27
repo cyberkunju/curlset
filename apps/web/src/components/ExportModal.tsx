@@ -363,10 +363,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.9rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Sliders size={16} /> Live Token & Context Simulator
-                    </span>
-                    <span style={{ fontSize: '0.75rem', padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
-                      Zero Truncation Guarantee
+                      <Sliders size={16} /> Token & Context Simulator
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
