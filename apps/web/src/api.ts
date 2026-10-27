@@ -166,3 +166,28 @@ export async function transitionReviewStatus(
   return handleResponse(res);
 }
 
+export async function fetchProviders(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/providers`);
+  return handleResponse<any[]>(res);
+}
+
+export async function triggerAIAnnotation(
+  datasetId: string,
+  params: {
+    provider?: string;
+    model?: string;
+    target_split?: string;
+    only_unannotated?: boolean;
+    limit?: number;
+    enable_consensus?: boolean;
+  }
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/ai-annotate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return handleResponse(res);
+}
+
+

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { fetchDatasetDetail } from '../api';
 import { DatasetDetailResponse } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
+import { AIAnnotationModal } from './AIAnnotationModal';
 import { ImportModal } from './ImportModal';
 
 interface DatasetDetailProps {
@@ -15,6 +16,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [error, setError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -166,6 +168,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsWorkspaceOpen(true)} title="Open Annotation Workbench (Phase 4)">
             <span>✏️</span> Annotation Workbench
           </button>
+          <button className="btn btn-secondary" onClick={() => setIsAIOpen(true)} title="Trigger AI Inference (Phase 5)">
+            <span>🤖</span> AI Auto-Labeling
+          </button>
           <button className="btn btn-secondary" title="Run Quality Checks (Phase 6)">
             <span>🛡️</span> Quality Engine
           </button>
@@ -183,6 +188,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImportComplete={() => loadData()}
+      />
+
+      <AIAnnotationModal
+        datasetId={datasetId}
+        isOpen={isAIOpen}
+        onClose={() => setIsAIOpen(false)}
+        onRunComplete={() => loadData()}
       />
     </div>
   );

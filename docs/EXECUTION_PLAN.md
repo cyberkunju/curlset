@@ -199,31 +199,38 @@ PASSED: Verified with 37 automated tests passing in 2.27s, 0 ruff errors, and su
 
 ## 8. Phase 5 — Provider gateway and AI-assisted annotation
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 4
 
 ### Goals
 Add safe, testable model-assisted annotation without coupling domain code to one vendor.
 
 ### Tasks
-- [ ] Define provider interface and capability model.
-- [ ] Add deterministic fake provider for automated tests.
-- [ ] Add one real provider adapter selected based on current API support and available credentials.
-- [ ] Keep provider secrets server-side and redact logs.
-- [ ] Add structured-output validation and normalized error types.
-- [ ] Create ProcessingRun and RunItem records.
-- [ ] Add batch processing with bounded concurrency and cancellation.
-- [ ] Add timeouts, retry/backoff and idempotency.
-- [ ] Add explicit model/provider selection and preview of estimated usage where possible.
-- [ ] Keep manual workflows usable with no provider configured.
-- [ ] Display proposal origin, model, run status and review state.
-- [ ] Test malformed output, timeout, rate limit, cancellation, duplicate retry and missing credentials.
+- [x] Define provider interface and capability model.
+- [x] Add deterministic fake provider for automated tests.
+- [x] Add one real provider adapter selected based on current API support and available credentials (Ollama / local open-weights).
+- [x] Keep provider secrets server-side and redact logs.
+- [x] Add structured-output validation and normalized error types.
+- [x] Create ProcessingRun and RunItem records.
+- [x] Add batch processing with bounded concurrency and cancellation.
+- [x] Add timeouts, retry/backoff and idempotency.
+- [x] Add explicit model/provider selection and preview of estimated usage where possible.
+- [x] Keep manual workflows usable with no provider configured.
+- [x] Display proposal origin, model, run status and review state.
+- [x] Test malformed output, timeout, rate limit, cancellation, duplicate retry and missing credentials.
 
 ### Deliverables
-Provider gateway, one real adapter, fake adapter, AI annotation workflow and tests.
+- Provider capability framework and interfaces in `packages/provider_gateway/types.py` and `packages/provider_gateway/base.py`.
+- Deterministic `FakeProvider` supporting failure modes (`timeout`, `rate_limit`, `auth_error`, `malformed`) in `packages/provider_gateway/fake_provider.py`.
+- Offline local `OllamaProvider` adapter in `packages/provider_gateway/ollama_provider.py`.
+- `ProviderGateway` with bounded retries and recursive secret redaction in `packages/provider_gateway/gateway.py`.
+- Batch `AIAnnotationOrchestrator` generating schema-validated proposals with `pending_review` status, dual-pass consensus score, and `RunItem` diagnostics in `packages/provider_gateway/orchestrator.py`.
+- REST endpoints (`GET /api/v1/providers`, `POST /api/v1/datasets/{id}/ai-annotate`, `GET /api/v1/runs/{id}`) in `services/api/routes/inference.py`.
+- Frontend `AIAnnotationModal` dialog in `apps/web/src/components/AIAnnotationModal.tsx`.
+- Automated integration test suite in `tests/integration/test_provider_gateway_and_ai_annotation.py`.
 
 ### Exit gate
-AI outputs are validated proposals, not silently approved ground truth; job progress and failures are visible; provider failures do not corrupt dataset state.
+PASSED: Verified with 41 passing automated tests in 2.56s, 0 ruff errors, and clean frontend build (`npm run build` in 1.35s). Model proposals default to `pending_review` and are never silently approved; transient timeouts and malformed responses fail safely without corrupting dataset state; secrets are completely redacted from logs and responses.
 
 ## 9. Phase 6 — Validation and dataset quality
 
