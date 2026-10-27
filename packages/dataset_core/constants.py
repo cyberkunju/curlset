@@ -19,6 +19,7 @@ class AnnotationOrigin(str, Enum):
     IMPORTED = "imported"
     RULE_GENERATED = "rule_generated"
     SYNTHETIC = "synthetic"
+    AUGMENTED = "augmented"
 
 
 class ReviewStatus(str, Enum):
@@ -80,6 +81,10 @@ class ExportFormat(str, Enum):
     COCO = "coco"
     YOLO = "yolo"
     WEBVTT = "webvtt"
+    UNSLOTH_SHAREGPT_VLM = "unsloth_sharegpt_vlm"
+    AXOLOTL_ALPACA_CHATML = "axolotl_alpaca_chatml"
+    LLAMA_FACTORY_BUNDLE = "llama_factory_bundle"
+    ULTRALYTICS_YOLO_V8_V11 = "ultralytics_yolo_v8_v11"
 
 
 

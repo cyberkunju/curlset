@@ -4,6 +4,7 @@ Coordinates bounded model inference, duplicate prevention, schema validation,
 lineage tracking, and review status routing.
 """
 import hashlib
+import re
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
@@ -122,20 +123,31 @@ class SynthesisService:
         session.flush()
 
 
-        # 5. Build set of existing content hashes for duplicate detection
+        # 5. Build set of existing content hashes and 3-gram sets for anti-collapse filter
         existing_records = (
             session.query(DatasetRecordModel)
             .filter_by(dataset_id=dataset.id)
             .all()
         )
         existing_hashes: set[str] = set()
+        existing_3gram_sets: list[set[str]] = []
+
+        def extract_3grams(s: str) -> set[str]:
+            norm = re.sub(r"\s+", " ", s.lower().strip())
+            if len(norm) < 3:
+                return {norm}
+            return {norm[i:i + 3] for i in range(len(norm) - 2)}
+
         for r in existing_records:
             if r.extra_metadata and "text" in r.extra_metadata:
-                text_hash = hashlib.sha256(r.extra_metadata["text"].strip().encode("utf-8")).hexdigest()
+                raw_text = r.extra_metadata["text"].strip()
+                text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
                 existing_hashes.add(text_hash)
+                existing_3gram_sets.append(extract_3grams(raw_text))
 
         accepted_record_ids: list[str] = []
         duplicate_count = 0
+        anti_collapse_rejected_count = 0
         now = datetime.now(UTC)
 
         # 6. Bounded generation loop
@@ -164,7 +176,23 @@ class SynthesisService:
                 duplicate_count += 1
                 continue
 
+            # 3-Gram Jaccard Anti-Collapse Diversity Filter
+            cand_3grams = extract_3grams(gen_text)
+            is_collapsed = False
+            for exist_set in existing_3gram_sets:
+                if not cand_3grams or not exist_set:
+                    continue
+                jaccard = len(cand_3grams & exist_set) / len(cand_3grams | exist_set)
+                if jaccard > 0.72:
+                    is_collapsed = True
+                    break
+
+            if is_collapsed:
+                anti_collapse_rejected_count += 1
+                continue
+
             existing_hashes.add(content_sha)
+            existing_3gram_sets.append(cand_3grams)
 
             # Create Record with explicit lineage
             record_id = generate_id("rec")
@@ -258,6 +286,7 @@ class SynthesisService:
             generated_count=request.count,
             accepted_count=len(accepted_record_ids),
             duplicate_count=duplicate_count,
+            anti_collapse_rejected_count=anti_collapse_rejected_count,
             lineage={
                 "provider": request.provider_name,
                 "model": request.model_name,

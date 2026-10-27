@@ -92,3 +92,19 @@ def get_version_dataset_card(
         media_type="text/markdown; charset=utf-8",
     )
 
+
+@router.get("/api/v1/datasets/{dataset_id}/versions/{v1_id}/diff/{v2_id}")
+def diff_dataset_versions_endpoint(
+    dataset_id: str,
+    v1_id: str,
+    v2_id: str,
+    session: Session = Depends(get_db),
+):
+    """
+    Produce a full visual and statistical git-diff between two dataset versions.
+    Includes class distribution deltas across splits and bounding-box spatial diffs.
+    """
+    return VersioningService.diff_dataset_versions(
+        session=session, dataset_id=dataset_id, v1_id=v1_id, v2_id=v2_id
+    )
+

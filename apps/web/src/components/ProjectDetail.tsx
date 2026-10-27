@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Plus, ArrowLeft, ShieldCheck, Archive } from 'lucide-react';
 import { archiveProject, fetchDatasets, fetchProject } from '../api';
 import { Dataset, Project } from '../types';
 import { CreateDatasetModal } from './CreateDatasetModal';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
+import { TriStateView } from './ui/TriStateView';
+import { SpringButton } from './ui/SpringButton';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -113,21 +116,20 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quota Settings">
-            🛡️ Governance & Quotas
-          </button>
+          <SpringButton variant="secondary" onClick={() => setIsSettingsOpen(true)} title="Project Governance & Quota Settings">
+            <ShieldCheck size={16} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            Governance & Quotas
+          </SpringButton>
           {!project.is_archived && (
-            <button className="btn btn-secondary" onClick={handleArchive} title="Archive project">
+            <SpringButton variant="secondary" onClick={handleArchive} title="Archive project">
+              <Archive size={16} strokeWidth={1.75} style={{ marginRight: '4px' }} />
               Archive
-            </button>
+            </SpringButton>
           )}
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+          <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16} strokeWidth={2} style={{ marginRight: '4px' }} />
             New Dataset
-          </button>
+          </SpringButton>
         </div>
       </div>
 
@@ -136,34 +138,71 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
           Datasets ({filteredDatasets.length})
         </h2>
 
-        {filteredDatasets.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📊</div>
-            <h3 className="empty-title">No datasets created yet</h3>
-            <p className="empty-desc">
-              Add your first dataset under this project to start ingesting files and defining annotation schemas.
-            </p>
-            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-              Create Dataset
-            </button>
-          </div>
-        ) : (
-          <div className="cards-grid">
-            {filteredDatasets.map((ds) => (
-              <div key={ds.id} className="card" onClick={() => onSelectDataset(ds.id)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <h3 className="card-title">{ds.name}</h3>
-                  {getTaskBadge(ds.task_type)}
+        <TriStateView<Dataset[]>
+          skeletonName="project-datasets-grid"
+          loading={loading}
+          data={filteredDatasets}
+          isEmpty={(items) => items.length === 0}
+          boneyardFixture={
+            <div className="cards-grid">
+              {[1, 2, 3].map((n) => (
+                <div
+                  key={n}
+                  style={{
+                    height: '140px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-hairline)',
+                    padding: '1.25rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px', marginBottom: '0.75rem' }} />
+                    <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ width: '30%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                    <div style={{ width: '25%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                  </div>
                 </div>
-                <p className="card-desc">{ds.description || 'No dataset description provided.'}</p>
-                <div className="card-footer">
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>Schema v{ds.schema_version}</span>
-                  <span>{new Date(ds.created_at).toLocaleDateString()}</span>
+              ))}
+            </div>
+          }
+          emptyState={
+            <div className="empty-state">
+              <div className="empty-icon">📊</div>
+              <h3 className="empty-title">No datasets created yet</h3>
+              <p className="empty-desc">
+                Add your first dataset under this project to start ingesting files and defining annotation schemas.
+              </p>
+              <SpringButton variant="primary" onClick={() => setIsModalOpen(true)}>
+                <Plus size={16} strokeWidth={2} style={{ marginRight: '4px' }} />
+                Create Dataset
+              </SpringButton>
+            </div>
+          }
+        >
+          {(items) => (
+            <div className="cards-grid">
+              {items.map((ds) => (
+                <div key={ds.id} className="card" onClick={() => onSelectDataset(ds.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <h3 className="card-title">{ds.name}</h3>
+                    {getTaskBadge(ds.task_type)}
+                  </div>
+                  <p className="card-desc">{ds.description || 'No dataset description provided.'}</p>
+                  <div className="card-footer">
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>Schema v{ds.schema_version}</span>
+                    <span>{new Date(ds.created_at).toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </TriStateView>
       </div>
 
       <CreateDatasetModal

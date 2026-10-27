@@ -47,14 +47,19 @@ def extract_simple_text_embedding(text: str, dim: int = 32) -> list[float]:
     clean_text = text.lower().strip()
     words = clean_text.split()
 
-    # Hash word and character n-grams into dimension buckets
+    # Deterministic hash word and character n-grams into dimension buckets
+    import hashlib
+
+    def det_hash(s: str) -> int:
+        return int.from_bytes(hashlib.md5(s.encode("utf-8")).digest()[:4], "little")
+
     for word in words:
-        h = hash(word) % dim
+        h = det_hash(word) % dim
         vec[h] += 1.0
 
     for i in range(len(clean_text) - 2):
         trigram = clean_text[i : i + 3]
-        h = hash(trigram) % dim
+        h = det_hash(trigram) % dim
         vec[h] += 0.5
 
     norm = math.sqrt(sum(x * x for x in vec))

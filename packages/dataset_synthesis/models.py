@@ -31,6 +31,7 @@ class SynthesisRunSummary(BaseModel):
     generated_count: int
     accepted_count: int
     duplicate_count: int
+    anti_collapse_rejected_count: int = 0
     lineage: dict[str, Any]
     record_ids: list[str]
     total_dataset_records: int

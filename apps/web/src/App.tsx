@@ -8,12 +8,14 @@ import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
 import { SystemHealthView } from './components/SystemHealthView';
 import { GovernanceView } from './components/GovernanceView';
+import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
 import { Project } from './types';
 
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance'>('projects');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,17 +51,20 @@ export const App: React.FC = () => {
   }, [includeArchived]);
 
   const handleSelectProject = (projectId: string) => {
+    setDirection(1);
     setSelectedProjectId(projectId);
     setSelectedDatasetId(null);
     setCurrentView('project_detail');
   };
 
   const handleSelectDataset = (datasetId: string) => {
+    setDirection(1);
     setSelectedDatasetId(datasetId);
     setCurrentView('dataset_detail');
   };
 
   const handleNavigate = (view: string) => {
+    setDirection(-1);
     if (view === 'projects') {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
@@ -84,6 +89,7 @@ export const App: React.FC = () => {
     breadcrumbs.push({
       label: currentProject.name,
       onClick: () => {
+        setDirection(-1);
         setSelectedDatasetId(null);
         setCurrentView('project_detail');
       },
@@ -111,39 +117,45 @@ export const App: React.FC = () => {
         />
 
         <main className="content-body">
-          {currentView === 'projects' && (
-            <ProjectList
-              projects={projects}
-              loading={loading}
-              onSelectProject={handleSelectProject}
-              onOpenCreateModal={() => setIsCreateModalOpen(true)}
-              includeArchived={includeArchived}
-              onToggleArchived={setIncludeArchived}
-              searchQuery={searchQuery}
-            />
-          )}
+          <DirectionalPageTransition
+            activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
+            direction={direction}
+          >
+            {currentView === 'projects' && (
+              <ProjectList
+                projects={projects}
+                loading={loading}
+                onSelectProject={handleSelectProject}
+                onOpenCreateModal={() => setIsCreateModalOpen(true)}
+                includeArchived={includeArchived}
+                onToggleArchived={setIncludeArchived}
+                searchQuery={searchQuery}
+              />
+            )}
 
-          {currentView === 'project_detail' && selectedProjectId && (
-            <ProjectDetail
-              projectId={selectedProjectId}
-              onSelectDataset={handleSelectDataset}
-              onBack={() => handleNavigate('projects')}
-              searchQuery={searchQuery}
-            />
-          )}
+            {currentView === 'project_detail' && selectedProjectId && (
+              <ProjectDetail
+                projectId={selectedProjectId}
+                onSelectDataset={handleSelectDataset}
+                onBack={() => handleNavigate('projects')}
+                searchQuery={searchQuery}
+              />
+            )}
 
-          {currentView === 'dataset_detail' && selectedDatasetId && (
-            <DatasetDetail
-              datasetId={selectedDatasetId}
-              onBack={() => {
-                setSelectedDatasetId(null);
-                setCurrentView('project_detail');
-              }}
-            />
-          )}
+            {currentView === 'dataset_detail' && selectedDatasetId && (
+              <DatasetDetail
+                datasetId={selectedDatasetId}
+                onBack={() => {
+                  setDirection(-1);
+                  setSelectedDatasetId(null);
+                  setCurrentView('project_detail');
+                }}
+              />
+            )}
 
-          {currentView === 'health' && <SystemHealthView />}
-          {currentView === 'governance' && <GovernanceView />}
+            {currentView === 'health' && <SystemHealthView />}
+            {currentView === 'governance' && <GovernanceView />}
+          </DirectionalPageTransition>
         </main>
       </div>
 

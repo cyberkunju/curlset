@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Plus, FolderPlus } from 'lucide-react';
 import { Project } from '../types';
+import { TriStateView } from './ui/TriStateView';
+import { SpringButton } from './ui/SpringButton';
 
 interface ProjectListProps {
   projects: Project[];
@@ -46,53 +49,82 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             Show archived
           </label>
 
-          <button className="btn btn-primary" onClick={onOpenCreateModal}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+          <SpringButton variant="primary" onClick={onOpenCreateModal}>
+            <Plus size={16} strokeWidth={2} style={{ marginRight: '4px' }} />
             New Project
-          </button>
+          </SpringButton>
         </div>
       </div>
 
-      {loading ? (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <div>Loading projects...</div>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">📁</div>
-          <h3 className="empty-title">No projects found</h3>
-          <p className="empty-desc">
-            {searchQuery
-              ? `No projects match "${searchQuery}". Try clearing the search.`
-              : 'Create your first project workspace to start engineering datasets.'}
-          </p>
-          {!searchQuery && (
-            <button className="btn btn-primary" onClick={onOpenCreateModal}>
-              Create Project
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="cards-grid">
-          {filtered.map((proj) => (
-            <div key={proj.id} className="card" onClick={() => onSelectProject(proj.id)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                <h3 className="card-title">{proj.name}</h3>
-                {proj.is_archived && <span className="badge badge-amber">Archived</span>}
+      <TriStateView<Project[]>
+        skeletonName="project-list-grid"
+        loading={loading}
+        data={filtered}
+        isEmpty={(items) => items.length === 0}
+        boneyardFixture={
+          <div className="cards-grid">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                style={{
+                  height: '140px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-hairline)',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px', marginBottom: '0.75rem' }} />
+                  <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ width: '25%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                  <div style={{ width: '20%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
+                </div>
               </div>
-              <p className="card-desc">{proj.description || 'No description provided.'}</p>
-              <div className="card-footer">
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{proj.id}</span>
-                <span>{new Date(proj.created_at).toLocaleDateString()}</span>
+            ))}
+          </div>
+        }
+        emptyState={
+          <div className="empty-state">
+            <div className="empty-icon">📁</div>
+            <h3 className="empty-title">No projects found</h3>
+            <p className="empty-desc">
+              {searchQuery
+                ? `No projects match "${searchQuery}". Try clearing the search.`
+                : 'Create your first project workspace to start engineering datasets.'}
+            </p>
+            {!searchQuery && (
+              <SpringButton variant="primary" onClick={onOpenCreateModal}>
+                <FolderPlus size={16} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+                Create Project
+              </SpringButton>
+            )}
+          </div>
+        }
+      >
+        {(items) => (
+          <div className="cards-grid">
+            {items.map((proj) => (
+              <div key={proj.id} className="card" onClick={() => onSelectProject(proj.id)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <h3 className="card-title">{proj.name}</h3>
+                  {proj.is_archived && <span className="badge badge-amber">Archived</span>}
+                </div>
+                <p className="card-desc">{proj.description || 'No description provided.'}</p>
+                <div className="card-footer">
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{proj.id}</span>
+                  <span>{new Date(proj.created_at).toLocaleDateString()}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </TriStateView>
     </div>
   );
 };

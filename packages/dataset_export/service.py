@@ -22,6 +22,12 @@ from packages.dataset_export.csv_exporter import export_to_csv
 from packages.dataset_export.jsonl_exporter import export_to_jsonl
 from packages.dataset_export.webvtt_exporter import export_to_webvtt_files
 from packages.dataset_export.yolo_exporter import export_to_yolo_files
+from packages.dataset_io.presets import (
+    export_axolotl_alpaca_chatml,
+    export_llama_factory_bundle,
+    export_ultralytics_yolo,
+    export_unsloth_sharegpt_vlm,
+)
 from packages.dataset_io.storage import get_storage_backend
 from packages.dataset_versioning.service import VersioningService
 
@@ -51,6 +57,10 @@ class ExportService:
             ExportFormat.COCO.value,
             ExportFormat.YOLO.value,
             ExportFormat.WEBVTT.value,
+            ExportFormat.UNSLOTH_SHAREGPT_VLM.value,
+            ExportFormat.AXOLOTL_ALPACA_CHATML.value,
+            ExportFormat.LLAMA_FACTORY_BUNDLE.value,
+            ExportFormat.ULTRALYTICS_YOLO_V8_V11.value,
         }
         if normalized_format not in supported_formats:
             raise DomainValidationError(
@@ -81,6 +91,22 @@ class ExportService:
             elif normalized_format == ExportFormat.WEBVTT.value:
                 vtt_files = export_to_webvtt_files(manifest_data)
                 for rel_path, file_bytes in vtt_files.items():
+                    zf.writestr(rel_path, file_bytes)
+            elif normalized_format == ExportFormat.UNSLOTH_SHAREGPT_VLM.value:
+                preset_files = export_unsloth_sharegpt_vlm(manifest_data)
+                for rel_path, file_bytes in preset_files.items():
+                    zf.writestr(rel_path, file_bytes)
+            elif normalized_format == ExportFormat.AXOLOTL_ALPACA_CHATML.value:
+                preset_files = export_axolotl_alpaca_chatml(manifest_data)
+                for rel_path, file_bytes in preset_files.items():
+                    zf.writestr(rel_path, file_bytes)
+            elif normalized_format == ExportFormat.LLAMA_FACTORY_BUNDLE.value:
+                preset_files = export_llama_factory_bundle(manifest_data)
+                for rel_path, file_bytes in preset_files.items():
+                    zf.writestr(rel_path, file_bytes)
+            elif normalized_format == ExportFormat.ULTRALYTICS_YOLO_V8_V11.value:
+                preset_files = export_ultralytics_yolo(manifest_data)
+                for rel_path, file_bytes in preset_files.items():
                     zf.writestr(rel_path, file_bytes)
 
 

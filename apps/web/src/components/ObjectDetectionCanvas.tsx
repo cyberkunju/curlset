@@ -1,4 +1,7 @@
 import React, { useRef, useState } from 'react';
+import { Magnet, Sparkles } from 'lucide-react';
+import { SpringButton } from './ui/SpringButton';
+import { magneticSnapBoxToEdges } from '../utils/magneticBoxSnap';
 
 export interface BoundingBox {
   id?: string;
@@ -27,12 +30,31 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   disabled = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [magneticSnapEnabled, setMagneticSnapEnabled] = useState(true);
 
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  const getImageData = (): ImageData | null => {
+    if (!imgRef.current || !imgRef.current.complete || imgRef.current.naturalWidth === 0) return null;
+    const offscreen = document.createElement('canvas');
+    const width = containerRef.current?.clientWidth || imgRef.current.clientWidth;
+    const height = containerRef.current?.clientHeight || imgRef.current.clientHeight;
+    offscreen.width = width;
+    offscreen.height = height;
+    const ctx = offscreen.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(imgRef.current, 0, 0, width, height);
+    try {
+      return ctx.getImageData(0, 0, width, height);
+    } catch {
+      return null;
+    }
+  };
 
   const getRelativeCoords = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -77,18 +99,42 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
 
     // Only add if box has meaningful size (> 10x10 px)
     if (currentBox.w > 10 && currentBox.h > 10) {
+      let finalBox = { ...currentBox };
+      if (magneticSnapEnabled || e.shiftKey) {
+        const imgData = getImageData();
+        if (imgData) {
+          finalBox = magneticSnapBoxToEdges(imgData, currentBox);
+        }
+      }
+
       const newBox: BoundingBox = {
         label: selectedClass || classes[0] || 'object',
-        x: currentBox.x,
-        y: currentBox.y,
-        w: currentBox.w,
-        h: currentBox.h,
+        x: finalBox.x,
+        y: finalBox.y,
+        w: finalBox.w,
+        h: finalBox.h,
       };
       const updated = [...boxes, newBox];
       onChange(updated);
       setSelectedBoxIndex(updated.length - 1);
     }
     setCurrentBox(null);
+  };
+
+  const handleSnapExistingBoxes = () => {
+    const imgData = getImageData();
+    if (!imgData || boxes.length === 0) return;
+    const snapped = boxes.map((box) => {
+      const snappedCoords = magneticSnapBoxToEdges(imgData, { x: box.x, y: box.y, w: box.w, h: box.h });
+      return {
+        ...box,
+        x: snappedCoords.x,
+        y: snappedCoords.y,
+        w: snappedCoords.w,
+        h: snappedCoords.h,
+      };
+    });
+    onChange(snapped);
   };
 
   const handleDeleteBox = (index: number) => {
@@ -103,7 +149,37 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+      {/* Precision Smart Canvas Controls Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-sm)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <SpringButton
+            variant={magneticSnapEnabled ? 'primary' : 'secondary'}
+            size="sm"
+            shortcut="Shift"
+            onClick={() => setMagneticSnapEnabled(!magneticSnapEnabled)}
+          >
+            <Magnet size={14} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            {magneticSnapEnabled ? 'Magnetic Edge-Snap ON' : 'Magnetic Edge-Snap OFF'}
+          </SpringButton>
+
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Sobel gradient edge boundary lock (<kbd style={{ padding: '1px 4px', background: 'var(--bg-elevated)', borderRadius: '3px' }}>Shift</kbd>)
+          </span>
+        </div>
+
+        {boxes.length > 0 && (
+          <SpringButton
+            variant="secondary"
+            size="sm"
+            onClick={handleSnapExistingBoxes}
+          >
+            <Sparkles size={14} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            Snap Existing Boxes
+          </SpringButton>
+        )}
+      </div>
+
       {/* Canvas Area with Unified Touch & Mouse PointerEvents */}
       <div
         ref={containerRef}
@@ -124,8 +200,10 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
         }}
       >
         <img
+          ref={imgRef}
           src={imageUrl}
           alt="Visual Annotation Target"
+          crossOrigin="anonymous"
           style={{ display: 'block', maxWidth: '100%', height: 'auto', pointerEvents: 'none' }}
         />
 

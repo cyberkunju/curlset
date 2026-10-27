@@ -10,6 +10,10 @@ import { ExportModal } from './ExportModal';
 import { SourceDiscoveryModal } from './SourceDiscoveryModal';
 import { SyntheticGenerationModal } from './SyntheticGenerationModal';
 import { EvaluationModal } from './EvaluationModal';
+import { AugmentationModal } from './AugmentationModal';
+import { VersionDiffModal } from './VersionDiffModal';
+import { ClusterMapModal } from './ClusterMapModal';
+import { SpringButton } from './ui/SpringButton';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -29,6 +33,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [isSynthesisOpen, setIsSynthesisOpen] = useState(false);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(false);
+  const [isAugmentationOpen, setIsAugmentationOpen] = useState(false);
+  const [isDiffOpen, setIsDiffOpen] = useState(false);
+  const [isClusterMapOpen, setIsClusterMapOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -174,33 +181,42 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           Step through the dataset engineering lifecycle from ingestion to versioned export:
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <button className="btn btn-primary" onClick={() => setIsImportOpen(true)} title="Proceed to Ingestion (Phase 3)">
+          <SpringButton variant="primary" onClick={() => setIsImportOpen(true)} title="Proceed to Ingestion (Phase 3)">
             <span>📥</span> Import Media & Data
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsWorkspaceOpen(true)} title="Open Annotation Workbench (Phase 4)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} title="Open Annotation Workbench (Phase 4)">
             <span>✏️</span> Annotation Workbench
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsAIOpen(true)} title="Trigger AI Inference (Phase 5)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsAIOpen(true)} title="Trigger AI Inference (Phase 5)">
             <span>🤖</span> AI Auto-Labeling
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsQualityOpen(true)} title="Run Quality Checks (Phase 6)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsQualityOpen(true)} title="Run Quality Checks (Phase 6)">
             <span>🛡️</span> Quality Engine
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsVersionsOpen(true)} title="Publish Dataset Version (Phase 7)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsVersionsOpen(true)} title="Publish Dataset Version (Phase 7)">
             <span>📌</span> Publish Snapshot
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsExportOpen(true)} title="Export Dataset Package (Phase 8)">
-            <span>📦</span> Export (CSV / JSONL)
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsSourcesOpen(true)} title="Source Discovery & Rights Review (Phase 11)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsDiffOpen(true)} title="Visual Dataset Git-Diff (Phase 7)">
+            <span>🔀</span> Visual Git-Diff (v1 vs v2)
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsExportOpen(true)} title="Export Dataset Package (Phase 8)">
+            <span>📦</span> Export (Presets & Frameworks)
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsAugmentationOpen(true)} title="Geometry-Aware Augmentations (Phase 9 & 12)">
+            <span>✨</span> Spatial Augment
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsSourcesOpen(true)} title="Source Discovery & Rights Review (Phase 11)">
             <span>🌐</span> Sources & Rights
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsSynthesisOpen(true)} title="Synthetic Data Generation (Phase 12)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsSynthesisOpen(true)} title="Synthetic Data Generation (Phase 12)">
             <span>🧬</span> Synthesize Data
-          </button>
-          <button className="btn btn-secondary" onClick={() => setIsEvaluationOpen(true)} title="Active Learning & Evaluation (Phase 14)">
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsClusterMapOpen(true)} title="2D Semantic Cluster Map & Data Deserts (Phase 13)">
+            <span>🎯</span> 2D Cluster Map
+          </SpringButton>
+          <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)} title="Active Learning & Evaluation (Phase 14)">
             <span>🧠</span> Evaluation & Active Learning
-          </button>
+          </SpringButton>
         </div>
       </div>
 
@@ -236,11 +252,31 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         }}
       />
 
+      <VersionDiffModal
+        datasetId={datasetId}
+        isOpen={isDiffOpen}
+        onClose={() => setIsDiffOpen(false)}
+      />
+
       <ExportModal
         datasetId={datasetId}
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         onOpenVersions={() => setIsVersionsOpen(true)}
+      />
+
+      <AugmentationModal
+        datasetId={datasetId}
+        isOpen={isAugmentationOpen}
+        onClose={() => setIsAugmentationOpen(false)}
+        onAugmentationComplete={() => loadData()}
+      />
+
+      <ClusterMapModal
+        datasetId={datasetId}
+        isOpen={isClusterMapOpen}
+        onClose={() => setIsClusterMapOpen(false)}
+        onSynthesizeGap={() => setIsSynthesisOpen(true)}
       />
 
       <SourceDiscoveryModal

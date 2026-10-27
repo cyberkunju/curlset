@@ -1,4 +1,6 @@
 import React from 'react';
+import { FolderKanban, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { SpringButton } from './ui/SpringButton';
 
 interface SidebarProps {
   currentView: string;
@@ -11,48 +13,61 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, syste
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="brand-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
+          <Layers size={20} strokeWidth={1.75} color="#FAFAFA" />
         </div>
         <div>
           <div className="brand-title">Dataset Workbench</div>
         </div>
       </div>
 
-      <nav className="sidebar-nav">
-        <button
-          className={`nav-item ${currentView.startsWith('project') ? 'active' : ''}`}
+      <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.5rem' }}>
+        <SpringButton
+          variant={currentView.startsWith('project') ? 'primary' : 'ghost'}
           onClick={() => onNavigate('projects')}
-          style={{ width: '100%', border: 'none', textAlign: 'left' }}
+          style={{
+            width: '100%',
+            justifyContent: 'flex-start',
+            gap: '0.75rem',
+            padding: '0.6rem 0.85rem',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+          }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          </svg>
+          <FolderKanban size={18} strokeWidth={1.75} />
           Projects & Datasets
-        </button>
+        </SpringButton>
 
-        <button
-          className={`nav-item ${currentView === 'governance' ? 'active' : ''}`}
+        <SpringButton
+          variant={currentView === 'governance' ? 'primary' : 'ghost'}
           onClick={() => onNavigate('governance')}
-          style={{ width: '100%', border: 'none', textAlign: 'left' }}
+          style={{
+            width: '100%',
+            justifyContent: 'flex-start',
+            gap: '0.75rem',
+            padding: '0.6rem 0.85rem',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+          }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+          <ShieldCheck size={18} strokeWidth={1.75} />
           Governance & Quotas
-        </button>
+        </SpringButton>
 
-        <button
-          className={`nav-item ${currentView === 'health' ? 'active' : ''}`}
+        <SpringButton
+          variant={currentView === 'health' ? 'primary' : 'ghost'}
           onClick={() => onNavigate('health')}
-          style={{ width: '100%', border: 'none', textAlign: 'left' }}
+          style={{
+            width: '100%',
+            justifyContent: 'flex-start',
+            gap: '0.75rem',
+            padding: '0.6rem 0.85rem',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+          }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
+          <Activity size={18} strokeWidth={1.75} />
           System Health
-        </button>
+        </SpringButton>
       </nav>
 
       <div className="sidebar-footer">

@@ -307,3 +307,181 @@ class VersioningService:
             "annotations_updated": updated_annotation_record_ids,
             "net_record_change": len(records_b) - len(records_a),
         }
+
+    @staticmethod
+    def diff_dataset_versions(
+        session: Session, dataset_id: str, v1_id: str, v2_id: str
+    ) -> dict:
+        """
+        Produce a comprehensive visual and statistical git-diff between two dataset versions:
+        - added_records, removed_records, split_changed_records, annotation_modified_records
+        - Class distribution delta table across train/val/test
+        - Spatial bounding box diffs with mean IoU shift
+        """
+        v1 = VersioningService.get_version(session, v1_id)
+        v2 = VersioningService.get_version(session, v2_id)
+        if v1.dataset_id != dataset_id or v2.dataset_id != dataset_id:
+            raise ResourceNotFoundError("DatasetVersion", f"Versions do not belong to dataset '{dataset_id}'")
+
+        m1 = VersioningService.get_version_manifest(session, v1_id)
+        m2 = VersioningService.get_version_manifest(session, v2_id)
+
+        rec_map_1 = {r["record_id"]: r for r in m1.get("records", [])}
+        rec_map_2 = {r["record_id"]: r for r in m2.get("records", [])}
+
+        ids_1 = set(rec_map_1.keys())
+        ids_2 = set(rec_map_2.keys())
+
+        added_ids = sorted(ids_2 - ids_1)
+        removed_ids = sorted(ids_1 - ids_2)
+        common_ids = sorted(ids_1 & ids_2)
+
+        added_records = [rec_map_2[rid] for rid in added_ids]
+        removed_records = [rec_map_1[rid] for rid in removed_ids]
+
+        split_changed_records = []
+        annotation_modified_records = []
+        spatial_diffs = []
+        total_iou_sum = 0.0
+        spatial_count = 0
+
+        # Helper for single box IoU
+        def compute_box_iou(b1: dict, b2: dict) -> float:
+            x1, y1 = float(b1.get("x", 0)), float(b1.get("y", 0))
+            w1, h1 = float(b1.get("w", b1.get("width", 0))), float(b1.get("h", b1.get("height", 0)))
+            x2, y2 = float(b2.get("x", 0)), float(b2.get("y", 0))
+            w2, h2 = float(b2.get("w", b2.get("width", 0))), float(b2.get("h", b2.get("height", 0)))
+
+            xa = max(x1, x2)
+            ya = max(y1, y2)
+            xb = min(x1 + w1, x2 + w2)
+            yb = min(y1 + h1, y2 + h2)
+
+            inter = max(0.0, xb - xa) * max(0.0, yb - ya)
+            area1 = w1 * h1
+            area2 = w2 * h2
+            denom = area1 + area2 - inter
+            return round(inter / denom, 4) if denom > 0 else 0.0
+
+        for rid in common_ids:
+            r1 = rec_map_1[rid]
+            r2 = rec_map_2[rid]
+
+            # Split change check
+            if r1.get("split") != r2.get("split"):
+                split_changed_records.append({
+                    "record_id": rid,
+                    "split_v1": r1.get("split"),
+                    "split_v2": r2.get("split"),
+                })
+
+            p1 = r1.get("annotation", {}).get("payload", {}) if r1.get("annotation") else {}
+            p2 = r2.get("annotation", {}).get("payload", {}) if r2.get("annotation") else {}
+
+            if p1 != p2:
+                annotation_modified_records.append({
+                    "record_id": rid,
+                    "payload_v1": p1,
+                    "payload_v2": p2,
+                    "status_v1": r1.get("annotation", {}).get("status"),
+                    "status_v2": r2.get("annotation", {}).get("status"),
+                })
+
+            # Check if object detection with spatial boxes
+            boxes_1 = p1.get("boxes", []) if isinstance(p1.get("boxes"), list) else []
+            boxes_2 = p2.get("boxes", []) if isinstance(p2.get("boxes"), list) else []
+
+            if boxes_1 or boxes_2:
+                # Compute greedy IoU matching
+                matched_ious = []
+                for b2 in boxes_2:
+                    best_iou = 0.0
+                    for b1 in boxes_1:
+                        if b1.get("label") == b2.get("label"):
+                            best_iou = max(best_iou, compute_box_iou(b1, b2))
+                    matched_ious.append(best_iou)
+
+                rec_iou = round(sum(matched_ious) / len(matched_ious), 4) if matched_ious else 0.0
+                total_iou_sum += rec_iou
+                spatial_count += 1
+
+                # Find primary image asset for rendering
+                asset_url = None
+                assets_2 = r2.get("assets", [])
+                if assets_2:
+                    asset_url = f"/api/v1/assets/{assets_2[0].get('asset_id')}/file"
+
+                spatial_diffs.append({
+                    "record_id": rid,
+                    "asset_url": asset_url,
+                    "boxes_v1": boxes_1,
+                    "boxes_v2": boxes_2,
+                    "mean_iou": rec_iou,
+                    "iou_shift": round(1.0 - rec_iou, 4),
+                })
+
+        # Class distribution delta table across train/val/test
+        from collections import defaultdict
+        cls_split_1: dict[str, dict[str, int]] = defaultdict(lambda: {"train": 0, "val": 0, "test": 0})
+        cls_split_2: dict[str, dict[str, int]] = defaultdict(lambda: {"train": 0, "val": 0, "test": 0})
+
+        def record_classes(r: dict, store: dict):
+            sp = r.get("split", "train")
+            if sp not in {"train", "val", "test"}:
+                sp = "train"
+            pay = r.get("annotation", {}).get("payload", {}) if r.get("annotation") else {}
+            if "label" in pay and isinstance(pay["label"], str):
+                store[pay["label"]][sp] += 1
+            for b in pay.get("boxes", []):
+                if "label" in b and isinstance(b["label"], str):
+                    store[b["label"]][sp] += 1
+
+        for r in rec_map_1.values():
+            record_classes(r, cls_split_1)
+        for r in rec_map_2.values():
+            record_classes(r, cls_split_2)
+
+        all_classes = sorted(set(cls_split_1.keys()) | set(cls_split_2.keys()))
+        class_delta_table = []
+        for c in all_classes:
+            row = {"class_name": c}
+            for sp in ["train", "val", "test"]:
+                v1_cnt = cls_split_1[c][sp]
+                v2_cnt = cls_split_2[c][sp]
+                row[sp] = {
+                    "v1": v1_cnt,
+                    "v2": v2_cnt,
+                    "delta": v2_cnt - v1_cnt,
+                }
+            class_delta_table.append(row)
+
+        mean_iou_overall = round(total_iou_sum / spatial_count, 4) if spatial_count > 0 else 1.0
+
+        return {
+            "version_v1": {
+                "id": v1.id,
+                "version_tag": v1.version_tag,
+                "version_number": v1.version_number,
+                "record_count": v1.record_count,
+            },
+            "version_v2": {
+                "id": v2.id,
+                "version_tag": v2.version_tag,
+                "version_number": v2.version_number,
+                "record_count": v2.record_count,
+            },
+            "summary": {
+                "records_added": len(added_records),
+                "records_removed": len(removed_records),
+                "splits_changed": len(split_changed_records),
+                "annotations_modified": len(annotation_modified_records),
+                "mean_iou": mean_iou_overall,
+                "mean_iou_shift": round(1.0 - mean_iou_overall, 4),
+            },
+            "added_records": added_records,
+            "removed_records": removed_records,
+            "split_changed_records": split_changed_records,
+            "annotation_modified_records": annotation_modified_records,
+            "class_distribution_deltas": class_delta_table,
+            "spatial_diffs": spatial_diffs,
+        }
