@@ -145,10 +145,16 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     }
   }, [boxes.length, selectedBoxIndex]);
 
+  // Contract-driven calibration determination (Phase R5.2.1, R5.2.2 & R5.2.3)
+  const coordSystemType = identifyCoordinateSystem(coordinateSystem, boxes);
+  const isLegacyUncalibrated = Boolean(isLegacyRecord || coordSystemType === 'uncalibrated-legacy');
+  const canPlotBoxes = shouldPlotVersionGeometry(coordinateSystem, boxes, naturalDims);
+  const isExplicitlyNormalized = coordinateSystem === 'normalized';
+
   // Handle keyboard shortcut for Delete selected box
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (disabled || selectedBoxIndex === null) return;
+      if (disabled || selectedBoxIndex === null || isLegacyUncalibrated || isExplicitlyNormalized) return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
@@ -160,13 +166,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBoxIndex, boxes, disabled]);
-
-  // Contract-driven calibration determination (Phase R5.2.1 & R5.2.2)
-  const coordSystemType = identifyCoordinateSystem(coordinateSystem, boxes);
-  const isLegacyUncalibrated = Boolean(isLegacyRecord || coordSystemType === 'uncalibrated-legacy');
-  const canPlotBoxes = shouldPlotVersionGeometry(coordinateSystem, boxes, naturalDims);
-  const isExplicitlyNormalized = coordinateSystem === 'normalized';
+  }, [selectedBoxIndex, boxes, disabled, isLegacyUncalibrated, isExplicitlyNormalized]);
 
   const handleConvertNormalized = () => {
     if (!naturalDims || naturalDims.width <= 0 || naturalDims.height <= 0) return;
@@ -215,17 +215,10 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Lock drawing on uncalibrated historical annotations to prevent mixed coordinate systems
-    if (disabled || isLegacyUncalibrated) return;
+    // Lock drawing on uncalibrated historical annotations and normalized coordinate systems
+    // Normalized annotations must be explicitly converted to intrinsic pixels before drawing geometry
+    if (disabled || isLegacyUncalibrated || isExplicitlyNormalized) return;
     if (e.target !== containerRef.current && (e.target as HTMLElement).tagName !== 'IMG') {
-      return;
-    }
-
-    // Normalized annotations require conversion to intrinsic pixels before drawing new geometry to prevent mixed payloads
-    if (isExplicitlyNormalized && boxes.length > 0) {
-      if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) {
-        handleConvertNormalized();
-      }
       return;
     }
 
@@ -326,8 +319,9 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   };
 
   const handleDeleteBox = (index: number) => {
-    // Disable individual geometry deletion while boxes remain uncalibrated
-    if (isLegacyUncalibrated) return;
+    // Disable geometry deletion while coordinates are uncalibrated or normalized
+    // Normalized annotations must be explicitly converted to source pixels before modifying geometry
+    if (isLegacyUncalibrated || isExplicitlyNormalized) return;
     const updated = boxes.filter((_, i) => i !== index);
     onChange(updated);
     setSelectedBoxIndex(null);
@@ -341,13 +335,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   const handleBoxPointerDown = (e: React.PointerEvent, index: number) => {
     e.stopPropagation();
     setSelectedBoxIndex(index);
-    if (disabled || isLegacyUncalibrated) return;
-    if (isExplicitlyNormalized) {
-      if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) {
-        handleConvertNormalized();
-      }
-      return;
-    }
+    if (disabled || isLegacyUncalibrated || isExplicitlyNormalized) return;
     const box = boxes[index];
     const coords = getRelativeCoords(e as any);
     setIsDraggingBox(true);
@@ -565,8 +553,10 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
             {!naturalDims || naturalDims.width <= 0
-              ? 'This annotation uses normalized [0, 1] coordinates, but source dimensions could not be established. Drawing and moving boxes is disabled to prevent mixing coordinate spaces.'
-              : 'This annotation uses normalized [0, 1] coordinates. To add or adjust geometry, convert existing boxes to intrinsic pixel coordinates [0, W_src] × [0, H_src] first using verified source dimensions.'}
+              ? 'This annotation uses normalized [0, 1] coordinates, but source dimensions could not be established. Drawing and modifying geometry is disabled to prevent mixing coordinate spaces.'
+              : boxes.length === 0
+                ? 'This annotation is declared with normalized coordinates. To draw new geometry in intrinsic pixels, convert to source pixels using verified image dimensions.'
+                : 'This annotation uses normalized [0, 1] coordinates. To add or adjust geometry, convert existing boxes to intrinsic pixel coordinates [0, W_src] × [0, H_src] first using verified source dimensions.'}
           </div>
         </div>
       )}
@@ -597,7 +587,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             display: 'inline-block',
             userSelect: 'none',
             touchAction: 'none',
-            cursor: isDrawing ? 'crosshair' : isDraggingBox ? 'grabbing' : isLegacyUncalibrated ? 'not-allowed' : 'default',
+            cursor: isDrawing ? 'crosshair' : isDraggingBox ? 'grabbing' : (isLegacyUncalibrated || isExplicitlyNormalized) ? 'not-allowed' : 'default',
             borderRadius: 'var(--radius-sm)',
             transform: `scale(${zoom})`,
             transformOrigin: 'center center',
@@ -793,25 +783,27 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                     </span>
                   )}
                   <button
-                    disabled={isLegacyUncalibrated}
+                    disabled={isLegacyUncalibrated || isExplicitlyNormalized}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (isLegacyUncalibrated) return;
+                      if (isLegacyUncalibrated || isExplicitlyNormalized) return;
                       handleDeleteBox(idx);
                     }}
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: isLegacyUncalibrated ? 'var(--text-muted)' : 'var(--rose)',
-                      cursor: isLegacyUncalibrated ? 'not-allowed' : 'pointer',
-                      opacity: isLegacyUncalibrated ? 0.4 : 1,
+                      color: isLegacyUncalibrated || isExplicitlyNormalized ? 'var(--text-muted)' : 'var(--rose)',
+                      cursor: isLegacyUncalibrated || isExplicitlyNormalized ? 'not-allowed' : 'pointer',
+                      opacity: isLegacyUncalibrated || isExplicitlyNormalized ? 0.4 : 1,
                       padding: 0,
                       display: 'flex',
                     }}
                     title={
                       isLegacyUncalibrated
                         ? "Deletion is disabled for uncalibrated historical annotations to preserve calibration integrity. Use 'Clear & Re-annotate (Calibrated)' above."
-                        : 'Remove box'
+                        : isExplicitlyNormalized
+                          ? 'Deletion is disabled for normalized annotations to prevent mixed coordinate payloads. Convert to source pixels before modifying geometry.'
+                          : 'Remove box'
                     }
                     type="button"
                   >

@@ -73,8 +73,10 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   const [imgErrorV1, setImgErrorV1] = useState(false);
   const [imgErrorV2, setImgErrorV2] = useState(false);
 
-  const resolvedUrlV1 = assetUrlV1 || assetUrl || null;
-  const resolvedUrlV2 = assetUrlV2 || assetUrl || null;
+  // Each version resolves its asset URL strictly from its own version-specific asset reference.
+  // Cross-version fallback to a shared assetUrl is prohibited to prevent false imagery.
+  const resolvedUrlV1 = assetUrlV1 || null;
+  const resolvedUrlV2 = assetUrlV2 || null;
 
   // V1 and V2 must resolve their reference dimensions independently to avoid cross-version dimension leakage.
   // We prefer the version's explicit payload dimensions, then that version's asset metadata, then the loaded asset natural dimensions.
@@ -98,11 +100,14 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   const v1Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV1, boxesV1, dimsV1), [coordinateSystemV1, boxesV1, dimsV1]);
   const v2Plottable = useMemo(() => shouldPlotVersionGeometry(coordinateSystemV2, boxesV2, dimsV2), [coordinateSystemV2, boxesV2, dimsV2]);
 
-  // Asset compatibility check for overlay mode
+  // Asset compatibility check for overlay mode:
+  // Requires both versions to have a verified asset URL AND either same_asset is true or asset IDs / URLs match.
   const areAssetsCompatible = Boolean(
-    sameAsset ||
-    (assetIdV1 && assetIdV2 && assetIdV1 === assetIdV2) ||
-    (!assetIdV1 && !assetIdV2 && resolvedUrlV1 && resolvedUrlV2 && resolvedUrlV1 === resolvedUrlV2)
+    resolvedUrlV1 &&
+    resolvedUrlV2 &&
+    (sameAsset ||
+      (assetIdV1 && assetIdV2 && assetIdV1 === assetIdV2) ||
+      (resolvedUrlV1 === resolvedUrlV2))
   );
 
   // Measure container dimensions with ResizeObserver
@@ -346,7 +351,9 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
             Shared Overlay Unavailable
           </div>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
-            Versions reference different source media assets ({assetIdV1 ? `v1: ${assetIdV1.slice(0, 8)}` : 'v1 asset'} vs {assetIdV2 ? `v2: ${assetIdV2.slice(0, 8)}` : 'v2 asset'}). Bounding boxes cannot be truthfully co-projected onto a single image frame.
+            {!resolvedUrlV1 || !resolvedUrlV2
+              ? `One or both versions lack an associated source image asset (${!resolvedUrlV1 ? 'v1 asset missing' : 'v1 asset present'}, ${!resolvedUrlV2 ? 'v2 asset missing' : 'v2 asset present'}). Bounding boxes cannot be truthfully co-projected onto a shared image.`
+              : `Versions reference different source media assets (${assetIdV1 ? `v1: ${assetIdV1.slice(0, 8)}` : 'v1 asset'} vs ${assetIdV2 ? `v2: ${assetIdV2.slice(0, 8)}` : 'v2 asset'}). Bounding boxes cannot be truthfully co-projected onto a single image frame.`}
           </div>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
             Use Side-by-Side view to inspect each version's imagery and geometry independently.
@@ -516,14 +523,23 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
                 width: '100%',
                 height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'var(--bg-elevated)',
                 color: 'var(--text-muted)',
                 fontSize: '0.7rem',
+                gap: '0.2rem',
+                padding: '0.5rem',
+                textAlign: 'center',
               }}
             >
-              Geometry only
+              <span>{imgErrorV1 ? 'Image load failed' : 'No source image asset'}</span>
+              {dimsV1 ? (
+                <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+                  Frame: {dimsV1.width}×{dimsV1.height}px
+                </span>
+              ) : null}
             </div>
           )}
           {boxesV1.length > 0 && !v1Plottable ? (
@@ -582,14 +598,23 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
                 width: '100%',
                 height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'var(--bg-elevated)',
                 color: 'var(--text-muted)',
                 fontSize: '0.7rem',
+                gap: '0.2rem',
+                padding: '0.5rem',
+                textAlign: 'center',
               }}
             >
-              Geometry only
+              <span>{imgErrorV2 ? 'Image load failed' : 'No source image asset'}</span>
+              {dimsV2 ? (
+                <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+                  Frame: {dimsV2.width}×{dimsV2.height}px
+                </span>
+              ) : null}
             </div>
           )}
           {boxesV2.length > 0 && !v2Plottable ? (
@@ -1058,15 +1083,13 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.85rem' }}>
                       {diffData.spatial_diffs.slice(0, 4).map((item: any) => {
-                        const rawAssetUrl = item.asset_url
-                          ? item.asset_url.replace('/file', '/raw')
-                          : null;
+                        // Resolve asset URLs strictly from each version's own asset reference
                         const rawAssetUrlV1 = item.asset_url_v1
                           ? item.asset_url_v1.replace('/file', '/raw')
-                          : rawAssetUrl;
+                          : null;
                         const rawAssetUrlV2 = item.asset_url_v2
                           ? item.asset_url_v2.replace('/file', '/raw')
-                          : rawAssetUrl;
+                          : null;
 
                         return (
                           <div
@@ -1086,7 +1109,6 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                             </div>
 
                             <SpatialDiffViewer
-                              assetUrl={rawAssetUrl}
                               assetUrlV1={rawAssetUrlV1}
                               assetUrlV2={rawAssetUrlV2}
                               assetIdV1={item.asset_id_v1}

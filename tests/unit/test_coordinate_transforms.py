@@ -627,6 +627,150 @@ class TestLegacyCalibrationSafety:
         cleared_boxes_payload["boxes"] = []
         assert cleared_boxes_payload.get("coordinate_system") is None
 
+    def test_version_diff_v1_lacking_asset_v2_has_asset(self, monkeypatch):
+        """When v1 has no asset and v2 has an asset, v1 asset URL is None with zero cross-version fallback."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_v1_no_asset",
+                    "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "box", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                    "assets": [],
+                }
+            ]
+        }
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_v1_no_asset",
+                    "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "box", "x": 15, "y": 15, "w": 50, "h": 50}]}},
+                    "assets": [{"asset_id": "ast_v2_only", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: v1_manifest if vid == "v1" else v2_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is False
+        assert item["asset_id_v1"] is None
+        assert item["asset_url_v1"] is None
+        assert item["asset_id_v2"] == "ast_v2_only"
+        assert item["asset_url_v2"] == "/api/v1/assets/ast_v2_only/file"
+
+    def test_version_diff_v2_lacking_asset_v1_has_asset(self, monkeypatch):
+        """When v2 has no asset and v1 has an asset, v2 asset URL is None with zero cross-version fallback."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_v2_no_asset",
+                    "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "box", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                    "assets": [{"asset_id": "ast_v1_only", "role": "primary_image", "dimensions": {"width": 1280, "height": 720}}],
+                }
+            ]
+        }
+        v2_manifest = {
+            "records": [
+                {
+                    "record_id": "rec_v2_no_asset",
+                    "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "box", "x": 15, "y": 15, "w": 50, "h": 50}]}},
+                    "assets": [],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: v1_manifest if vid == "v1" else v2_manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is False
+        assert item["asset_id_v1"] == "ast_v1_only"
+        assert item["asset_url_v1"] == "/api/v1/assets/ast_v1_only/file"
+        assert item["asset_id_v2"] is None
+        assert item["asset_url_v2"] is None
+
+    def test_version_diff_both_lacking_assets(self, monkeypatch):
+        """When neither version has an asset, both URLs are None and same_asset is False."""
+        from packages.dataset_versioning.service import VersioningService
+
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        manifest = {
+            "records": [
+                {
+                    "record_id": "rec_no_assets",
+                    "annotation": {"payload": {"coordinate_system": "normalized", "boxes": [{"label": "box", "x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5}]}},
+                    "assets": [],
+                }
+            ]
+        }
+
+        v1 = MockVersion("v1", "v1.0.0", 1, manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, manifest)
+
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: manifest)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+
+        assert item["same_asset"] is False
+        assert item["asset_id_v1"] is None
+        assert item["asset_url_v1"] is None
+        assert item["asset_id_v2"] is None
+        assert item["asset_url_v2"] is None
+
+    def test_normalized_coordinate_state_preservation_when_empty(self):
+        """An empty normalized payload preserves its coordinate_system declaration upon non-geometric update."""
+        normalized_payload = {
+            "coordinate_system": "normalized",
+            "boxes": [],
+            "notes": "Reviewed",
+        }
+        updated = dict(normalized_payload)
+        updated["notes"] = "Updated note"
+        assert updated["coordinate_system"] == "normalized"
+        assert updated["boxes"] == []
+
     def test_coco_export_preserves_historical_payload_without_corruption(self):
         """COCO export does not mutate or corrupt historical records lacking coordinate metadata."""
         manifest = {
@@ -649,4 +793,5 @@ class TestLegacyCalibrationSafety:
         assert coco_data["annotations"][0]["bbox"] == [50.0, 60.0, 70.0, 80.0]
         # Payload coordinate values remain intact
         assert manifest["records"][0]["annotation"]["payload"].get("coordinate_system") is None
+
 

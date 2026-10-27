@@ -889,6 +889,49 @@ Phase R5.2.1 established legacy calibration safety and dimension isolation for v
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
 
+---
+
+## 20. Phase R5.2.3 — Coordinate-State Guarding & Version Asset Fallback Integrity
+
+**Date:** October 27, 2026  
+**Status:** **COMPLETE**
+
+### 20.1 Problem Statement & Gaps Addressed
+Phase R5.2.2 established normalized-to-intrinsic conversion and version asset isolation, but two subtle contract and fallback integrity vulnerabilities were identified by static inspection:
+1. **Normalized Deletion Bypass**: `handleDeleteBox` in `ObjectDetectionCanvas.tsx` guarded legacy uncalibrated annotations, but not normalized annotations. If a user deleted the final box of a normalized annotation, the box array became empty while the coordinate system remained declared as `normalized`. A loophole in `handlePointerDown` (`if (isExplicitlyNormalized && boxes.length > 0)`) then allowed drawing intrinsic-pixel boxes into an empty normalized record, creating a payload where pixel coordinates were stamped with `coordinate_system: 'normalized'`.
+2. **Cross-Version Asset Fallback in Side-by-Side Mode**: In `VersionDiffModal.tsx`, `resolvedUrlV1` and `resolvedUrlV2` fell back to a shared `assetUrl`. The caller also fell back from missing `item.asset_url_v1` or `item.asset_url_v2` to the shared `rawAssetUrl`. If one version lacked an associated asset while the other had one, side-by-side mode displayed the available version's image under both version columns.
+
+### 20.2 Architectural Changes & Deliverables Completed
+
+1. **Normalized Deletion & State-Guarding Protection (`ObjectDetectionCanvas.tsx` & `AnnotationWorkspace.tsx`):**
+   - **Pointer Interaction Guard**: In `ObjectDetectionCanvas.tsx`, `handlePointerDown` now unconditionally checks `if (disabled || isLegacyUncalibrated || isExplicitlyNormalized) return;`. It is strictly impossible to draw intrinsic pixels when the declared coordinate system is `normalized`, regardless of box count.
+   - **Deletion Pathway Guarding**:
+     - `handleDeleteBox`: returns immediately if `isExplicitlyNormalized || isLegacyUncalibrated`.
+     - `handleKeyDown`: guards `Delete` and `Backspace` keyboard shortcuts so normalized boxes cannot be deleted via the keyboard.
+     - Inspector Trash Button: disabled with `cursor: 'not-allowed'` and a tooltip explaining: `"Deletion is disabled for normalized annotations to prevent mixed coordinate payloads. Convert to source pixels before modifying geometry."`
+   - **Authoritative Empty State**: When `boxes.length === 0`, `isExplicitlyNormalized` remains `true` if declared. The banner displays an actionable prompt to convert to source pixels using verified image dimensions.
+   - **Atomic State Transition**: `handleConvertNormalizedToIntrinsic` updates both `setBoxes` and `setActiveCoordSystem('pixel-intrinsic')` atomically.
+   - **Save Path Integrity**: In `AnnotationWorkspace.tsx`, saving explicitly checks `activeCoordSystem !== 'normalized'` before entering the `pixel-intrinsic` branch. An empty normalized annotation persists as `coordinate_system: 'normalized'`, preventing any silent transition to `pixel-intrinsic` without verified conversion.
+
+2. **Version Asset URL Isolation & Overlay Refusal (`VersionDiffModal.tsx`):**
+   - **Strict Per-Version Resolution**:
+     - In `VersionDiffModal.tsx` caller site: `rawAssetUrlV1` and `rawAssetUrlV2` are resolved strictly from `item.asset_url_v1` and `item.asset_url_v2` without any fallback to `item.asset_url`.
+     - In `SpatialDiffViewer`: `resolvedUrlV1 = assetUrlV1 || null` and `resolvedUrlV2 = assetUrlV2 || null` without shared `assetUrl` fallbacks.
+   - **Overlay Refusal**: `areAssetsCompatible` requires both `resolvedUrlV1` and `resolvedUrlV2` to be non-null AND either `sameAsset` is true or asset IDs match. If either version lacks an asset or assets differ, shared overlay mode is refused, displaying an informative explanation card.
+   - **Side-by-Side Honest Placeholders**: If a version lacks an asset (`!resolvedUrlV1` / `!resolvedUrlV2`), it displays an honest placeholder: `"No source image asset"`. If an image fails to load, it displays `"Image load failed"`. Error states for each version are strictly isolated (`imgErrorV1` and `imgErrorV2`), and each version's boxes are rendered only in its own column.
+
+3. **Automated Verification:**
+   - Updated `apps/web/tests/coordinate_contract.test.ts`: 15 comprehensive tests covering normalized deletion bypass prevention, keyboard delete guards, drawing blocks on empty normalized records, atomic conversion, save/reload persistence, version asset URL isolation, overlay compatibility refusal, and side-by-side error isolation.
+   - Updated `tests/unit/test_coordinate_transforms.py`: added 4 new unit tests covering V1 lacking asset with V2 present, V2 lacking asset with V1 present, both lacking assets, and empty normalized coordinate state preservation upon payload update.
+
+### 20.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (15/15 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.67s; Vite reported normal single-chunk warning `index-Bf6tYg8s.js (770 kB)` without code-split changes).
+- **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (20/20 unit tests in 0.92s).
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **124 passed, 0 failures** in 6.69s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline sandbox environment (cannot download browser binaries); contract verification, state guarding, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
+
 
 
 

@@ -344,10 +344,11 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           }
         } else if (
           hasValidDims &&
+          activeCoordSystem !== 'normalized' &&
           (activeCoordSystem === 'pixel-intrinsic' ||
-            existingCoordSys === 'pixel-intrinsic' ||
+            (existingCoordSys === 'pixel-intrinsic' && !isLegacyRecord) ||
             isNewlyRecreated ||
-            (!existingCoordSys && !isLegacyRecord))
+            (!existingCoordSys && !isLegacyRecord && !activeCoordSystem))
         ) {
           // Calibrated intrinsic: only when created in calibrated canvas and valid image dimensions are recorded
           payload.coordinate_system = 'pixel-intrinsic';

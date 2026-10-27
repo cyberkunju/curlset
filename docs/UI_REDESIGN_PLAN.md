@@ -324,6 +324,14 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - **Automated Verification**: Added 10 tests in `apps/web/tests/coordinate_contract.test.ts` and 4 new tests in `tests/unit/test_coordinate_transforms.py`.
 - **Exit Gate:** `npm run test:coordinates` passed (10/10); `npm run build` passed (0 errors); 16/16 `test_coordinate_transforms.py` passed; 120/120 full pytest suite passed; `ruff check .` passed (0 lint errors).
 
+#### Phase R5.2.3: Coordinate-State Guarding & Version Asset Fallback Integrity (COMPLETED)
+- **Objective:** Prevent the normalized-coordinate deletion bypass by guarding drawing and deletion across all interaction pathways, and isolate version asset URLs in side-by-side mode by removing cross-version fallbacks.
+- **Tasks Delivered:**
+  - **Normalized Deletion & State-Guarding (`ObjectDetectionCanvas.tsx` & `AnnotationWorkspace.tsx`)**: Unconditionally prohibited drawing intrinsic pixels on the canvas whenever coordinate system is `normalized`. Guarded `handleDeleteBox` and keyboard shortcut listeners (`Delete`/`Backspace`) against deleting normalized boxes. Disabled inspector delete buttons for normalized boxes. Enforced that empty normalized annotations retain their declaration and require explicit conversion before drawing. Guarded `handleSaveAnnotation` against saving normalized annotations as `pixel-intrinsic`.
+  - **Version Asset URL Isolation & Fallback Removal (`VersionDiffModal.tsx`)**: Resolved `resolvedUrlV1` and `resolvedUrlV2` strictly from version-specific asset references without falling back to a shared asset URL. Enforced overlay compatibility refusal when either version lacks an asset or assets differ. Updated side-by-side mode to render truthful unavailable-media placeholders (`"No source image asset"` / `"Image load failed"`) with independent error states.
+  - **Automated Verification**: Added 15 tests in `apps/web/tests/coordinate_contract.test.ts` and 4 new tests in `tests/unit/test_coordinate_transforms.py`.
+- **Exit Gate:** `npm run test:coordinates` passed (15/15); `npm run build` passed (0 errors); 20/20 `test_coordinate_transforms.py` passed; 124/124 full pytest suite passed; `ruff check .` passed (0 lint errors).
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**
