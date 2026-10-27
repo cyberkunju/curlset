@@ -265,4 +265,71 @@ export interface SourceProvenanceSummary {
   terms_notes?: string;
 }
 
+export interface ActiveLearningItem {
+  rank: number;
+  record_id: string;
+  external_key?: string;
+  split: string;
+  review_status: string;
+  label?: string;
+  confidence?: number;
+  priority_metadata: Record<string, any>;
+}
+
+export interface ActiveLearningQueueResponse {
+  strategy: string;
+  total: number;
+  limit: number;
+  offset: number;
+  items: ActiveLearningItem[];
+}
+
+export interface ClassMetric {
+  precision: number;
+  recall: number;
+  f1_score: number;
+  support: number;
+}
+
+export interface EvaluationReport {
+  total_samples: number;
+  accuracy: number;
+  macro_precision: number;
+  macro_recall: number;
+  macro_f1: number;
+  per_class_metrics: Record<string, ClassMetric>;
+  confusion_matrix: Record<string, Record<string, number>>;
+  classes: string[];
+  warnings: string[];
+  metadata: Record<string, any>;
+}
+
+export interface ClusterPoint {
+  record_id: string;
+  x: number;
+  y: number;
+  label?: string;
+  density: number;
+}
+
+export interface CoverageGap {
+  gap_id: string;
+  grid_x: number;
+  grid_y: number;
+  center_x: number;
+  center_y: number;
+  density: number;
+  nearest_record_ids: string[];
+  suggested_focus: string;
+}
+
+export interface ClusterMapResponse {
+  dataset_id: string;
+  total_points: number;
+  points: ClusterPoint[];
+  coverage_gaps: CoverageGap[];
+  grid_resolution: number;
+}
+
+
 

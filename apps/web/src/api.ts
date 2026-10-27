@@ -337,6 +337,39 @@ export async function fetchSyntheticLineage(datasetId: string): Promise<any> {
   return handleResponse(res);
 }
 
+export async function fetchActiveLearningQueue(
+  datasetId: string,
+  strategy = 'least_confidence',
+  split?: string,
+  limit = 50,
+  offset = 0
+): Promise<any> {
+  const params = new URLSearchParams({ strategy, limit: String(limit), offset: String(offset) });
+  if (split) params.append('split', split);
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/active-learning/queue?${params.toString()}`);
+  return handleResponse(res);
+}
+
+export async function runEvaluation(
+  datasetId: string,
+  split = 'test',
+  candidateOrigin = 'model',
+  referenceOrigin = 'human'
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/evaluation/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ split, candidate_origin: candidateOrigin, reference_origin: referenceOrigin }),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchClusterMap(datasetId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/datasets/${datasetId}/clusters`);
+  return handleResponse(res);
+}
+
+
 
 
 

@@ -485,20 +485,31 @@ PASSED: Verified with 70 passing automated tests across the workspace in 7.43s, 
 
 ## 17. Phase 14 — Active learning and baseline evaluation
 
-**Status: NOT STARTED**
+**Status: DONE**  
+**Dependencies:** Phase 7, Phase 8, Phase 12
 
 ### Tasks
-- [ ] Define optional baseline model integration interface.
-- [ ] Build train/validation/test split management with fixed seeds and manifests.
-- [ ] Add leakage checks for duplicate/related samples across splits.
-- [ ] Compute task-appropriate metrics and document assumptions.
-- [ ] Track model, data version, configuration and metrics.
-- [ ] Identify uncertain/error-prone samples for review.
-- [ ] Add human-controlled queue prioritization.
-- [ ] Avoid using test-set outcomes to repeatedly tune the dataset without documenting the evaluation protocol.
+- [x] Define optional baseline model integration interface.
+- [x] Build train/validation/test split management with fixed seeds and manifests.
+- [x] Add leakage checks for duplicate/related samples across splits.
+- [x] Compute task-appropriate metrics and document assumptions (Accuracy, Precision, Recall, Macro-F1, per-class F1, Confusion Matrix).
+- [x] Track model, data version, configuration and metrics with small-sample reliability warnings (< 5 samples).
+- [x] Identify uncertain/error-prone samples for review via Confident Learning consensus agreement scoring.
+- [x] Add human-controlled queue prioritization (`least_confidence`, `label_noise`, `disagreement`, `unreviewed_first`).
+- [x] Add 2D semantic embedding projection (power-iteration PCA normalized to `[-1.0, 1.0]^2`) with density mapping and 8x8 grid coverage gap detection.
+- [x] Avoid using test-set outcomes to repeatedly tune the dataset without documenting the evaluation protocol.
+
+### Deliverables
+- Evaluation metrics engine (`packages/dataset_evaluation/metrics.py`) computing accuracy, per-class/macro precision, recall, F1, full confusion matrix, and low-support warnings.
+- Confident Learning label noise detection (`packages/dataset_evaluation/confident_learning.py`) using text feature vectorization and cosine similarity to discover model-annotation contradictions.
+- Semantic 2D PCA projection and coverage gap discovery (`packages/dataset_evaluation/clustering.py`) mapping sample embeddings into $[-1.0, 1.0]^2$ with density scoring and grid gap discovery.
+- `EvaluationService` (`packages/dataset_evaluation/service.py`) orchestrating active learning prioritized triage, reproducible baseline evaluation runs against versions, and cluster projections.
+- REST API routes (`GET /api/v1/datasets/{id}/active-learning-queue`, `POST /api/v1/versions/{id}/evaluate`, `GET /api/v1/datasets/{id}/clusters`) in `services/api/routes/evaluation.py`.
+- Interactive web component (`apps/web/src/components/EvaluationModal.tsx`) with 3 tabs: Active Learning Queue, Baseline Evaluation Report with Confusion Matrix, and 2D Semantic Cluster Map with direct "Synthesize Edge Cases Here" trigger.
+- Automated integration test suite in `tests/integration/test_active_learning_and_evaluation.py`.
 
 ### Exit gate
-A user can run a documented baseline evaluation against a frozen dataset version and trace metrics to the exact split and model configuration.
+PASSED: Verified with 75 passing automated tests across the workspace in 6.70s, 0 ruff errors, and clean frontend production build (`tsc -b && vite build` built in 1.68s). Users can triage uncertain and contradictory records via active learning priority queues, evaluate models against frozen dataset versions with full confusion matrix and per-class metrics, and inspect 2D semantic coverage gaps to synthesize targeted edge cases.
 
 ## 18. Phase 15 — Hosted deployment readiness
 

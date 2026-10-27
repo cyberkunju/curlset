@@ -9,6 +9,7 @@ import { VersionSnapshotsModal } from './VersionSnapshotsModal';
 import { ExportModal } from './ExportModal';
 import { SourceDiscoveryModal } from './SourceDiscoveryModal';
 import { SyntheticGenerationModal } from './SyntheticGenerationModal';
+import { EvaluationModal } from './EvaluationModal';
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -27,6 +28,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [isSynthesisOpen, setIsSynthesisOpen] = useState(false);
+  const [isEvaluationOpen, setIsEvaluationOpen] = useState(false);
 
 
   const loadData = async () => {
@@ -196,6 +198,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           <button className="btn btn-secondary" onClick={() => setIsSynthesisOpen(true)} title="Synthetic Data Generation (Phase 12)">
             <span>🧬</span> Synthesize Data
           </button>
+          <button className="btn btn-secondary" onClick={() => setIsEvaluationOpen(true)} title="Active Learning & Evaluation (Phase 14)">
+            <span>🧠</span> Evaluation & Active Learning
+          </button>
         </div>
       </div>
 
@@ -251,6 +256,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         isOpen={isSynthesisOpen}
         onClose={() => setIsSynthesisOpen(false)}
         onGenerationComplete={() => loadData()}
+      />
+
+      <EvaluationModal
+        datasetId={datasetId}
+        isOpen={isEvaluationOpen}
+        onClose={() => setIsEvaluationOpen(false)}
+        onOpenSynthesize={() => setIsSynthesisOpen(true)}
       />
     </div>
   );
