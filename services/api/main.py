@@ -21,8 +21,10 @@ from packages.dataset_core.exceptions import (
     ResourceNotFoundError,
 )
 from services.api.config import settings
+from services.api.routes import datasets, projects
 
 START_TIME = time.time()
+
 
 
 @asynccontextmanager
@@ -100,8 +102,15 @@ async def generic_domain_error_handler(request: Request, exc: DomainError):
     )
 
 
+# Routers
+app.include_router(projects.router)
+app.include_router(datasets.router)
+
+
+
 # Health & Readiness Endpoints
 @app.get("/health", tags=["System"])
+
 def health_check() -> dict[str, Any]:
     return {
         "status": "ok",

@@ -39,3 +39,7 @@ include = ["packages*", "services*"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff.lint]
+ignore = ["B008"]
+

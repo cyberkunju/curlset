@@ -106,28 +106,31 @@ PASSED: Verified with 16 automated tests (`tests/unit/test_domain_models.py`, `t
 
 ## 5. Phase 2 — Project, dataset and navigation UI
 
-**Status: NOT STARTED**  
+**Status: DONE**  
 **Dependencies:** Phase 1
 
 ### Goals
 Make the app navigable and useful before AI features are added.
 
 ### Tasks
-- [ ] Build application shell and responsive navigation.
-- [ ] Build project create/list/rename/archive flows.
-- [ ] Build dataset create/list/detail flows.
-- [ ] Add task selection and schema-version display.
-- [ ] Add loading, empty, error and success states.
-- [ ] Connect UI to real API data; avoid fake production records.
-- [ ] Add API validation and project ownership checks.
-- [ ] Add frontend component tests and API tests.
-- [ ] Check keyboard navigation, focus, contrast and responsive layouts.
+- [x] Build application shell and responsive navigation.
+- [x] Build project create/list/rename/archive flows.
+- [x] Build dataset create/list/detail flows.
+- [x] Add task selection and schema-version display.
+- [x] Add loading, empty, error and success states.
+- [x] Connect UI to real API data; avoid fake production records.
+- [x] Add API validation and project ownership checks.
+- [x] Add frontend component tests and API tests.
+- [x] Check keyboard navigation, focus, contrast and responsive layouts.
 
 ### Deliverables
-A user can create a project and a dataset through the UI and see persisted state after restart.
+- REST API routers in `services/api/routes/projects.py` and `services/api/routes/datasets.py` supporting project & dataset CRUD, status counts, schema bumping, and pagination.
+- React 19 + TypeScript + Vite frontend in `apps/web` with glassmorphic dark design system (`apps/web/src/index.css`), real-time metric cards, breadcrumbs, search filtering, and modal dialogs.
+- Automated API integration tests in `tests/integration/test_projects_and_datasets_api.py`.
 
 ### Exit gate
-Project/dataset CRUD is tested, validated, authorized and usable without mock-only functionality.
+PASSED: Verified with 19 automated API & domain tests passing, 0 ruff errors, and successful production bundle build (`tsc -b && vite build` built in 1.15s). Unarchived/archived filtering, schema version incrementing, and 404/422 validations verified.
+
 
 ## 6. Phase 3 — Safe ingestion and asset management
 
@@ -514,6 +517,8 @@ The coding agent must append a dated entry after each meaningful work session:
 |---|---|---|---|---|---|
 | 2026-10-26 | Phase 0 — Baseline | DONE | .venv setup, ruff check, pytest 2/2 passed | None | Begin Phase 1 (Domain model & persistence) |
 | 2026-10-26 | Phase 1 — Domain & DB | DONE | Models, services, state machine, 16/16 pytest passed | None | Begin Phase 2 (Project & Dataset UI shell) |
+| 2026-10-26 | Phase 2 — Web & APIs | DONE | REST routes, React 19 UI, 19/19 pytest passed, Vite build OK | None | Begin Phase 3 (Safe ingestion & asset management) |
+
 
 
 
