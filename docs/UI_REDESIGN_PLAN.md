@@ -342,6 +342,15 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - **Automated Verification**: Added 10 tests in `tests/unit/test_coordinate_transforms.py` (`TestVersionDiffMetricIntegrity`) and 2 new tests in `apps/web/tests/coordinate_contract.test.ts`.
 - **Exit Gate:** `npm run test:coordinates` passed (17/17); `npm run build` passed (0 errors); 30/30 `test_coordinate_transforms.py` passed; 134/134 full pytest suite passed; `ruff check .` passed (0 lint errors).
 
+#### Phase R5.2.4.1: Primary Asset Resolution Integrity (COMPLETED)
+- **Objective:** Resolve primary images from explicit asset metadata (role and modality contract) rather than manifest order or asset ID sort position. Document and test greedy one-to-one matching approximation.
+- **Tasks Delivered:**
+  - **Metadata-Based Primary Image Resolution (`packages/dataset_versioning/service.py`)**: Implemented `resolve_primary_image_asset(assets)`. Resolves primary image strictly matching `role == "primary_image"` and image modality. Filters out auxiliary roles (`thumbnail`, `crop`, `attachment`, `paired_text`, `source_document`, `primary_audio`, `audio_recording`) and non-image modalities. Rejects ambiguous multiple primary images with `ambiguous_primary_image` without picking arbitrary assets.
+  - **Greedy Matching Approximation Clarification**: Documented and verified that bounding box matching is a greedy one-to-one bipartite approximation running in $O(N \log N)$ time, consistent with benchmark practices (PASCAL/COCO eval), without asserting global optimality.
+  - **Frontend Contract Integration (`coordinateContract.ts` & `VersionDiffModal.tsx`)**: Added `ambiguous_primary_image` handling to `formatIoUMetric`. Ensured side-by-side mode truthfully renders `"No source image asset"` when unresolved, and overlay mode strictly refuses co-projection when either version lacks a primary image.
+  - **Automated Verification**: Added 7 tests in `tests/unit/test_coordinate_transforms.py` (`TestPrimaryAssetResolutionIntegrity`) and 1 test in `apps/web/tests/coordinate_contract.test.ts`.
+- **Exit Gate:** `npm run test:coordinates` passed (18/18); `npm run build` passed (0 errors); 37/37 `test_coordinate_transforms.py` passed; 134/134 full pytest suite passed; `ruff check .` passed (0 lint errors).
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**

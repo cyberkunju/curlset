@@ -183,6 +183,7 @@ export function formatIoUMetric(
   const reasonMap: Record<string, string> = {
     different_source_assets: 'Different Source Assets',
     missing_source_asset: 'Missing Source Asset',
+    ambiguous_primary_image: 'Ambiguous Primary Image',
     uncalibrated_coordinates: 'Uncalibrated Geometry',
     missing_dimensions: 'Missing Dimensions',
     conflicting_dimensions: 'Conflicting Dimensions',

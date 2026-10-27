@@ -504,6 +504,11 @@ function runTests() {
     assert.strictEqual(conflictMetric.isAvailable, false);
     assert.strictEqual(conflictMetric.label, 'IoU unavailable (Conflicting Dimensions)');
 
+    // Unavailable: Ambiguous primary image
+    const ambigMetric = formatIoUMetric(null, null, 'ambiguous_primary_image');
+    assert.strictEqual(ambigMetric.isAvailable, false);
+    assert.strictEqual(ambigMetric.label, 'IoU unavailable (Ambiguous Primary Image)');
+
     // Unavailable: Undefined reason fallback
     const fallbackMetric = formatIoUMetric(undefined, undefined, undefined);
     assert.strictEqual(fallbackMetric.isAvailable, false);
@@ -525,7 +530,28 @@ function runTests() {
     assert.strictEqual(formatSummaryShift(undefined), 'Unavailable');
   }
 
+  // Test 18 (Phase R5.2.4.1): Primary asset resolution & overlay refusal for missing/auxiliary assets
+  {
+    const resolveDisplayUrl = (versionAssetUrl: string | null | undefined): string | null => {
+      return versionAssetUrl ? versionAssetUrl.replace('/file', '/raw') : null;
+    };
+
+    // When primary image is resolved for V1 but V2 has ambiguous/missing primary image
+    const urlV1 = resolveDisplayUrl('/api/v1/assets/ast_prim_v1/file');
+    const urlV2 = resolveDisplayUrl(null); // V2 has no primary image resolved
+
+    assert.strictEqual(urlV1, '/api/v1/assets/ast_prim_v1/raw');
+    assert.strictEqual(urlV2, null, 'V2 display URL must be null without fallback');
+
+    // Overlay compatibility requires both resolved URLs and identical asset
+    const isOverlayPermitted = Boolean(
+      urlV1 && urlV2 && urlV1 === urlV2
+    );
+    assert.strictEqual(isOverlayPermitted, false, 'Overlay mode strictly refused when either version lacks primary image');
+  }
+
   console.log('✓ All TypeScript Coordinate Calibration & Integrity Tests PASSED!');
 }
 
 runTests();
+

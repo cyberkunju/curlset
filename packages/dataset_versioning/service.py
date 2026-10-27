@@ -374,6 +374,69 @@ class VersioningService:
                     return (float(w), float(h))
             return None
 
+        def resolve_primary_image_asset(assets: list[dict]) -> tuple[dict | None, str | None]:
+            """
+            Resolve the intended primary image asset from explicit metadata per the repository contract:
+            - Primary candidate: role is 'primary_image' and modality is 'image' (or unset/image-compatible).
+            - Excludes auxiliary roles ('thumbnail', 'crop', 'attachment', 'paired_text', 'source_document',
+              'primary_audio', 'audio_recording') and non-image modalities ('text', 'audio', 'video', 'document').
+            - Returns (asset, None) on clean single resolution.
+            - Returns (None, 'ambiguous_primary_image') if multiple candidates claim primary image role.
+            - Returns (None, 'missing_source_asset') if no primary image can be resolved.
+            """
+            if not isinstance(assets, list) or not assets:
+                return None, "missing_source_asset"
+
+            non_image_modalities = {"text", "audio", "video", "document"}
+            auxiliary_roles = {
+                "thumbnail",
+                "crop",
+                "attachment",
+                "paired_text",
+                "source_document",
+                "primary_audio",
+                "audio_recording",
+            }
+
+            # 1. Look for explicit primary_image role
+            primary_role_candidates = []
+            for a in assets:
+                if not isinstance(a, dict):
+                    continue
+                role = a.get("role")
+                mod = a.get("modality")
+                if role == "primary_image" and (mod is None or mod not in non_image_modalities):
+                    primary_role_candidates.append(a)
+
+            if len(primary_role_candidates) == 1:
+                return primary_role_candidates[0], None
+            if len(primary_role_candidates) > 1:
+                return None, "ambiguous_primary_image"
+
+            # 2. Fallback: single image candidate when role is 'image' or single-asset record with modality='image'
+            fallback_candidates = []
+            for a in assets:
+                if not isinstance(a, dict):
+                    continue
+                role = a.get("role")
+                mod = a.get("modality")
+                if (
+                    role not in auxiliary_roles
+                    and mod not in non_image_modalities
+                    and (
+                        role in ("primary_image", "image")
+                        or (len(assets) == 1 and (mod == "image" or not role))
+                    )
+                ):
+                    fallback_candidates.append(a)
+
+            if len(fallback_candidates) == 1:
+                return fallback_candidates[0], None
+            if len(fallback_candidates) > 1:
+                return None, "ambiguous_primary_image"
+
+            return None, "missing_source_asset"
+
         for rid in common_ids:
             r1 = rec_map_1[rid]
             r2 = rec_map_2[rid]
@@ -403,11 +466,11 @@ class VersioningService:
             boxes_2 = p2.get("boxes", []) if isinstance(p2.get("boxes"), list) else []
 
             if boxes_1 or boxes_2:
-                # Find primary image assets for version 1 and version 2 independently
+                # Resolve primary image assets for version 1 and version 2 independently from explicit metadata
                 assets_1 = r1.get("assets", [])
                 assets_2 = r2.get("assets", [])
-                asset_1 = assets_1[0] if assets_1 else None
-                asset_2 = assets_2[0] if assets_2 else None
+                asset_1, err_1 = resolve_primary_image_asset(assets_1)
+                asset_2, err_2 = resolve_primary_image_asset(assets_2)
 
                 asset_id_1 = asset_1.get("asset_id") if asset_1 else None
                 asset_id_2 = asset_2.get("asset_id") if asset_2 else None
@@ -419,11 +482,14 @@ class VersioningService:
                 asset_url = asset_url_2 or asset_url_1
 
                 # Establish comparability per requirements:
-                # 1. Source asset identity
+                # 1. Source asset identity & unambiguous primary image resolution
                 comparable = True
                 exclusion_reason = None
 
-                if not asset_id_1 or not asset_id_2:
+                if err_1 == "ambiguous_primary_image" or err_2 == "ambiguous_primary_image":
+                    comparable = False
+                    exclusion_reason = "ambiguous_primary_image"
+                elif not asset_id_1 or not asset_id_2:
                     comparable = False
                     exclusion_reason = "missing_source_asset"
                 elif not same_asset:
@@ -499,7 +565,11 @@ class VersioningService:
                     elif n1 == 0 or n2 == 0:
                         rec_iou = 0.0
                     else:
-                        # 1-to-1 bipartite greedy matching on common label and IoU
+                        # 1-to-1 bipartite greedy matching approximation on common label and IoU.
+                        # Greedy assignment sorts candidate pairs by descending IoU in O(N log N) time,
+                        # consistent with common detection benchmark conventions (e.g. PASCAL/COCO eval).
+                        # Note: Greedy matching is a deterministic approximation and is not guaranteed to achieve
+                        # the global maximum-weight bipartite assignment across conflicting multi-candidate pairs.
                         candidates = []
                         for idx1, b1 in enumerate(cb1):
                             lbl1 = b1.get("label")

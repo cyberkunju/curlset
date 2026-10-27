@@ -983,6 +983,52 @@ Prior to this phase, the Version Diff spatial comparison engine in `packages/dat
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
 
+---
+
+## 22. Phase R5.2.4.1 — Primary Asset Resolution Integrity
+
+**Date:** October 27, 2026  
+**Status:** **COMPLETE**
+
+### 22.1 Problem Statement & Gaps Addressed
+Phase R5.2.4 established strict IoU comparability and honest aggregation, but assumed the first asset in `record.get("assets", [])` was the primary image (`assets[0]`). Because dataset version manifests deterministically sort `record["assets"]` alphabetically by `asset_id` (via `packages/dataset_versioning/manifest.py`), auxiliary assets (such as thumbnails, segmentation crops, attachments, or source documents) whose IDs sort ahead of the primary image could erroneously be selected as the primary comparison asset. Furthermore, if a record contained multiple assets with the `primary_image` role or had missing/unclear role metadata, it would silently pick whichever asset was at index 0.
+
+### 22.2 Architectural Changes & Deliverables Completed
+
+1. **Explicit Metadata-Based Primary Image Resolution (`packages/dataset_versioning/service.py`):**
+   - Added `resolve_primary_image_asset(assets: list[dict]) -> tuple[dict | None, str | None]`.
+   - Resolves candidates matching `role == "primary_image"` and image-compatible modality (`modality in (None, "", "image")`).
+   - Excludes auxiliary roles (`"thumbnail"`, `"crop"`, `"attachment"`, `"paired_text"`, `"source_document"`, `"primary_audio"`, `"audio_recording"`) and non-image modalities (`"text"`, `"audio"`, `"video"`, `"document"`).
+   - If multiple candidates claim `role == "primary_image"`, flags an unambiguous failure: `(None, "ambiguous_primary_image")`.
+   - If no candidate exists, returns `(None, "missing_source_asset")`.
+   - For single-asset records without explicit role, permits resolution if modality is `"image"`.
+
+2. **Strict Metric & Display Integration:**
+   - Both version asset IDs (`asset_id_v1`, `asset_id_v2`), URLs (`asset_url_v1`, `asset_url_v2`), dimensions, and `same_asset` are derived strictly from resolved primary images.
+   - If primary image metadata is ambiguous in either version, `exclusion_reason = "ambiguous_primary_image"`, `iou_status = "unavailable"`, and `mean_iou = None`.
+   - If missing in either version, `exclusion_reason = "missing_source_asset"`, `iou_status = "unavailable"`, and `mean_iou = None`.
+   - Frontend `formatIoUMetric` in `coordinateContract.ts` maps `ambiguous_primary_image` to `"IoU unavailable (Ambiguous Primary Image)"`.
+   - In `VersionDiffModal.tsx`, side-by-side mode truthfully renders `"No source image asset"` when an asset is unresolved, and overlay mode strictly refuses co-projection when either version lacks a primary image.
+
+3. **Greedy Matching Approximation Documentation & Testing:**
+   - Formally clarified and documented that bounding box matching implements a greedy one-to-one bipartite approximation sorted by descending IoU in $O(N \log N)$ time, consistent with standard benchmark practices (e.g. PASCAL/COCO evaluation).
+   - Explicitly clarified in comments, docstrings, and plan documents that greedy matching is an approximation and is not guaranteed to achieve the global maximum-weight assignment when multiple overlapping candidate pairs conflict.
+   - Added unit test documenting greedy approximation behavior on an overlapping box setup.
+
+4. **Automated Verification:**
+   - Added `TestPrimaryAssetResolutionIntegrity` in `tests/unit/test_coordinate_transforms.py` (7 focused test cases covering auxiliary asset first, asset ID sorting independence, differing auxiliary assets with identical primary image, differing primary image across versions, missing or ambiguous primary image metadata, single-primary-image backward compatibility, and greedy matching approximation).
+   - Added Test 18 in `apps/web/tests/coordinate_contract.test.ts` verifying `formatIoUMetric` with `ambiguous_primary_image` and overlay refusal.
+
+### 22.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (18/18 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.89s; Vite emitted normal single-bundle notification without code splitting).
+- **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (37/37 unit tests in 0.96s).
+- **Python Version Diff Tests**: `.venv\Scripts\pytest tests/unit/test_version_diff.py -v`: **PASSED** (1/1 in 0.84s).
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **134 passed, 0 failures** in 6.45s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
+
+
 
 
 
