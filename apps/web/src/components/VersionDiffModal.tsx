@@ -16,6 +16,7 @@ import { DatasetVersion } from '../types';
 import {
   identifyCoordinateSystem,
   shouldPlotVersionGeometry,
+  formatIoUMetric,
 } from '../utils/coordinateContract';
 
 export interface VersionDiffModalProps {
@@ -908,9 +909,26 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                   </div>
                   <div className="stat-card" style={{ padding: '0.65rem 0.85rem', textAlign: 'center' }}>
                     <span className="stat-label" style={{ fontSize: '0.725rem' }}>Mean IoU Shift</span>
-                    <span className="stat-value" style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-                      {diffData.summary.mean_iou_shift}
+                    <span
+                      className="stat-value"
+                      style={{
+                        fontSize: '1.25rem',
+                        color:
+                          diffData.summary.mean_iou_shift !== null && diffData.summary.mean_iou_shift !== undefined
+                            ? 'var(--text-primary)'
+                            : 'var(--text-muted)',
+                      }}
+                    >
+                      {diffData.summary.mean_iou_shift !== null && diffData.summary.mean_iou_shift !== undefined
+                        ? diffData.summary.mean_iou_shift.toFixed(4)
+                        : 'Unavailable'}
                     </span>
+                    {diffData.summary.spatial_records_compared !== undefined && (
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.15rem' }}>
+                        {diffData.summary.spatial_records_compared} compared
+                        {diffData.summary.spatial_records_excluded ? `, ${diffData.summary.spatial_records_excluded} excluded` : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -991,7 +1009,7 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                       </h3>
                       <p style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
                         {diffData.spatial_diffs?.length > 0
-                          ? `Comparing ${diffData.spatial_diffs.length} modified record geometries`
+                          ? `${diffData.summary?.spatial_records_compared ?? diffData.spatial_diffs.length} comparable, ${diffData.summary?.spatial_records_excluded ?? 0} excluded from metrics`
                           : 'No spatial bounding-box modifications between selected versions'}
                       </p>
                     </div>
@@ -1103,9 +1121,20 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.45rem' }}>
                               <span style={{ fontFamily: 'var(--font-mono)' }}>Record: {item.record_id.slice(0, 8)}...</span>
-                              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                IoU: {item.mean_iou} (Shift: {item.iou_shift})
-                              </span>
+                              {(() => {
+                                const metric = formatIoUMetric(item.mean_iou, item.iou_shift, item.exclusion_reason);
+                                return (
+                                  <span
+                                    style={{
+                                      color: metric.isAvailable ? 'var(--text-secondary)' : 'var(--text-muted)',
+                                      fontWeight: metric.isAvailable ? 600 : 500,
+                                      fontStyle: metric.isAvailable ? 'normal' : 'italic',
+                                    }}
+                                  >
+                                    {metric.label}
+                                  </span>
+                                );
+                              })()}
                             </div>
 
                             <SpatialDiffViewer

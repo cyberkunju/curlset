@@ -12,6 +12,7 @@ import {
   isCoordinateSystemCalibrated,
   shouldPlotVersionGeometry,
   sourceToDisplayBox,
+  formatIoUMetric,
 } from '../src/utils/coordinateContract.ts';
 import type { BoundingBox } from '../src/utils/coordinateContract.ts';
 
@@ -461,6 +462,67 @@ function runTests() {
     const renderColumnBoxes = (isV1: boolean) => (isV1 ? boxesV1 : boxesV2);
     assert.deepStrictEqual(renderColumnBoxes(true), boxesV1);
     assert.deepStrictEqual(renderColumnBoxes(false), boxesV2);
+  }
+
+  // Test 16 (Phase R5.2.4): formatIoUMetric distinguishes valid zero from unavailable
+  {
+    // Valid numeric IoU
+    const validMetric = formatIoUMetric(0.85, 0.15, null);
+    assert.strictEqual(validMetric.isAvailable, true);
+    assert.strictEqual(validMetric.score, 0.85);
+    assert.strictEqual(validMetric.label, 'IoU: 0.8500 (Shift: 0.1500)');
+
+    // Valid zero overlap (must NOT be treated as unavailable or error)
+    const zeroMetric = formatIoUMetric(0.0, 1.0, null);
+    assert.strictEqual(zeroMetric.isAvailable, true);
+    assert.strictEqual(zeroMetric.score, 0.0);
+    assert.strictEqual(zeroMetric.label, 'IoU: 0.0000 (Shift: 1.0000)');
+
+    // Unavailable: Different source assets
+    const diffAssetsMetric = formatIoUMetric(null, null, 'different_source_assets');
+    assert.strictEqual(diffAssetsMetric.isAvailable, false);
+    assert.strictEqual(diffAssetsMetric.score, null);
+    assert.strictEqual(diffAssetsMetric.label, 'IoU unavailable (Different Source Assets)');
+
+    // Unavailable: Missing source asset
+    const missingAstMetric = formatIoUMetric(null, null, 'missing_source_asset');
+    assert.strictEqual(missingAstMetric.isAvailable, false);
+    assert.strictEqual(missingAstMetric.label, 'IoU unavailable (Missing Source Asset)');
+
+    // Unavailable: Uncalibrated coordinates
+    const uncalMetric = formatIoUMetric(null, null, 'uncalibrated_coordinates');
+    assert.strictEqual(uncalMetric.isAvailable, false);
+    assert.strictEqual(uncalMetric.label, 'IoU unavailable (Uncalibrated Geometry)');
+
+    // Unavailable: Missing dimensions
+    const noDimsMetric = formatIoUMetric(null, null, 'missing_dimensions');
+    assert.strictEqual(noDimsMetric.isAvailable, false);
+    assert.strictEqual(noDimsMetric.label, 'IoU unavailable (Missing Dimensions)');
+
+    // Unavailable: Conflicting dimensions
+    const conflictMetric = formatIoUMetric(null, null, 'conflicting_dimensions');
+    assert.strictEqual(conflictMetric.isAvailable, false);
+    assert.strictEqual(conflictMetric.label, 'IoU unavailable (Conflicting Dimensions)');
+
+    // Unavailable: Undefined reason fallback
+    const fallbackMetric = formatIoUMetric(undefined, undefined, undefined);
+    assert.strictEqual(fallbackMetric.isAvailable, false);
+    assert.strictEqual(fallbackMetric.label, 'IoU unavailable (Incomparable)');
+  }
+
+  // Test 17 (Phase R5.2.4): Summary aggregation display formatting
+  {
+    const formatSummaryShift = (shift: number | null | undefined): string => {
+      if (shift !== null && shift !== undefined && !Number.isNaN(shift)) {
+        return shift.toFixed(4);
+      }
+      return 'Unavailable';
+    };
+
+    assert.strictEqual(formatSummaryShift(0.25), '0.2500');
+    assert.strictEqual(formatSummaryShift(0.0), '0.0000');
+    assert.strictEqual(formatSummaryShift(null), 'Unavailable');
+    assert.strictEqual(formatSummaryShift(undefined), 'Unavailable');
   }
 
   console.log('✓ All TypeScript Coordinate Calibration & Integrity Tests PASSED!');

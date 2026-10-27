@@ -795,3 +795,339 @@ class TestLegacyCalibrationSafety:
         assert manifest["records"][0]["annotation"]["payload"].get("coordinate_system") is None
 
 
+class TestVersionDiffMetricIntegrity:
+    """Phase R5.2.4: Spatial-comparison metric validity, 1-to-1 matching, and honest aggregation."""
+
+    def _make_mock_versions(self, r1_list, r2_list):
+        class MockVersion:
+            def __init__(self, vid, tag, num, manifest):
+                self.id = vid
+                self.dataset_id = "ds_01"
+                self.version_tag = tag
+                self.version_number = num
+                self.record_count = len(manifest.get("records", []))
+                self.manifest = manifest
+
+        v1_manifest = {"records": r1_list}
+        v2_manifest = {"records": r2_list}
+        v1 = MockVersion("v1", "v1.0.0", 1, v1_manifest)
+        v2 = MockVersion("v2", "v2.0.0", 2, v2_manifest)
+        return v1, v2, v1_manifest, v2_manifest
+
+    def test_iou_same_image_both_intrinsic_pixels(self, monkeypatch):
+        """1. Same source image with both versions using intrinsic-pixel coordinates."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "image_dimensions": {"width": 1000, "height": 1000}, "boxes": [{"label": "car", "x": 100, "y": 100, "w": 200, "h": 200}]}},
+            "assets": [{"asset_id": "ast_shared", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        r2 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "image_dimensions": {"width": 1000, "height": 1000}, "boxes": [{"label": "car", "x": 100, "y": 100, "w": 200, "h": 200}]}},
+            "assets": [{"asset_id": "ast_shared", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "comparable"
+        assert item["exclusion_reason"] is None
+        assert item["mean_iou"] == 1.0
+        assert item["iou_shift"] == 0.0
+
+    def test_iou_same_image_one_normalized_one_intrinsic(self, monkeypatch):
+        """2. Same source image with one version normalized and other intrinsic with valid dimensions."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "normalized", "image_dimensions": {"width": 1000, "height": 1000}, "boxes": [{"label": "car", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2}]}},
+            "assets": [{"asset_id": "ast_shared", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        r2 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "image_dimensions": {"width": 1000, "height": 1000}, "boxes": [{"label": "car", "x": 100, "y": 100, "w": 200, "h": 200}]}},
+            "assets": [{"asset_id": "ast_shared", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "comparable"
+        assert item["mean_iou"] == 1.0
+
+    def test_iou_different_source_images(self, monkeypatch):
+        """3. Versions referencing different source images expose unavailable IoU."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_A", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        r2 = [{
+            "record_id": "r1",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_B", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "unavailable"
+        assert item["exclusion_reason"] == "different_source_assets"
+        assert item["mean_iou"] is None
+        assert item["iou_shift"] is None
+
+    def test_iou_missing_source_assets_or_dimensions(self, monkeypatch):
+        """4. Missing source assets or missing dimensions make IoU unavailable."""
+        from packages.dataset_versioning.service import VersioningService
+
+        # 4a. Missing asset
+        r1_no_ast = [{
+            "record_id": "r_no_ast",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [],
+        }]
+        r2_no_ast = [{
+            "record_id": "r_no_ast",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1_no_ast, r2_no_ast)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        assert diff["spatial_diffs"][0]["exclusion_reason"] == "missing_source_asset"
+        assert diff["spatial_diffs"][0]["mean_iou"] is None
+
+        # 4b. Missing dimensions with normalized coordinates
+        r1_no_dims = [{
+            "record_id": "r_no_dims",
+            "annotation": {"payload": {"coordinate_system": "normalized", "boxes": [{"label": "car", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2}]}},
+            "assets": [{"asset_id": "ast_shared_nodims", "role": "primary_image"}],
+        }]
+        r2_no_dims = [{
+            "record_id": "r_no_dims",
+            "annotation": {"payload": {"coordinate_system": "normalized", "boxes": [{"label": "car", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2}]}},
+            "assets": [{"asset_id": "ast_shared_nodims", "role": "primary_image"}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1_no_dims, r2_no_dims)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff2 = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        assert diff2["spatial_diffs"][0]["exclusion_reason"] == "missing_dimensions"
+        assert diff2["spatial_diffs"][0]["mean_iou"] is None
+
+    def test_iou_uncalibrated_legacy_geometry(self, monkeypatch):
+        """5. Uncalibrated legacy geometry (missing coordinate_system) blocks numeric IoU."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r_uncal",
+            "annotation": {"payload": {"boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_leg", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        r2 = [{
+            "record_id": "r_uncal",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_leg", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "unavailable"
+        assert item["exclusion_reason"] == "uncalibrated_coordinates"
+        assert item["mean_iou"] is None
+
+    def test_iou_conflicting_dimensions(self, monkeypatch):
+        """6. Conflicting coordinate metadata and asset dimensions block IoU."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r_conflict",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "image_dimensions": {"width": 640, "height": 480}, "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_conf", "role": "primary_image", "dimensions": {"width": 1920, "height": 1080}}],
+        }]
+        r2 = [{
+            "record_id": "r_conflict",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "image_dimensions": {"width": 640, "height": 480}, "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_conf", "role": "primary_image", "dimensions": {"width": 1920, "height": 1080}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "unavailable"
+        assert item["exclusion_reason"] == "conflicting_dimensions"
+        assert item["mean_iou"] is None
+
+    def test_iou_valid_comparison_zero_overlap(self, monkeypatch):
+        """7. A valid comparison with zero overlap yields numerical 0.0 (distinguished from None)."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [{
+            "record_id": "r_zero",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 20, "h": 20}]}},
+            "assets": [{"asset_id": "ast_zero", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        r2 = [{
+            "record_id": "r_zero",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 500, "y": 500, "w": 50, "h": 50}]}},
+            "assets": [{"asset_id": "ast_zero", "role": "primary_image", "dimensions": {"width": 800, "height": 600}}],
+        }]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        item = diff["spatial_diffs"][0]
+        assert item["iou_status"] == "comparable"
+        assert item["exclusion_reason"] is None
+        assert item["mean_iou"] == 0.0
+        assert item["iou_shift"] == 1.0
+
+    def test_iou_added_removed_boxes_and_one_to_one_matching(self, monkeypatch):
+        """8. Added or removed boxes are symmetric and 1-to-1 matching prevents duplicate pairing."""
+        from packages.dataset_versioning.service import VersioningService
+
+        # 8a: Symmetry between added and removed boxes
+        box_match = {"label": "car", "x": 10, "y": 10, "w": 100, "h": 100}
+        box_extra = [{"label": "car", "x": 200 + i * 50, "y": 200, "w": 30, "h": 30} for i in range(4)]
+
+        # v1 has 1 box, v2 has 5 boxes (1 match, 4 added)
+        r1_a = [{
+            "record_id": "sym",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [box_match]}},
+            "assets": [{"asset_id": "ast_sym", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        r2_a = [{
+            "record_id": "sym",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [box_match] + box_extra}},
+            "assets": [{"asset_id": "ast_sym", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        v1a, v2a, m1a, m2a = self._make_mock_versions(r1_a, r2_a)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1a if vid == "v1" else v2a)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1a if vid == "v1" else m2a)
+        diff_added = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+
+        # Reversed: v1 has 5 boxes, v2 has 1 box (1 match, 4 removed)
+        v1b, v2b, m1b, m2b = self._make_mock_versions(r2_a, r1_a)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1b if vid == "v1" else v2b)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1b if vid == "v1" else m2b)
+        diff_removed = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+
+        # Both must equal exactly 1.0 / 5 = 0.20
+        assert diff_added["spatial_diffs"][0]["mean_iou"] == 0.20
+        assert diff_removed["spatial_diffs"][0]["mean_iou"] == 0.20
+
+        # 8b: One-to-one matching rule: 1 box in v1 cannot match 2 identical boxes in v2
+        r1_dup = [{
+            "record_id": "dup",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [box_match]}},
+            "assets": [{"asset_id": "ast_dup", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        r2_dup = [{
+            "record_id": "dup",
+            "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [box_match, box_match]}},
+            "assets": [{"asset_id": "ast_dup", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+        }]
+        v1d, v2d, m1d, m2d = self._make_mock_versions(r1_dup, r2_dup)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1d if vid == "v1" else v2d)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1d if vid == "v1" else m2d)
+        diff_dup = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+
+        # 1 match with IoU 1.0, total evaluated instances = 1 + 2 - 1 = 2 -> 1.0 / 2 = 0.50
+        assert diff_dup["spatial_diffs"][0]["mean_iou"] == 0.50
+
+    def test_aggregate_comparable_and_incomparable_records(self, monkeypatch):
+        """9. Aggregate excludes incomparable records from numeric mean_iou."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [
+            # Comparable record (IoU = 1.0)
+            {
+                "record_id": "rec_comp",
+                "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                "assets": [{"asset_id": "ast_comp", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            },
+            # Incomparable record (uncalibrated)
+            {
+                "record_id": "rec_incomp",
+                "annotation": {"payload": {"boxes": [{"label": "car", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                "assets": [{"asset_id": "ast_incomp", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            },
+        ]
+        r2 = [
+            {
+                "record_id": "rec_comp",
+                "annotation": {"payload": {"coordinate_system": "pixel-intrinsic", "boxes": [{"label": "car", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                "assets": [{"asset_id": "ast_comp", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            },
+            {
+                "record_id": "rec_incomp",
+                "annotation": {"payload": {"boxes": [{"label": "car", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                "assets": [{"asset_id": "ast_incomp", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
+            },
+        ]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        summary = diff["summary"]
+
+        assert summary["spatial_records_compared"] == 1
+        assert summary["spatial_records_excluded"] == 1
+        assert summary["spatial_exclusion_reasons"] == {"uncalibrated_coordinates": 1}
+        # Incomparable record does not pull down mean_iou to 0.5
+        assert summary["mean_iou"] == 1.0
+        assert summary["mean_iou_shift"] == 0.0
+
+    def test_aggregate_no_comparable_records(self, monkeypatch):
+        """10. Aggregate with no comparable records returns None rather than fabricated default."""
+        from packages.dataset_versioning.service import VersioningService
+
+        r1 = [
+            {
+                "record_id": "rec_uncal_only",
+                "annotation": {"payload": {"boxes": [{"label": "car", "x": 10, "y": 10, "w": 50, "h": 50}]}},
+                "assets": [],
+            }
+        ]
+        r2 = [
+            {
+                "record_id": "rec_uncal_only",
+                "annotation": {"payload": {"boxes": [{"label": "car", "x": 20, "y": 20, "w": 60, "h": 60}]}},
+                "assets": [],
+            }
+        ]
+        v1, v2, m1, m2 = self._make_mock_versions(r1, r2)
+        monkeypatch.setattr(VersioningService, "get_version", lambda s, vid: v1 if vid == "v1" else v2)
+        monkeypatch.setattr(VersioningService, "get_version_manifest", lambda s, vid: m1 if vid == "v1" else m2)
+
+        diff = VersioningService.diff_dataset_versions(None, "ds_01", "v1", "v2")
+        summary = diff["summary"]
+
+        assert summary["spatial_records_compared"] == 0
+        assert summary["spatial_records_excluded"] == 1
+        assert summary["mean_iou"] is None
+        assert summary["mean_iou_shift"] is None
+
+
+

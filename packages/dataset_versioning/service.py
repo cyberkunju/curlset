@@ -343,9 +343,12 @@ class VersioningService:
         annotation_modified_records = []
         spatial_diffs = []
         total_iou_sum = 0.0
-        spatial_count = 0
+        spatial_comparable_count = 0
+        spatial_excluded_count = 0
+        from collections import defaultdict
+        exclusion_breakdown: dict[str, int] = defaultdict(int)
 
-        # Helper for single box IoU
+        # Helper for single box IoU in common pixel coordinate frame
         def compute_box_iou(b1: dict, b2: dict) -> float:
             x1, y1 = float(b1.get("x", 0)), float(b1.get("y", 0))
             w1, h1 = float(b1.get("w", b1.get("width", 0))), float(b1.get("h", b1.get("height", 0)))
@@ -362,6 +365,14 @@ class VersioningService:
             area2 = w2 * h2
             denom = area1 + area2 - inter
             return round(inter / denom, 4) if denom > 0 else 0.0
+
+        def parse_dims(d: any) -> tuple[float, float] | None:
+            if isinstance(d, dict):
+                w = d.get("width")
+                h = d.get("height")
+                if isinstance(w, (int, float)) and isinstance(h, (int, float)) and w > 0 and h > 0:
+                    return (float(w), float(h))
+            return None
 
         for rid in common_ids:
             r1 = rec_map_1[rid]
@@ -392,19 +403,6 @@ class VersioningService:
             boxes_2 = p2.get("boxes", []) if isinstance(p2.get("boxes"), list) else []
 
             if boxes_1 or boxes_2:
-                # Compute greedy IoU matching
-                matched_ious = []
-                for b2 in boxes_2:
-                    best_iou = 0.0
-                    for b1 in boxes_1:
-                        if b1.get("label") == b2.get("label"):
-                            best_iou = max(best_iou, compute_box_iou(b1, b2))
-                    matched_ious.append(best_iou)
-
-                rec_iou = round(sum(matched_ious) / len(matched_ious), 4) if matched_ious else 0.0
-                total_iou_sum += rec_iou
-                spatial_count += 1
-
                 # Find primary image assets for version 1 and version 2 independently
                 assets_1 = r1.get("assets", [])
                 assets_2 = r2.get("assets", [])
@@ -420,6 +418,120 @@ class VersioningService:
                 primary_asset = asset_2 if asset_2 else asset_1
                 asset_url = asset_url_2 or asset_url_1
 
+                # Establish comparability per requirements:
+                # 1. Source asset identity
+                comparable = True
+                exclusion_reason = None
+
+                if not asset_id_1 or not asset_id_2:
+                    comparable = False
+                    exclusion_reason = "missing_source_asset"
+                elif not same_asset:
+                    comparable = False
+                    exclusion_reason = "different_source_assets"
+
+                # 2. Coordinate systems
+                cs1 = p1.get("coordinate_system")
+                cs2 = p2.get("coordinate_system")
+                if comparable and (cs1 not in ("pixel-intrinsic", "normalized") or cs2 not in ("pixel-intrinsic", "normalized")):
+                    comparable = False
+                    exclusion_reason = "uncalibrated_coordinates"
+
+                # 3. Dimensions and dimension conflict check
+                d_img1 = parse_dims(p1.get("image_dimensions"))
+                d_ast1 = parse_dims(asset_1.get("dimensions") if asset_1 else None)
+                d_img2 = parse_dims(p2.get("image_dimensions"))
+                d_ast2 = parse_dims(asset_2.get("dimensions") if asset_2 else None)
+
+                reliable_dims = None
+                if comparable:
+                    # Check intra-version conflict
+                    if (d_img1 and d_ast1 and d_img1 != d_ast1) or (d_img2 and d_ast2 and d_img2 != d_ast2):
+                        comparable = False
+                        exclusion_reason = "conflicting_dimensions"
+                    else:
+                        d1 = d_img1 or d_ast1
+                        d2 = d_img2 or d_ast2
+                        # Check inter-version conflict (since same_asset is True)
+                        if d1 and d2 and d1 != d2:
+                            comparable = False
+                            exclusion_reason = "conflicting_dimensions"
+                        else:
+                            reliable_dims = d1 or d2
+                            if not reliable_dims:
+                                comparable = False
+                                exclusion_reason = "missing_dimensions"
+
+                rec_iou = None
+                rec_shift = None
+
+                if comparable and reliable_dims:
+                    w_src, h_src = reliable_dims
+
+                    def convert_boxes(b_list: list, cs: str, w_dim: float, h_dim: float) -> list[dict]:
+                        res = []
+                        for b in b_list:
+                            bx = float(b.get("x", 0))
+                            by = float(b.get("y", 0))
+                            bw = float(b.get("w", b.get("width", 0)))
+                            bh = float(b.get("h", b.get("height", 0)))
+                            if cs == "normalized":
+                                bx *= w_dim
+                                by *= h_dim
+                                bw *= w_dim
+                                bh *= h_dim
+                            res.append({
+                                "label": b.get("label"),
+                                "x": bx,
+                                "y": by,
+                                "w": bw,
+                                "h": bh,
+                            })
+                        return res
+
+                    cb1 = convert_boxes(boxes_1, cs1, w_src, h_src)
+                    cb2 = convert_boxes(boxes_2, cs2, w_src, h_src)
+                    n1 = len(cb1)
+                    n2 = len(cb2)
+
+                    if n1 == 0 and n2 == 0:
+                        rec_iou = 1.0
+                    elif n1 == 0 or n2 == 0:
+                        rec_iou = 0.0
+                    else:
+                        # 1-to-1 bipartite greedy matching on common label and IoU
+                        candidates = []
+                        for idx1, b1 in enumerate(cb1):
+                            lbl1 = b1.get("label")
+                            for idx2, b2 in enumerate(cb2):
+                                if lbl1 == b2.get("label"):
+                                    iou_val = compute_box_iou(b1, b2)
+                                    if iou_val > 0.0:
+                                        candidates.append((iou_val, idx1, idx2))
+
+                        candidates.sort(key=lambda x: x[0], reverse=True)
+                        matched_v1 = set()
+                        matched_v2 = set()
+                        matched_scores = []
+                        for iou_val, idx1, idx2 in candidates:
+                            if idx1 not in matched_v1 and idx2 not in matched_v2:
+                                matched_v1.add(idx1)
+                                matched_v2.add(idx2)
+                                matched_scores.append(iou_val)
+
+                        m = len(matched_scores)
+                        # Union of box instances: matched pairs + unmatched v1 + unmatched v2
+                        total_instances = n1 + n2 - m
+                        rec_iou = round(sum(matched_scores) / total_instances, 4) if total_instances > 0 else 0.0
+
+                    rec_shift = round(1.0 - rec_iou, 4)
+                    total_iou_sum += rec_iou
+                    spatial_comparable_count += 1
+                else:
+                    spatial_excluded_count += 1
+                    if exclusion_reason:
+                        exclusion_breakdown[exclusion_reason] += 1
+
                 spatial_diffs.append({
                     "record_id": rid,
                     "asset_id_v1": asset_id_1,
@@ -431,9 +543,11 @@ class VersioningService:
                     "boxes_v1": boxes_1,
                     "boxes_v2": boxes_2,
                     "mean_iou": rec_iou,
-                    "iou_shift": round(1.0 - rec_iou, 4),
-                    "coordinate_system_v1": p1.get("coordinate_system"),
-                    "coordinate_system_v2": p2.get("coordinate_system"),
+                    "iou_shift": rec_shift,
+                    "iou_status": "comparable" if comparable else "unavailable",
+                    "exclusion_reason": exclusion_reason,
+                    "coordinate_system_v1": cs1,
+                    "coordinate_system_v2": cs2,
                     "image_dimensions_v1": p1.get("image_dimensions"),
                     "image_dimensions_v2": p2.get("image_dimensions"),
                     "asset_dimensions_v1": asset_1.get("dimensions") if asset_1 else None,
@@ -442,7 +556,6 @@ class VersioningService:
                 })
 
         # Class distribution delta table across train/val/test
-        from collections import defaultdict
         cls_split_1: dict[str, dict[str, int]] = defaultdict(lambda: {"train": 0, "val": 0, "test": 0})
         cls_split_2: dict[str, dict[str, int]] = defaultdict(lambda: {"train": 0, "val": 0, "test": 0})
 
@@ -476,7 +589,16 @@ class VersioningService:
                 }
             class_delta_table.append(row)
 
-        mean_iou_overall = round(total_iou_sum / spatial_count, 4) if spatial_count > 0 else 1.0
+        mean_iou_overall = (
+            round(total_iou_sum / spatial_comparable_count, 4)
+            if spatial_comparable_count > 0
+            else None
+        )
+        mean_iou_shift_overall = (
+            round(1.0 - mean_iou_overall, 4)
+            if mean_iou_overall is not None
+            else None
+        )
 
         return {
             "version_v1": {
@@ -497,7 +619,10 @@ class VersioningService:
                 "splits_changed": len(split_changed_records),
                 "annotations_modified": len(annotation_modified_records),
                 "mean_iou": mean_iou_overall,
-                "mean_iou_shift": round(1.0 - mean_iou_overall, 4),
+                "mean_iou_shift": mean_iou_shift_overall,
+                "spatial_records_compared": spatial_comparable_count,
+                "spatial_records_excluded": spatial_excluded_count,
+                "spatial_exclusion_reasons": dict(exclusion_breakdown),
             },
             "added_records": added_records,
             "removed_records": removed_records,

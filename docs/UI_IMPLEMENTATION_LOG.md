@@ -932,6 +932,58 @@ Phase R5.2.2 established normalized-to-intrinsic conversion and version asset is
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser subagent execution remains constrained by the offline sandbox environment (cannot download browser binaries); contract verification, state guarding, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
 
+---
+
+## 21. Phase R5.2.4 — Version-Diff IoU Comparability & Metric Integrity
+
+**Date:** October 27, 2026  
+**Status:** **COMPLETE**
+
+### 21.1 Problem Statement & Gaps Addressed
+Prior to this phase, the Version Diff spatial comparison engine in `packages/dataset_versioning/service.py` exhibited several metric validity flaws:
+1. **Uncalibrated & Cross-Asset IoU Calculation**: The diff engine computed numerical IoU across bounding boxes regardless of whether records shared the same source image, whether coordinates were normalized vs intrinsic-pixel, whether dimensions were missing or conflicting, or whether annotations were uncalibrated legacy payloads.
+2. **Asymmetric & Duplicate Box Matching**: The previous matching loop evaluated only `for b2 in boxes_2: for b1 in boxes_1` and averaged over `len(boxes_2)`. If boxes were removed (e.g. 5 boxes in v1 reduced to 1 matching box in v2), the score was reported as an artificially inflated 1.0. Furthermore, multiple boxes in one version could match against a single box in the other version.
+3. **Dishonest Default Aggregates**: If no spatial records could be compared (or `spatial_count == 0`), `mean_iou` was fabricated as `1.0`. Incomparable records were either assigned 0 or pulled down valid averages.
+4. **Frontend Misrepresentation**: In `VersionDiffModal.tsx`, `item.mean_iou` was rendered directly without distinguishing valid `0.0000` overlap from unavailable comparison states, and the summary card showed empty or misleading text when aggregates were missing.
+
+### 21.2 Architectural Changes & Deliverables Completed
+
+1. **Strict Spatial Comparability Rules (`packages/dataset_versioning/service.py`):**
+   - **Source Asset Identity**: Bounding-box comparison is permitted strictly when both versions refer to the exact same source asset (`asset_id_1 == asset_id_2` and `same_asset == True`). If assets are missing, `exclusion_reason = "missing_source_asset"`. If assets differ, `exclusion_reason = "different_source_assets"`.
+   - **Coordinate Calibration**: Both versions must declare calibrated coordinate systems (`"pixel-intrinsic"` or `"normalized"`). Historical uncalibrated records are marked `exclusion_reason = "uncalibrated_coordinates"`.
+   - **Dimension Consistency & Conflict Detection**: Dimensions are parsed from payloads and asset records. If dimensions disagree within or across versions, comparison is blocked with `exclusion_reason = "conflicting_dimensions"`. If dimensions are absent, `exclusion_reason = "missing_dimensions"`.
+   - **Common Intrinsic-Pixel Frame**: Normalized coordinates are converted into intrinsic source-image pixels using verified dimensions prior to spatial intersection calculations.
+   - **Nullable/Unavailable Metric Output**: If comparability fails, `mean_iou` is `None` (null in JSON), `iou_shift` is `None`, `iou_status` is `"unavailable"`, and `exclusion_reason` details the exact cause. Valid zero overlap produces numerical `0.0`, clearly distinct from `None`.
+
+2. **Symmetric 1-to-1 Bipartite Greedy Matching:**
+   - Boxes with identical class labels form candidate pairs sorted by IoU descending.
+   - Each box in version 1 can match at most one box in version 2 (and vice versa).
+   - Evaluated over the union of instances ($N_{total} = N_1 + N_2 - M$).
+   - Symmetrically penalizes additions and removals (e.g. 1 match out of 5 total boxes scores exactly `1.0 / 5 = 0.20` in both directions).
+
+3. **Honest Metric Aggregation:**
+   - Incomparable records are excluded from `mean_iou` and `mean_iou_shift`.
+   - Summary reports `spatial_records_compared`, `spatial_records_excluded`, and `spatial_exclusion_reasons` breakdown.
+   - When no records are comparable, `mean_iou` and `mean_iou_shift` return `None` (null) rather than fabricated defaults.
+
+4. **Frontend Metric Representation (`apps/web/src/utils/coordinateContract.ts` & `VersionDiffModal.tsx`):**
+   - Added `formatIoUMetric` helper to format numerical scores (including `0.0000`) and format unavailable states with descriptive reason labels (e.g. `"IoU unavailable (Different Source Assets)"`).
+   - Stat card displays `"Unavailable"` with compared/excluded counts when metrics are null.
+   - Spatial diff section subtitle explicitly indicates how many records were compared vs excluded.
+
+5. **Automated Verification:**
+   - Expanded `tests/unit/test_coordinate_transforms.py` to 30 unit tests, adding `TestVersionDiffMetricIntegrity` covering all 10 Python scenarios (intrinsic, normalized, different assets, missing assets/dimensions, uncalibrated geometry, conflicting dimensions, zero overlap, added/removed 1-to-1 matching, mixed aggregates, and empty aggregates).
+   - Expanded `apps/web/tests/coordinate_contract.test.ts` to 17 tests, adding unit tests for `formatIoUMetric` and summary shift formatting.
+
+### 21.3 Verification Summary
+- **TypeScript Coordinate Tests**: `npm run test:coordinates` in `apps/web`: **PASSED** (17/17 contract tests).
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, built in 5.75s; standard oversized bundle warning without splitting changes).
+- **Python Transforms Tests**: `.venv\Scripts\pytest tests/unit/test_coordinate_transforms.py -v`: **PASSED** (30/30 unit tests in 0.90s).
+- **Full Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **134 passed, 0 failures** in 6.48s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline environment; contract verification, calibration invariants, and boundary conditions verified through pure TypeScript unit tests, static type checking, and full backend test suites.
+
+
 
 
 

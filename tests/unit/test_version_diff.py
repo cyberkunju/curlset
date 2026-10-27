@@ -42,9 +42,12 @@ def diff_env(tmp_path):
                 {
                     "record_id": "r1",
                     "split": "train",
+                    "assets": [{"asset_id": "ast_diff_1", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
                     "annotation": {
                         "payload": {
-                            "boxes": [{"label": "car", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2}]
+                            "coordinate_system": "normalized",
+                            "image_dimensions": {"width": 1000, "height": 1000},
+                            "boxes": [{"label": "car", "x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2}],
                         },
                         "status": "approved",
                     },
@@ -76,10 +79,13 @@ def diff_env(tmp_path):
                 {
                     "record_id": "r1",
                     "split": "val",  # Split changed from train to val
+                    "assets": [{"asset_id": "ast_diff_1", "role": "primary_image", "dimensions": {"width": 1000, "height": 1000}}],
                     "annotation": {
                         "payload": {
+                            "coordinate_system": "normalized",
+                            "image_dimensions": {"width": 1000, "height": 1000},
                             # Slightly shifted box (high IoU)
-                            "boxes": [{"label": "car", "x": 0.11, "y": 0.1, "w": 0.2, "h": 0.2}]
+                            "boxes": [{"label": "car", "x": 0.11, "y": 0.1, "w": 0.2, "h": 0.2}],
                         },
                         "status": "approved",
                     },

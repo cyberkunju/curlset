@@ -157,3 +157,44 @@ export function sourceToDisplayBox(
     height: `${Math.round(h)}px`,
   };
 }
+
+/**
+ * Formats a record's IoU comparison result safely and honestly.
+ * Distinguishes valid 0.0 IoU scores from unavailable/incomparable states.
+ * Prohibits substituting fabricated numbers for null/undefined metrics.
+ */
+export function formatIoUMetric(
+  meanIou: number | null | undefined,
+  iouShift?: number | null | undefined,
+  exclusionReason?: string | null
+): { label: string; isAvailable: boolean; score: number | null } {
+  if (meanIou !== null && meanIou !== undefined && !Number.isNaN(meanIou)) {
+    const shiftText =
+      iouShift !== null && iouShift !== undefined && !Number.isNaN(iouShift)
+        ? ` (Shift: ${iouShift.toFixed(4)})`
+        : '';
+    return {
+      label: `IoU: ${meanIou.toFixed(4)}${shiftText}`,
+      isAvailable: true,
+      score: meanIou,
+    };
+  }
+
+  const reasonMap: Record<string, string> = {
+    different_source_assets: 'Different Source Assets',
+    missing_source_asset: 'Missing Source Asset',
+    uncalibrated_coordinates: 'Uncalibrated Geometry',
+    missing_dimensions: 'Missing Dimensions',
+    conflicting_dimensions: 'Conflicting Dimensions',
+  };
+  const cleanReason =
+    (exclusionReason && reasonMap[exclusionReason]) ||
+    (exclusionReason ? exclusionReason.replace(/_/g, ' ') : 'Incomparable');
+
+  return {
+    label: `IoU unavailable (${cleanReason})`,
+    isAvailable: false,
+    score: null,
+  };
+}
+

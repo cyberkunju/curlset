@@ -332,6 +332,16 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - **Automated Verification**: Added 15 tests in `apps/web/tests/coordinate_contract.test.ts` and 4 new tests in `tests/unit/test_coordinate_transforms.py`.
 - **Exit Gate:** `npm run test:coordinates` passed (15/15); `npm run build` passed (0 errors); 20/20 `test_coordinate_transforms.py` passed; 124/124 full pytest suite passed; `ruff check .` passed (0 lint errors).
 
+#### Phase R5.2.4: Version-Diff IoU Comparability & Metric Integrity (COMPLETED)
+- **Objective:** Establish strict spatial-comparison metric validity, symmetric 1-to-1 bipartite bounding box matching, nullable IoU metrics, and honest aggregation excluding incomparable records.
+- **Tasks Delivered:**
+  - **IoU Validity & Calibration Rules (`packages/dataset_versioning/service.py`)**: Required same verified source image (`same_asset == True` and matching asset IDs), calibrated coordinate systems (`pixel-intrinsic` or `normalized`), and consistent verified dimensions. Converted normalized geometry to common source-image pixels before computing intersection over union. Exposes nullable `mean_iou: None` with explicit `exclusion_reason` when incomparable.
+  - **Symmetric 1-to-1 Bipartite Box Matching**: Implemented greedy maximum IoU matching for same-class boxes over the union of instances ($N_{total} = N_1 + N_2 - M$). Eliminates multi-matching against single boxes and treats additions and removals symmetrically.
+  - **Honest Aggregation**: Excluded incomparable records from numeric summary averages. If no records are comparable, returns `None` for `mean_iou` and `mean_iou_shift` rather than fabricated `1.0`. Reports `spatial_records_compared`, `spatial_records_excluded`, and reason breakdown.
+  - **Frontend Metric Representation (`coordinateContract.ts` & `VersionDiffModal.tsx`)**: Added `formatIoUMetric` helper distinguishing valid zero overlap (`0.0000`) from unavailable metrics (`"IoU unavailable (Reason)"`). Updated summary stat card and spatial diff headers to honestly present compared/excluded counts and unavailable aggregate states.
+  - **Automated Verification**: Added 10 tests in `tests/unit/test_coordinate_transforms.py` (`TestVersionDiffMetricIntegrity`) and 2 new tests in `apps/web/tests/coordinate_contract.test.ts`.
+- **Exit Gate:** `npm run test:coordinates` passed (17/17); `npm run build` passed (0 errors); 30/30 `test_coordinate_transforms.py` passed; 134/134 full pytest suite passed; `ruff check .` passed (0 lint errors).
+
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.
 - **Tasks:**
