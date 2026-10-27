@@ -1,4 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import {
+  ArrowLeft,
+  HardDrive,
+  Cpu,
+  FileCheck2,
+  GitCompare,
+  Download,
+  PenTool,
+  Bot,
+  ShieldAlert,
+  Layers,
+  Sparkles,
+  Maximize2,
+  PieChart,
+  Tag,
+  FileText,
+} from 'lucide-react';
 import { fetchDatasetDetail } from '../api';
 import { DatasetDetailResponse } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
@@ -24,6 +41,8 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [data, setData] = useState<DatasetDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Modals state
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
@@ -36,7 +55,6 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isAugmentationOpen, setIsAugmentationOpen] = useState(false);
   const [isDiffOpen, setIsDiffOpen] = useState(false);
   const [isClusterMapOpen, setIsClusterMapOpen] = useState(false);
-
 
   const loadData = async () => {
     setLoading(true);
@@ -67,10 +85,12 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   if (error || !data) {
     return (
       <div className="empty-state">
-        <div className="empty-icon" style={{ color: 'var(--rose)' }}>⚠️</div>
         <h3 className="empty-title">Error Loading Dataset</h3>
         <p className="empty-desc">{error || 'Dataset not found'}</p>
-        <button className="btn btn-secondary" onClick={onBack}>Back to Project</button>
+        <SpringButton variant="secondary" onClick={onBack}>
+          <ArrowLeft size={15} style={{ marginRight: '4px' }} />
+          <span>Back to Project</span>
+        </SpringButton>
       </div>
     );
   }
@@ -93,32 +113,35 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{dataset.name}</h1>
-            <span className="badge badge-indigo">{dataset.task_type.replace('_', ' ')}</span>
-            <span className="badge badge-cyan">Schema v{dataset.schema_version}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.4rem' }}>
+            <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+              {dataset.name}
+            </h1>
+            <span className="badge badge-indigo">{dataset.task_type.replace(/_/g, ' ')}</span>
+            <span className="badge badge-neutral">Schema v{dataset.schema_version}</span>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '720px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '720px', lineHeight: 1.5 }}>
             {dataset.description || 'No dataset description provided.'}
           </p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             <span>Dataset ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{dataset.id}</code></span>
             <span>Created: {new Date(dataset.created_at).toLocaleDateString()}</span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={onBack}>
-            Back
-          </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <SpringButton variant="secondary" onClick={onBack}>
+            <ArrowLeft size={15} style={{ marginRight: '4px' }} />
+            <span>Back</span>
+          </SpringButton>
         </div>
       </div>
 
-      {/* Live Statistics Grid */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      {/* Real-Time Annotation Metrics Grid */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Real-Time Annotation Metrics
         </h2>
         <div className="stats-grid">
@@ -126,37 +149,38 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             <span className="stat-value">{stats.total_records}</span>
             <span className="stat-label">Total Records</span>
           </div>
-          <div className="stat-card" style={{ borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+          <div className="stat-card">
             <span className="stat-value" style={{ color: 'var(--emerald)' }}>{stats.approved}</span>
-            <span className="stat-label">Approved (Human Verified)</span>
+            <span className="stat-label">Approved (Verified)</span>
           </div>
-          <div className="stat-card" style={{ borderColor: 'rgba(99, 102, 241, 0.3)' }}>
-            <span className="stat-value" style={{ color: 'var(--text-accent)' }}>{stats.pending_review}</span>
+          <div className="stat-card">
+            <span className="stat-value" style={{ color: 'var(--accent-interactive)' }}>{stats.pending_review}</span>
             <span className="stat-label">Pending Review</span>
           </div>
-          <div className="stat-card" style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+          <div className="stat-card">
             <span className="stat-value" style={{ color: 'var(--amber)' }}>{stats.needs_correction}</span>
             <span className="stat-label">Needs Correction</span>
           </div>
-          <div className="stat-card" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+          <div className="stat-card">
             <span className="stat-value" style={{ color: 'var(--rose)' }}>{stats.rejected}</span>
             <span className="stat-label">Rejected</span>
           </div>
         </div>
       </div>
 
-      {/* Two Column Layout for Instructions & Labels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+      {/* Two Column Layout for Labels & Guidelines */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
         <div className="card" style={{ cursor: 'default' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🏷️</span> Configured Class Labels ({labels.length})
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-primary)' }}>
+            <Tag size={16} strokeWidth={1.75} />
+            <span>Configured Classes ({labels.length})</span>
           </h3>
           {labels.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No classes defined in schema.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No classes defined in schema.</p>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
               {labels.map((lbl: string, idx: number) => (
-                <span key={idx} className="badge badge-indigo" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}>
+                <span key={idx} className="badge badge-indigo" style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}>
                   {lbl}
                 </span>
               ))}
@@ -165,61 +189,148 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         </div>
 
         <div className="card" style={{ cursor: 'default' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>📋</span> Annotation Guidelines
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-primary)' }}>
+            <FileText size={16} strokeWidth={1.75} />
+            <span>Annotation Guidelines</span>
           </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-            {dataset.annotation_instructions || 'No special annotation guidelines specified. Annotators should apply standard labeling principles.'}
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.55', whiteSpace: 'pre-wrap' }}>
+            {dataset.annotation_instructions || 'No special annotation guidelines specified. Annotators should apply standard labeling criteria.'}
           </p>
         </div>
       </div>
 
-      {/* Dataset Workflow Pipeline Quick Actions */}
-      <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Lifecycle Workbench Actions</h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-          Step through the dataset engineering lifecycle from ingestion to versioned export:
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <SpringButton variant="primary" onClick={() => setIsImportOpen(true)} title="Proceed to Ingestion (Phase 3)">
-            <span>📥</span> Import Media & Data
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} title="Open Annotation Workbench (Phase 4)">
-            <span>✏️</span> Annotation Workbench
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsAIOpen(true)} title="Trigger AI Inference (Phase 5)">
-            <span>🤖</span> AI Auto-Labeling
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsQualityOpen(true)} title="Run Quality Checks (Phase 6)">
-            <span>🛡️</span> Quality Engine
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsVersionsOpen(true)} title="Publish Dataset Version (Phase 7)">
-            <span>📌</span> Publish Snapshot
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsDiffOpen(true)} title="Visual Dataset Git-Diff (Phase 7)">
-            <span>🔀</span> Visual Git-Diff (v1 vs v2)
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsExportOpen(true)} title="Export Dataset Package (Phase 8)">
-            <span>📦</span> Export (Presets & Frameworks)
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsAugmentationOpen(true)} title="Geometry-Aware Augmentations (Phase 9 & 12)">
-            <span>✨</span> Spatial Augment
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsSourcesOpen(true)} title="Source Discovery & Rights Review (Phase 11)">
-            <span>🌐</span> Sources & Rights
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsSynthesisOpen(true)} title="Synthetic Data Generation (Phase 12)">
-            <span>🧬</span> Synthesize Data
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsClusterMapOpen(true)} title="2D Semantic Cluster Map & Data Deserts (Phase 13)">
-            <span>🎯</span> 2D Cluster Map
-          </SpringButton>
-          <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)} title="Active Learning & Evaluation (Phase 14)">
-            <span>🧠</span> Evaluation & Active Learning
-          </SpringButton>
+      {/* 5-Stage Dataset Engineering Pipeline Section */}
+      <div style={{ marginBottom: '3rem' }}>
+        <div style={{ marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Dataset Engineering Lifecycle Hub
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            Execute structured engineering operations through the 5 stages from raw ingest to production fine-tuning.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          {/* Stage 1 */}
+          <div className="pipeline-stage-card">
+            <div>
+              <div className="pipeline-stage-header">
+                <span className="pipeline-stage-num">01</span>
+                <HardDrive size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ingestion & Sources</h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Import local files, ZIP archives, URL feeds with SSRF defense, and document source rights & license attribution.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <SpringButton variant="primary" onClick={() => setIsImportOpen(true)}>
+                <span>Import Media</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsSourcesOpen(true)}>
+                <span>Sources & Rights</span>
+              </SpringButton>
+            </div>
+          </div>
+
+          {/* Stage 2 */}
+          <div className="pipeline-stage-card">
+            <div>
+              <div className="pipeline-stage-header">
+                <span className="pipeline-stage-num">02</span>
+                <PenTool size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Annotation & AI</h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Label bounding boxes with <strong>Sobel magnetic edge-snap</strong>, transcribe audio, or run local Ollama auto-labeling.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <SpringButton variant="primary" onClick={() => setIsWorkspaceOpen(true)}>
+                <span>Open Workbench</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsAIOpen(true)}>
+                <Bot size={14} style={{ marginRight: '4px' }} />
+                <span>AI Auto-Label</span>
+              </SpringButton>
+            </div>
+          </div>
+
+          {/* Stage 3 */}
+          <div className="pipeline-stage-card">
+            <div>
+              <div className="pipeline-stage-header">
+                <span className="pipeline-stage-num">03</span>
+                <FileCheck2 size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Quality & Invariants</h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Detect train/val split leakage, apply geometry-aware spatial transforms, and generate diverse synthetic samples.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <SpringButton variant="secondary" onClick={() => setIsQualityOpen(true)}>
+                <span>Quality Checks</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsAugmentationOpen(true)}>
+                <span>Spatial Augment</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsSynthesisOpen(true)}>
+                <span>Synthesize Data</span>
+              </SpringButton>
+            </div>
+          </div>
+
+          {/* Stage 4 */}
+          <div className="pipeline-stage-card">
+            <div>
+              <div className="pipeline-stage-header">
+                <span className="pipeline-stage-num">04</span>
+                <GitCompare size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Versioning & Diff</h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Publish frozen SHA-256 manifests, compare visual bounding-box deltas ($v_1$ vs $v_2$), and evaluate baseline models.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <SpringButton variant="secondary" onClick={() => setIsVersionsOpen(true)}>
+                <span>Snapshots</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsDiffOpen(true)}>
+                <span>Visual Git-Diff</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsClusterMapOpen(true)}>
+                <span>2D Cluster Map</span>
+              </SpringButton>
+              <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)}>
+                <span>Evaluation</span>
+              </SpringButton>
+            </div>
+          </div>
+
+          {/* Stage 5 */}
+          <div className="pipeline-stage-card" style={{ borderLeft: '3px solid var(--accent-primary)' }}>
+            <div>
+              <div className="pipeline-stage-header">
+                <span className="pipeline-stage-num">05</span>
+                <Download size={18} strokeWidth={1.75} style={{ color: 'var(--text-primary)' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Framework Exports</h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Export 1-click bundles for Unsloth, Axolotl, LLaMA-Factory, or Ultralytics YOLO with live multimodal token simulation.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <SpringButton variant="primary" onClick={() => setIsExportOpen(true)}>
+                <span>Export Presets & Simulator</span>
+              </SpringButton>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Modals */}
       <ImportModal
         datasetId={datasetId}
         isOpen={isImportOpen}
@@ -303,5 +414,3 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     </div>
   );
 };
-
-
