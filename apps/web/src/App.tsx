@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { checkHealth, fetchProjects } from './api';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DatasetDetail } from './components/DatasetDetail';
 import { Header } from './components/Header';
+import { LandingPage } from './components/LandingPage';
 import { ProjectDetail } from './components/ProjectDetail';
 import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
@@ -11,8 +12,10 @@ import { GovernanceView } from './components/GovernanceView';
 import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
 import { Project } from './types';
 
+type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance';
+
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance'>('projects');
+  const [currentView, setCurrentView] = useState<ViewMode>('landing');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [direction, setDirection] = useState<1 | -1>(1);
@@ -45,6 +48,39 @@ export const App: React.FC = () => {
     }
   };
 
+  // Sync with Browser Hash
+  const syncFromHash = useCallback(() => {
+    const raw = window.location.hash.replace(/^#\/?/, '');
+    if (!raw || raw === 'landing') {
+      setCurrentView('landing');
+    } else if (raw === 'projects') {
+      setSelectedProjectId(null);
+      setSelectedDatasetId(null);
+      setCurrentView('projects');
+    } else if (raw.startsWith('project/')) {
+      const id = raw.replace('project/', '');
+      setSelectedProjectId(id);
+      setSelectedDatasetId(null);
+      setCurrentView('project_detail');
+    } else if (raw.startsWith('dataset/')) {
+      const id = raw.replace('dataset/', '');
+      setSelectedDatasetId(id);
+      setCurrentView('dataset_detail');
+    } else if (raw === 'governance') {
+      setSelectedProjectId(null);
+      setSelectedDatasetId(null);
+      setCurrentView('governance');
+    } else if (raw === 'health') {
+      setCurrentView('health');
+    }
+  }, []);
+
+  useEffect(() => {
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, [syncFromHash]);
+
   useEffect(() => {
     loadProjects();
     loadHealth();
@@ -55,26 +91,30 @@ export const App: React.FC = () => {
     setSelectedProjectId(projectId);
     setSelectedDatasetId(null);
     setCurrentView('project_detail');
+    window.location.hash = `project/${projectId}`;
   };
 
   const handleSelectDataset = (datasetId: string) => {
     setDirection(1);
     setSelectedDatasetId(datasetId);
     setCurrentView('dataset_detail');
+    window.location.hash = `dataset/${datasetId}`;
   };
 
   const handleNavigate = (view: string) => {
     setDirection(-1);
-    if (view === 'projects') {
+    if (view === 'landing') {
+      window.location.hash = 'landing';
+    } else if (view === 'projects') {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
-      setCurrentView('projects');
+      window.location.hash = 'projects';
     } else if (view === 'governance') {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
-      setCurrentView('governance');
+      window.location.hash = 'governance';
     } else if (view === 'health') {
-      setCurrentView('health');
+      window.location.hash = 'health';
     }
   };
 
@@ -82,23 +122,43 @@ export const App: React.FC = () => {
 
   // Compute breadcrumbs
   const breadcrumbs: Array<{ label: string; onClick?: () => void }> = [
-    { label: currentView === 'governance' ? 'Governance & Quotas' : 'Projects', onClick: () => handleNavigate(currentView === 'governance' ? 'governance' : 'projects') },
+    {
+      label: 'Home',
+      onClick: () => handleNavigate('landing'),
+    },
   ];
 
-  if (selectedProjectId && currentProject) {
+  if (currentView === 'projects') {
+    breadcrumbs.push({ label: 'Projects' });
+  } else if (currentView === 'governance') {
+    breadcrumbs.push({ label: 'Governance & Quotas' });
+  } else if (currentView === 'health') {
+    breadcrumbs.push({ label: 'System Diagnostics' });
+  } else if (currentView === 'project_detail') {
     breadcrumbs.push({
-      label: currentProject.name,
-      onClick: () => {
-        setDirection(-1);
-        setSelectedDatasetId(null);
-        setCurrentView('project_detail');
-      },
+      label: 'Projects',
+      onClick: () => handleNavigate('projects'),
     });
-  }
-  if (selectedDatasetId) {
+    if (currentProject) {
+      breadcrumbs.push({ label: currentProject.name });
+    } else if (selectedProjectId) {
+      breadcrumbs.push({ label: selectedProjectId });
+    }
+  } else if (currentView === 'dataset_detail') {
     breadcrumbs.push({
-      label: 'Dataset Overview',
+      label: 'Projects',
+      onClick: () => handleNavigate('projects'),
     });
+    if (selectedProjectId && currentProject) {
+      breadcrumbs.push({
+        label: currentProject.name,
+        onClick: () => {
+          setDirection(-1);
+          window.location.hash = `project/${selectedProjectId}`;
+        },
+      });
+    }
+    breadcrumbs.push({ label: 'Dataset Overview' });
   }
 
   return (
@@ -121,6 +181,14 @@ export const App: React.FC = () => {
             activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
             direction={direction}
           >
+            {currentView === 'landing' && (
+              <LandingPage
+                onOpenProjects={() => handleNavigate('projects')}
+                onOpenHealth={() => handleNavigate('health')}
+                onOpenGovernance={() => handleNavigate('governance')}
+              />
+            )}
+
             {currentView === 'projects' && (
               <ProjectList
                 projects={projects}
@@ -147,8 +215,11 @@ export const App: React.FC = () => {
                 datasetId={selectedDatasetId}
                 onBack={() => {
                   setDirection(-1);
-                  setSelectedDatasetId(null);
-                  setCurrentView('project_detail');
+                  if (selectedProjectId) {
+                    window.location.hash = `project/${selectedProjectId}`;
+                  } else {
+                    window.location.hash = 'projects';
+                  }
                 }}
               />
             )}

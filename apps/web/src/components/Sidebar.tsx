@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderKanban, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { Home, FolderKanban, ShieldCheck, Activity, Layers } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 
 interface SidebarProps {
@@ -11,30 +11,47 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, systemHealth }) => {
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">
+      <div className="sidebar-header" style={{ cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
         <div className="brand-icon">
-          <Layers size={20} strokeWidth={1.75} color="#FAFAFA" />
+          <Layers size={18} strokeWidth={2} />
         </div>
         <div>
-          <div className="brand-title">Dataset Workbench</div>
+          <div className="brand-title">Dataset Engine</div>
+          <div className="brand-subtitle">Multimodal Platform</div>
         </div>
       </div>
 
-      <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.5rem' }}>
+      <nav className="sidebar-nav">
         <SpringButton
-          variant={currentView.startsWith('project') ? 'primary' : 'ghost'}
-          onClick={() => onNavigate('projects')}
+          variant={currentView === 'landing' ? 'primary' : 'ghost'}
+          onClick={() => onNavigate('landing')}
           style={{
             width: '100%',
             justifyContent: 'flex-start',
-            gap: '0.75rem',
-            padding: '0.6rem 0.85rem',
+            gap: '0.65rem',
+            padding: '0.55rem 0.75rem',
             borderRadius: 'var(--radius-sm)',
             border: 'none',
           }}
         >
-          <FolderKanban size={18} strokeWidth={1.75} />
-          Projects & Datasets
+          <Home size={17} strokeWidth={1.75} />
+          <span>Home / Overview</span>
+        </SpringButton>
+
+        <SpringButton
+          variant={currentView.startsWith('project') || currentView === 'dataset_detail' ? 'primary' : 'ghost'}
+          onClick={() => onNavigate('projects')}
+          style={{
+            width: '100%',
+            justifyContent: 'flex-start',
+            gap: '0.65rem',
+            padding: '0.55rem 0.75rem',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+          }}
+        >
+          <FolderKanban size={17} strokeWidth={1.75} />
+          <span>Projects & Datasets</span>
         </SpringButton>
 
         <SpringButton
@@ -43,14 +60,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, syste
           style={{
             width: '100%',
             justifyContent: 'flex-start',
-            gap: '0.75rem',
-            padding: '0.6rem 0.85rem',
+            gap: '0.65rem',
+            padding: '0.55rem 0.75rem',
             borderRadius: 'var(--radius-sm)',
             border: 'none',
           }}
         >
-          <ShieldCheck size={18} strokeWidth={1.75} />
-          Governance & Quotas
+          <ShieldCheck size={17} strokeWidth={1.75} />
+          <span>Governance & Quotas</span>
         </SpringButton>
 
         <SpringButton
@@ -59,14 +76,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, syste
           style={{
             width: '100%',
             justifyContent: 'flex-start',
-            gap: '0.75rem',
-            padding: '0.6rem 0.85rem',
+            gap: '0.65rem',
+            padding: '0.55rem 0.75rem',
             borderRadius: 'var(--radius-sm)',
             border: 'none',
           }}
         >
-          <Activity size={18} strokeWidth={1.75} />
-          System Health
+          <Activity size={17} strokeWidth={1.75} />
+          <span>System Diagnostics</span>
         </SpringButton>
       </nav>
 
@@ -75,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, syste
           <span className="status-dot"></span>
           <span>{systemHealth?.privacy_mode === 'local_only' ? 'Local Only ($0 AI)' : 'Ready'}</span>
         </div>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>v0.1.0</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>v0.1.0</span>
       </div>
     </aside>
   );
