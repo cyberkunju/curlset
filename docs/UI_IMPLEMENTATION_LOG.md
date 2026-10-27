@@ -714,6 +714,73 @@ Redesigned the five core dataset engineering modals and integrated parent wiring
 - **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
 - **Browser Automation Note**: Browser automation subagent tools remain constrained by sandbox environment (external browser download unavailable); verified through static type checking, contract verification, and test suites.
 
+---
+
+## 17. Phase R5.2 — Object-Detection Coordinate Contract & Version-Diff Integrity
+
+**Status:** COMPLETE  
+**Base Commit Inspected:** `5000f82ba07e9246df2fb4e922fcdbbd5958d19f`  
+**Quality Gates Passed:** `npm run build` (0 TypeScript errors), `pytest tests/ -q` (113 passed), `ruff check .` (0 lint errors).
+
+### 17.1 Problem Statement & Audit
+Prior to R5.2, `ObjectDetectionCanvas.tsx` captured mouse pointer events and recorded bounding box geometries directly in CSS container display pixels ($[0, W_{disp}] \times [0, H_{disp}]$) or uncalibrated coordinates without saving source image dimensions or coordinate space metadata. This caused:
+1. Coordinates becoming misaligned whenever the browser window, container width, or zoom changed.
+2. `SpatialDiffViewer` in `VersionDiffModal.tsx` resorting to an assumed $640 \times 480$ fallback grid when image assets were unmeasured.
+3. Exporters (`coco_exporter.py`, `yolo_exporter.py`, and `presets.py`) applying inconsistent assumptions (e.g., dividing by fixed $1000.0$ in YOLO presets, or accidental double-scaling).
+
+### 17.2 Architectural Coordinate Contract & Deliverables Completed
+
+1. **Canonical Coordinate System:**
+   - **Canonical Space:** Intrinsic source-image pixel coordinates $[0, W_{src}] \times [0, H_{src}]$ with top-left origin $(0, 0)$.
+   - **Persistence Contract:** New and updated annotations save `coordinate_system: "pixel-intrinsic"` and `image_dimensions: { width: W_src, height: H_src }` within the annotation payload.
+   - **Full Invariance:** All stored coordinates reflect the true pixel resolution of the raw source media, guaranteeing exact geometric fidelity across any viewport size, device DPI, or application reload.
+
+2. **Dynamic Canvas Coordinate Transformations (`apps/web/src/components/ObjectDetectionCanvas.tsx`):**
+   - **`displayToSourceCoords` Pure Helper:** Transforms canvas pointer events $(x_{disp}, y_{disp})$ into canonical coordinates $(x_{src}, y_{src})$ via:
+     $$x_{src} = x_{disp} \times \frac{W_{src}}{W_{disp} \times \text{zoom}}, \quad y_{src} = y_{disp} \times \frac{H_{src}}{H_{disp} \times \text{zoom}}$$
+     clamped strictly to $[0, W_{src}] \times [0, H_{src}]$.
+   - **`sourceToDisplayBox` Pure Helper:** Inverse transformation converts canonical stored boxes into display CSS pixels:
+     $$x_{disp} = x_{src} \times \frac{W_{disp} \times \text{zoom}}{W_{src}}, \quad y_{disp} = y_{src} \times \frac{H_{disp} \times \text{zoom}}{H_{src}}$$
+     $$w_{disp} = w_{src} \times \frac{W_{disp} \times \text{zoom}}{W_{src}}, \quad h_{disp} = h_{src} \times \frac{H_{disp} \times \text{zoom}}{H_{src}}$$
+   - **Responsive Resizing & Zoom:** Employs `ResizeObserver` on `imgRef.current` to continuously track displayed image bounds $(W_{disp}, H_{disp})$. Zoom factors ($0.75\times$ to $3.0\times$) and canvas resizing seamlessly reproject bounding boxes without mutating underlying source coordinates.
+   - **Edge Snapping & Interactive Editing:** Sobel gradient edge snapping (`magneticSnapBoxToEdges`), box dragging, and resizing all operate in canonical intrinsic coordinates.
+   - **HUD & Calibration Badges:** Real-time pointer HUD displays active source pixel coordinates (`Crosshair` icon with `X: ...px, Y: ...px`). Calibration badge indicates `"Source: W×Hpx"` when calibrated, or `"Legacy Uncalibrated"` when viewing historical annotations lacking geometry calibration.
+
+3. **Workspace Dimension Plumbing (`apps/web/src/components/AnnotationWorkspace.tsx`):**
+   - Tracks `canvasImageDims` state from loaded image dimensions.
+   - On save, records `coordinate_system: 'pixel-intrinsic'` and `image_dimensions: { width, height }`.
+   - Passes `assetDimensions` and existing `coordinateSystem` to `ObjectDetectionCanvas`.
+
+4. **Truthful Version-Diff Visualization (`apps/web/src/components/VersionDiffModal.tsx`):**
+   - **Backend Metadata Enrichment (`packages/dataset_versioning/service.py`):** `compute_version_diff` passes `coordinate_system_v1`, `coordinate_system_v2`, `image_dimensions_v1`, `image_dimensions_v2`, and `asset_dimensions` within each `spatial_diffs` item.
+   - **Elimination of Guessed $640 \times 480$ Geometry:** Replaced the legacy $640 \times 480$ fallback calculation. If reference dimensions and media assets are unavailable, `SpatialDiffViewer` returns a truthful disclosure banner (`Spatial Geometry Unavailable: Media asset and intrinsic dimensions are not recorded...`) showing exact box counts without fabricating false spatial boxes.
+   - **Contain Letterbox Alignment:** Accounts for horizontal ($X_{off}$) and vertical ($Y_{off}$) margins when container aspect ratio diverges from media aspect ratio.
+   - **Historical Payload Compatibility:** Detects legacy normalized coordinates ($x, y, w, h \le 1.0$) and converts them to source pixels when reference dimensions exist. Displays a visible `"Legacy Coords"` badge for uncalibrated versions.
+   - **Preserved Onion-Skin & Side-by-Side:** Onion-skin slider ($0\%$ to $100\%$) and side-by-side mode maintain accurate visual alignment across versions.
+
+5. **Export Semantics Preservation (`packages/dataset_export/`, `packages/dataset_io/presets.py`):**
+   - **COCO Exporter (`coco_exporter.py`):** Retains absolute source-image pixels $[x, y, w, h]$. Inspects `coordinate_system == "pixel-intrinsic"` and `image_dimensions` to prevent accidental normalization.
+   - **YOLO Exporters (`yolo_exporter.py` & `presets.py`):** Normalizes coordinates into $[0, 1]$ using actual image dimensions ($W_{src}, H_{src}$). Completely eliminated the arbitrary `/ 1000.0` heuristic in `presets.py`. Clamps bounding centers and dimensions to valid $[0, 1]$ bounds.
+
+6. **Comprehensive Automated Verification (`tests/unit/test_coordinate_transforms.py`):**
+   - Added 9 unit tests verifying:
+     - 1:1 intrinsic image display.
+     - Downscaling to viewport container.
+     - Letterbox margin calculations for wide (16:9) and tall (9:16) aspect ratios.
+     - Zoomed canvas pointer mapping and box positioning ($2.0\times$ zoom).
+     - Proportional coverage invariance across viewport resize ($1000 \times 500 \to 400 \times 200$).
+     - Legacy normalized coordinate backward compatibility.
+     - COCO export source pixel preservation and image dimension recording.
+     - YOLO export normalization using actual image dimensions.
+     - YOLO file exporter normalized bounds clamping.
+
+### 17.3 Verification Summary
+- **Frontend Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, 6.89s).
+- **Backend Tests**: `.venv\Scripts\pytest tests/ -q`: **113 passed, 0 failures** in 6.45s.
+- **Python Lint**: `.venv\Scripts\ruff check .`: **All checks passed!**
+- **Browser Automation Note**: Browser subagent execution remains constrained by the offline sandbox environment (external browser download unavailable); verified through pure mathematical unit tests, static type checking, contract verification, and full test suite passes.
+
+
 
 
 

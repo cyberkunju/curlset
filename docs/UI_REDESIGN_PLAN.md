@@ -293,6 +293,17 @@ The following master roadmap is evidence-based (derived from `docs/UI_COVERAGE_A
   - `ExportModal.tsx`: Prevented token simulation race conditions via `simRequestIdRef` and `AbortController`; cleared stale results during calculation; ensured capacity and utilization always reference `simResult.target_context_window`.
 - **Exit Gate:** `npm run build` passed (7.48s); 104/104 pytest passed (12.24s); ruff lint passed; zero promotional puffery.
 
+#### Phase R5.2: Object-Detection Coordinate Contract & Version-Diff Integrity (COMPLETED)
+- **Objective:** Establish a canonical coordinate system across canvas annotation, saved payloads, version-diff visualization, and export serializers, ensuring viewport/zoom invariance and truthful fallbacks.
+- **Tasks Delivered:**
+  - **Canonical Frame**: Established intrinsic source-image pixel coordinates $[0, W_{src}] \times [0, H_{src}]$ with top-left origin $(0, 0)$.
+  - `ObjectDetectionCanvas.tsx`: Pure helper `displayToSourceCoords` converts canvas pointer input to canonical intrinsic pixels accounting for zoom, image scale, and responsive resizing. Inverse helper `sourceToDisplayBox` renders intrinsic coordinates back into CSS display pixels. Added real-time pointer coordinate HUD (`Crosshair` with `X: ...px, Y: ...px`) and calibration status badge.
+  - `AnnotationWorkspace.tsx`: Records `coordinate_system: "pixel-intrinsic"` and `image_dimensions: { width, height }` upon annotation save. Passes asset dimensions and coordinate system to canvas.
+  - `packages/dataset_versioning/service.py`: Computes spatial diffs extracting `coordinate_system_v1`, `coordinate_system_v2`, `image_dimensions_v1`, `image_dimensions_v2`, and `asset_dimensions`.
+  - `VersionDiffModal.tsx` (`SpatialDiffViewer`): Projects bounding boxes using version-specific reference dimensions and letterbox offsets ($X_{off}, Y_{off}$). Eliminates the guessed $640 \times 480$ grid; displays a truthful fallback disclosure when media assets or dimensions are unavailable. Badges legacy uncalibrated coordinates.
+  - Export Serializers (`packages/dataset_export/coco_exporter.py`, `packages/dataset_export/yolo_exporter.py`, `packages/dataset_io/presets.py`): Preserves pixel-intrinsic coordinates in COCO export; normalizes YOLO coordinates using true image width and height, eliminating arbitrary `/ 1000.0` division heuristic.
+  - **Automated Tests**: Added `tests/unit/test_coordinate_transforms.py` covering intrinsic 1:1, downscaling, wide/tall letterboxing, zoom scaling, resize invariance, legacy normalized coordinate detection, and COCO/YOLO exports.
+- **Exit Gate:** `npm run build` passed (0 errors); 113/113 pytest tests passed in 6.45s; ruff check passed (0 lint errors).
 
 #### Phase R6: Governance, Diagnostics, Settings & Modals
 - **Objective:** Standardize remaining secondary views and dialogs.

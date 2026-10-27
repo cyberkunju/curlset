@@ -57,13 +57,16 @@ def export_to_yolo_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
         stem = os.path.splitext(orig_filename)[0]
 
         dims = first_asset.get("dimensions") or {}
-        img_w = float(dims.get("width", 640))
-        img_h = float(dims.get("height", 480))
+        ann = r.get("annotation")
+        payload = ann.get("payload") if ann else {}
+        img_dims = payload.get("image_dimensions") if isinstance(payload, dict) else {}
+        img_w = float(dims.get("width") or (img_dims.get("width") if img_dims else 640))
+        img_h = float(dims.get("height") or (img_dims.get("height") if img_dims else 480))
+        coord_sys = payload.get("coordinate_system") if isinstance(payload, dict) else None
 
         lines: list[str] = []
-        ann = r.get("annotation")
-        if ann and ann.get("payload") and "boxes" in ann["payload"]:
-            for box in ann["payload"]["boxes"]:
+        if ann and payload and "boxes" in payload:
+            for box in payload["boxes"]:
                 lbl = box.get("label")
                 cat_idx = category_to_id.get(lbl, 0)
 
@@ -72,8 +75,11 @@ def export_to_yolo_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
                 x = float(box.get("x", 0))
                 y = float(box.get("y", 0))
 
-                # Normalize if coordinates are in pixel space
-                if w > 1.0 or h > 1.0 or x > 1.0 or y > 1.0:
+                # Normalize if coordinates are explicitly pixel-intrinsic or > 1.0
+                is_pixel = (coord_sys == "pixel-intrinsic") or (
+                    coord_sys != "normalized" and (w > 1.0 or h > 1.0 or x > 1.0 or y > 1.0)
+                )
+                if is_pixel:
                     norm_x = x / img_w
                     norm_y = y / img_h
                     norm_w = w / img_w
@@ -83,6 +89,12 @@ def export_to_yolo_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
                     norm_y = y
                     norm_w = w
                     norm_h = h
+
+                # Clamp normalized coordinates to [0, 1]
+                norm_x = max(0.0, min(1.0, norm_x))
+                norm_y = max(0.0, min(1.0, norm_y))
+                norm_w = max(0.000001, min(1.0 - norm_x, norm_w))
+                norm_h = max(0.000001, min(1.0 - norm_y, norm_h))
 
                 # Convert (top-left x, y, w, h) to (center_x, center_y, w, h)
                 x_center = round(norm_x + (norm_w / 2.0), 6)

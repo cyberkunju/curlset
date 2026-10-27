@@ -41,8 +41,11 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
         first_asset = assets[0] if assets else {}
         filename = first_asset.get("original_filename") or f"{record_id}.jpg"
         dims = first_asset.get("dimensions") or {}
-        img_width = dims.get("width", 640)
-        img_height = dims.get("height", 480)
+        ann = r.get("annotation")
+        payload = ann.get("payload") if ann else {}
+        img_dims = payload.get("image_dimensions") if isinstance(payload, dict) else {}
+        img_width = dims.get("width") or (img_dims.get("width") if img_dims else 640)
+        img_height = dims.get("height") or (img_dims.get("height") if img_dims else 480)
 
         coco_images.append({
             "id": img_idx,
@@ -53,9 +56,9 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
             "split": r.get("split", "train"),
         })
 
-        ann = r.get("annotation")
-        if ann and ann.get("payload") and "boxes" in ann["payload"]:
-            for box in ann["payload"]["boxes"]:
+        if ann and payload and "boxes" in payload:
+            coord_sys = payload.get("coordinate_system")
+            for box in payload["boxes"]:
                 lbl = box.get("label")
                 cat_id = category_to_id.get(lbl, 1)
 
@@ -65,8 +68,11 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
                 x = float(box.get("x", 0))
                 y = float(box.get("y", 0))
 
-                # If coordinates are normalized (0..1), convert to absolute pixel dimensions
-                if w <= 1.0 and h <= 1.0 and x <= 1.0 and y <= 1.0:
+                # If coordinates are explicitly normalized or fractional (0..1) without pixel-intrinsic flag
+                is_normalized = (coord_sys == "normalized") or (
+                    coord_sys != "pixel-intrinsic" and w <= 1.0 and h <= 1.0 and x <= 1.0 and y <= 1.0
+                )
+                if is_normalized:
                     x = round(x * img_width, 2)
                     y = round(y * img_height, 2)
                     w = round(w * img_width, 2)

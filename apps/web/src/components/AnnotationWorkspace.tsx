@@ -71,8 +71,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   // Annotation Editor Form State
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(1.0);
-  const [notes, setNotes] = useState<string>('');
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
+  const [canvasImageDims, setCanvasImageDims] = useState<{ width: number; height: number } | null>(null);
+  const [notes, setNotes] = useState<string>('');
   const [transcriptText, setTranscriptText] = useState<string>('');
   const [transcriptSegments, setTranscriptSegments] = useState<
     Array<{ start_time: number; end_time: number; speaker?: string; text: string }>
@@ -217,6 +218,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         } else {
           setBoxes([]);
         }
+        setCanvasImageDims(null);
 
         if (dataset.task_type === 'audio_transcription') {
           setTranscriptText(detail.annotation?.payload?.text || '');
@@ -280,6 +282,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         payload.boxes = boxes;
         if (boxes.length > 0) {
           payload.label = boxes[0].label;
+        }
+        payload.coordinate_system = 'pixel-intrinsic';
+        const dimsToSave = canvasImageDims || activeAsset?.dimensions;
+        if (dimsToSave?.width && dimsToSave?.height) {
+          payload.image_dimensions = {
+            width: dimsToSave.width,
+            height: dimsToSave.height,
+          };
         }
       } else {
         payload.label = labelToSave;
@@ -929,6 +939,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       boxes={boxes}
                       classes={allowedClasses}
                       selectedClass={selectedLabel || allowedClasses[0] || 'object'}
+                      assetDimensions={activeAsset.dimensions}
+                      coordinateSystem={currentRecord?.annotation?.payload?.coordinate_system}
+                      onDimensionsLoaded={(dims) => setCanvasImageDims(dims)}
                       onChange={(newBoxes) => {
                         setBoxes(newBoxes);
                         setIsDirty(true);

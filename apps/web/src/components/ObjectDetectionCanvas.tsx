@@ -5,9 +5,9 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   Layers,
   Move,
+  Crosshair,
 } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
@@ -23,13 +23,16 @@ export interface BoundingBox {
   confidence?: number;
 }
 
-interface ObjectDetectionCanvasProps {
+export interface ObjectDetectionCanvasProps {
   imageUrl: string;
   boxes: BoundingBox[];
   classes: string[];
   selectedClass: string;
   onChange: (boxes: BoundingBox[]) => void;
   disabled?: boolean;
+  assetDimensions?: { width?: number; height?: number } | null;
+  coordinateSystem?: string;
+  onDimensionsLoaded?: (dims: { width: number; height: number }) => void;
 }
 
 // Deterministic class color mapping palette
@@ -56,6 +59,73 @@ export function getClassColor(label: string, classes: string[]): string {
   return CLASS_COLORS[Math.abs(hash) % CLASS_COLORS.length];
 }
 
+/**
+ * Pure coordinate transformation utilities for intrinsic canonical frames
+ */
+export function displayToSourceCoords(
+  dispX: number,
+  dispY: number,
+  dispW: number,
+  dispH: number,
+  srcW: number,
+  srcH: number
+): { x: number; y: number } {
+  if (dispW <= 0 || dispH <= 0 || srcW <= 0 || srcH <= 0) {
+    return { x: Math.round(dispX), y: Math.round(dispY) };
+  }
+  const scaleX = srcW / dispW;
+  const scaleY = srcH / dispH;
+  return {
+    x: Math.max(0, Math.min(srcW, Math.round(dispX * scaleX))),
+    y: Math.max(0, Math.min(srcH, Math.round(dispY * scaleY))),
+  };
+}
+
+export function sourceToDisplayBox(
+  box: BoundingBox,
+  dispW: number,
+  dispH: number,
+  srcW: number,
+  srcH: number,
+  isNormalized = false
+): { left: string; top: string; width: string; height: string } {
+  if (isNormalized) {
+    const l = Math.max(0, Math.min(dispW, box.x * dispW));
+    const t = Math.max(0, Math.min(dispH, box.y * dispH));
+    const w = Math.max(2, Math.min(dispW - l, box.w * dispW));
+    const h = Math.max(2, Math.min(dispH - t, box.h * dispH));
+    return {
+      left: `${Math.round(l)}px`,
+      top: `${Math.round(t)}px`,
+      width: `${Math.round(w)}px`,
+      height: `${Math.round(h)}px`,
+    };
+  }
+
+  if (dispW <= 0 || dispH <= 0 || srcW <= 0 || srcH <= 0) {
+    return {
+      left: `${box.x}px`,
+      top: `${box.y}px`,
+      width: `${box.w}px`,
+      height: `${box.h}px`,
+    };
+  }
+
+  const scaleX = dispW / srcW;
+  const scaleY = dispH / srcH;
+  const l = Math.max(0, Math.min(dispW, box.x * scaleX));
+  const t = Math.max(0, Math.min(dispH, box.y * scaleY));
+  const w = Math.max(2, Math.min(dispW - l, box.w * scaleX));
+  const h = Math.max(2, Math.min(dispH - t, box.h * scaleY));
+
+  return {
+    left: `${Math.round(l)}px`,
+    top: `${Math.round(t)}px`,
+    width: `${Math.round(w)}px`,
+    height: `${Math.round(h)}px`,
+  };
+}
+
 export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   imageUrl,
   boxes,
@@ -63,9 +133,23 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   selectedClass,
   onChange,
   disabled = false,
+  assetDimensions,
+  coordinateSystem,
+  onDimensionsLoaded,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Canonical intrinsic image geometry
+  const [naturalDims, setNaturalDims] = useState<{ width: number; height: number } | null>(
+    assetDimensions?.width && assetDimensions?.height
+      ? { width: assetDimensions.width, height: assetDimensions.height }
+      : null
+  );
+  const [displayedDims, setDisplayedDims] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -73,10 +157,44 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [magneticSnapEnabled, setMagneticSnapEnabled] = useState(true);
 
-  // Zoom & Pan state
+  // Zoom state
   const [zoom, setZoom] = useState(1.0);
   const [isDraggingBox, setIsDraggingBox] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+
+  // Real-time hover coordinate HUD
+  const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null);
+
+  // Observe container & image resize events to keep display scale calibrated
+  useEffect(() => {
+    if (!imgRef.current) return;
+    const updateDims = () => {
+      if (imgRef.current) {
+        const w = imgRef.current.clientWidth;
+        const h = imgRef.current.clientHeight;
+        if (w > 0 && h > 0) {
+          setDisplayedDims({ width: w, height: h });
+        }
+      }
+    };
+    updateDims();
+    const observer = new ResizeObserver(updateDims);
+    observer.observe(imgRef.current);
+    return () => observer.disconnect();
+  }, [imageUrl, zoom]);
+
+  // Handle image load to capture actual intrinsic source resolution
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const nd = { width: img.naturalWidth, height: img.naturalHeight };
+      setNaturalDims(nd);
+      onDimensionsLoaded?.(nd);
+    }
+    if (img.clientWidth > 0 && img.clientHeight > 0) {
+      setDisplayedDims({ width: img.clientWidth, height: img.clientHeight });
+    }
+  };
 
   // Reset selection if box index becomes out of bounds
   useEffect(() => {
@@ -102,11 +220,46 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedBoxIndex, boxes, disabled]);
 
+  // Determine if boxes use normalized coordinates
+  const isNormalizedBox = useCallback(
+    (b: BoundingBox) => {
+      if (coordinateSystem === 'normalized') return true;
+      if (coordinateSystem === 'pixel-intrinsic') return false;
+      return b.x <= 1.0 && b.y <= 1.0 && b.w <= 1.0 && b.h <= 1.0 && (b.w > 0 || b.h > 0);
+    },
+    [coordinateSystem]
+  );
+
+  // Auto-calibrate legacy normalized boxes into canonical intrinsic pixel frame if natural dimensions exist
+  useEffect(() => {
+    if (!naturalDims || naturalDims.width <= 0 || naturalDims.height <= 0) return;
+    if (boxes.length === 0) return;
+
+    // Check if any boxes are normalized fractions that require calibration to canonical pixels
+    const hasNormalized = boxes.some((b) => isNormalizedBox(b));
+    if (hasNormalized && coordinateSystem !== 'pixel-intrinsic') {
+      const calibrated = boxes.map((b) => {
+        if (isNormalizedBox(b)) {
+          return {
+            ...b,
+            x: Math.round(b.x * naturalDims.width),
+            y: Math.round(b.y * naturalDims.height),
+            w: Math.round(b.w * naturalDims.width),
+            h: Math.round(b.h * naturalDims.height),
+          };
+        }
+        return b;
+      });
+      onChange(calibrated);
+    }
+  }, [naturalDims, boxes, isNormalizedBox, coordinateSystem, onChange]);
+
+  // Read full-resolution image data from offscreen canvas for precision edge-snapping
   const getImageData = (): ImageData | null => {
     if (!imgRef.current || !imgRef.current.complete || imgRef.current.naturalWidth === 0) return null;
     const offscreen = document.createElement('canvas');
-    const width = imgRef.current.clientWidth || 640;
-    const height = imgRef.current.clientHeight || 480;
+    const width = naturalDims?.width || imgRef.current.naturalWidth;
+    const height = naturalDims?.height || imgRef.current.naturalHeight;
     offscreen.width = width;
     offscreen.height = height;
     const ctx = offscreen.getContext('2d', { willReadFrequently: true });
@@ -119,18 +272,22 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     }
   };
 
-  // Maps pointer event coordinates to image-relative integer pixels
+  // Convert client pointer event into canonical intrinsic image coordinates
   const getRelativeCoords = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current || !imgRef.current) return { x: 0, y: 0 };
     const rect = containerRef.current.getBoundingClientRect();
-    const rawX = (e.clientX - rect.left) / zoom;
-    const rawY = (e.clientY - rect.top) / zoom;
-    const x = Math.max(0, Math.min(rect.width / zoom, rawX));
-    const y = Math.max(0, Math.min(rect.height / zoom, rawY));
-    return {
-      x: Math.round(x),
-      y: Math.round(y),
-    };
+    const dispW = displayedDims.width || imgRef.current.clientWidth || 1;
+    const dispH = displayedDims.height || imgRef.current.clientHeight || 1;
+    const srcW = naturalDims?.width || dispW;
+    const srcH = naturalDims?.height || dispH;
+
+    // Display-relative coordinates inside image boundary (unscaled by zoom)
+    const rawDispX = (e.clientX - rect.left) / zoom;
+    const rawDispY = (e.clientY - rect.top) / zoom;
+    const clampedDispX = Math.max(0, Math.min(dispW, rawDispX));
+    const clampedDispY = Math.max(0, Math.min(dispH, rawDispY));
+
+    return displayToSourceCoords(clampedDispX, clampedDispY, dispW, dispH, srcW, srcH);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -147,10 +304,15 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const coords = getRelativeCoords(e);
+    setHoverCoords(coords);
+
     if (isDraggingBox && selectedBoxIndex !== null && dragOffset) {
-      const coords = getRelativeCoords(e);
-      const newX = Math.max(0, coords.x - dragOffset.x);
-      const newY = Math.max(0, coords.y - dragOffset.y);
+      const srcW = naturalDims?.width || displayedDims.width;
+      const srcH = naturalDims?.height || displayedDims.height;
+      const current = boxes[selectedBoxIndex];
+      const newX = Math.max(0, Math.min(srcW - current.w, coords.x - dragOffset.x));
+      const newY = Math.max(0, Math.min(srcH - current.h, coords.y - dragOffset.y));
       const updated = [...boxes];
       updated[selectedBoxIndex] = {
         ...updated[selectedBoxIndex],
@@ -162,7 +324,6 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     }
 
     if (!isDrawing || !startPoint) return;
-    const coords = getRelativeCoords(e);
     const x = Math.min(startPoint.x, coords.x);
     const y = Math.min(startPoint.y, coords.y);
     const w = Math.abs(coords.x - startPoint.x);
@@ -183,8 +344,8 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     setIsDrawing(false);
     setStartPoint(null);
 
-    // Only add if box has meaningful size (> 10x10 px)
-    if (currentBox.w > 10 && currentBox.h > 10) {
+    const minSize = naturalDims ? Math.max(4, Math.round(naturalDims.width * 0.005)) : 6;
+    if (currentBox.w >= minSize && currentBox.h >= minSize) {
       let finalBox = { ...currentBox };
       if (magneticSnapEnabled || e.shiftKey) {
         const imgData = getImageData();
@@ -211,7 +372,12 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     const imgData = getImageData();
     if (!imgData || boxes.length === 0) return;
     const snapped = boxes.map((box) => {
-      const snappedCoords = magneticSnapBoxToEdges(imgData, { x: box.x, y: box.y, w: box.w, h: box.h });
+      const snappedCoords = magneticSnapBoxToEdges(imgData, {
+        x: box.x,
+        y: box.y,
+        w: box.w,
+        h: box.h,
+      });
       return {
         ...box,
         x: snappedCoords.x,
@@ -243,6 +409,16 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
     setDragOffset({ x: coords.x - box.x, y: coords.y - box.y });
   };
 
+  const dispW = displayedDims.width || imgRef.current?.clientWidth || 0;
+  const dispH = displayedDims.height || imgRef.current?.clientHeight || 0;
+  const srcW = naturalDims?.width || dispW;
+  const srcH = naturalDims?.height || dispH;
+
+  const isLegacyUncalibrated =
+    coordinateSystem !== 'pixel-intrinsic' &&
+    boxes.length > 0 &&
+    boxes.some((b) => !isNormalizedBox(b) && (b.x > 1.0 || b.y > 1.0));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', height: '100%' }}>
       {/* Precision Smart Canvas Controls Toolbar */}
@@ -266,7 +442,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             size="sm"
             shortcut="Shift"
             onClick={() => setMagneticSnapEnabled(!magneticSnapEnabled)}
-            title="Sobel gradient edge boundary snapping"
+            title="Sobel gradient edge boundary snapping in canonical source pixels"
           >
             <Magnet size={14} strokeWidth={1.75} style={{ marginRight: '4px' }} />
             {magneticSnapEnabled ? 'Magnetic Edge-Snap ON' : 'Magnetic Edge-Snap OFF'}
@@ -278,6 +454,44 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
               Snap Boxes
             </SpringButton>
           )}
+
+          {/* Canonical Coordinate System Status Pill */}
+          {naturalDims && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontFamily: 'var(--font-mono)',
+                color: isLegacyUncalibrated ? 'var(--amber)' : 'var(--emerald)',
+                background: isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                border: `1px solid ${isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                padding: '0.15rem 0.45rem',
+                borderRadius: 'var(--radius-xs)',
+              }}
+              title={
+                isLegacyUncalibrated
+                  ? 'Legacy coordinates: will be saved in canonical source-image pixel frame on next edit/save'
+                  : 'Canonical frame: coordinates calibrated to source image resolution'
+              }
+            >
+              {isLegacyUncalibrated ? 'Legacy Uncalibrated' : `Source: ${srcW}×${srcH}px`}
+            </span>
+          )}
+
+          {hoverCoords && (
+            <span
+              style={{
+                fontSize: '0.68rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <Crosshair size={11} />
+              X: {hoverCoords.x}, Y: {hoverCoords.y}
+            </span>
+          )}
         </div>
 
         {/* Zoom Controls */}
@@ -288,6 +502,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             onClick={() => setZoom((z) => Math.max(0.75, Math.round((z - 0.25) * 100) / 100))}
             style={{ padding: '0.25rem 0.45rem' }}
             title="Zoom Out"
+            type="button"
           >
             <ZoomOut size={13} />
           </button>
@@ -308,6 +523,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             onClick={() => setZoom((z) => Math.min(3.0, Math.round((z + 0.25) * 100) / 100))}
             style={{ padding: '0.25rem 0.45rem' }}
             title="Zoom In"
+            type="button"
           >
             <ZoomIn size={13} />
           </button>
@@ -315,17 +531,17 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             <button
               className="btn btn-secondary"
               onClick={() => setZoom(1.0)}
-              style={{ padding: '0.25rem 0.45rem', fontSize: '0.72rem' }}
+              style={{ padding: '0.25rem 0.45rem', fontSize: '0.7rem' }}
               title="Reset Zoom to 100%"
+              type="button"
             >
-              <Maximize2 size={12} style={{ marginRight: '2px' }} />
-              Reset
+              1:1
             </button>
           )}
         </div>
       </div>
 
-      {/* Main Canvas Scroll Area */}
+      {/* Main Annotation Viewport Area */}
       <div
         style={{
           flex: 1,
@@ -345,6 +561,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerLeave={() => setHoverCoords(null)}
           style={{
             position: 'relative',
             display: 'inline-block',
@@ -363,69 +580,86 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             src={imageUrl}
             alt="Object Detection Target"
             crossOrigin="anonymous"
-            style={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 360px)', pointerEvents: 'none' }}
+            onLoad={handleImageLoad}
+            style={{
+              display: 'block',
+              maxWidth: '100%',
+              maxHeight: 'calc(100vh - 360px)',
+              pointerEvents: 'none',
+            }}
           />
 
-          {/* Render Existing Bounding Boxes */}
-          {boxes.map((box, idx) => {
-            const isSelected = selectedBoxIndex === idx;
-            const classColor = getClassColor(box.label, classes);
+          {/* Render Existing Bounding Boxes Scaled into Canvas Frame */}
+          {dispW > 0 &&
+            dispH > 0 &&
+            boxes.map((box, idx) => {
+              const isSelected = selectedBoxIndex === idx;
+              const classColor = getClassColor(box.label, classes);
+              const style = sourceToDisplayBox(
+                box,
+                dispW,
+                dispH,
+                srcW,
+                srcH,
+                isNormalizedBox(box)
+              );
 
-            return (
-              <div
-                key={idx}
-                onPointerDown={(e) => handleBoxPointerDown(e, idx)}
-                style={{
-                  position: 'absolute',
-                  left: `${box.x}px`,
-                  top: `${box.y}px`,
-                  width: `${box.w}px`,
-                  height: `${box.h}px`,
-                  border: isSelected ? `2.5px solid ${classColor}` : `2px solid ${classColor}`,
-                  backgroundColor: isSelected ? `${classColor}33` : `${classColor}1A`,
-                  boxShadow: isSelected ? `0 0 0 2px var(--bg-surface), 0 0 0 4px ${classColor}` : 'none',
-                  cursor: 'grab',
-                  boxSizing: 'border-box',
-                  zIndex: isSelected ? 10 : 2,
-                }}
-                title={`Box #${idx + 1}: ${box.label} (Drag to move)`}
-              >
-                {/* Box Class Tag Badge */}
-                <span
+              return (
+                <div
+                  key={idx}
+                  onPointerDown={(e) => handleBoxPointerDown(e, idx)}
                   style={{
                     position: 'absolute',
-                    top: '-22px',
-                    left: '-2px',
-                    background: classColor,
-                    color: '#fff',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '2px',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    boxShadow: 'var(--shadow-sm)',
-                    pointerEvents: 'none',
+                    ...style,
+                    border: isSelected ? `2.5px solid ${classColor}` : `2px solid ${classColor}`,
+                    backgroundColor: isSelected ? `${classColor}33` : `${classColor}1A`,
+                    boxShadow: isSelected ? `0 0 0 2px var(--bg-surface), 0 0 0 4px ${classColor}` : 'none',
+                    cursor: 'grab',
+                    boxSizing: 'border-box',
+                    zIndex: isSelected ? 10 : 2,
                   }}
+                  title={`Box #${idx + 1}: ${box.label} [${box.x}, ${box.y}, ${box.w}×${box.h} px] (Drag to move)`}
                 >
-                  <span>{box.label}</span>
-                  {isSelected && <Move size={10} />}
-                </span>
-              </div>
-            );
-          })}
+                  {/* Box Class Tag Badge */}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-22px',
+                      left: '-2px',
+                      background: classColor,
+                      color: '#fff',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '2px',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      boxShadow: 'var(--shadow-sm)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span>{box.label}</span>
+                    {isSelected && <Move size={10} />}
+                  </span>
+                </div>
+              );
+            })}
 
           {/* Active Drawing Box Preview */}
-          {isDrawing && currentBox && (
+          {isDrawing && currentBox && dispW > 0 && dispH > 0 && (
             <div
               style={{
                 position: 'absolute',
-                left: `${currentBox.x}px`,
-                top: `${currentBox.y}px`,
-                width: `${currentBox.w}px`,
-                height: `${currentBox.h}px`,
+                ...sourceToDisplayBox(
+                  { ...currentBox, label: selectedClass },
+                  dispW,
+                  dispH,
+                  srcW,
+                  srcH,
+                  false
+                ),
                 border: '2px dashed var(--accent-interactive)',
                 backgroundColor: 'rgba(37, 99, 235, 0.2)',
                 pointerEvents: 'none',
@@ -456,7 +690,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             <span>Detected Bounding Boxes ({boxes.length})</span>
           </span>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            Drag to draw box • Click box to move • Del to remove
+            Coordinates calibrated in canonical source pixels • Drag to draw • Click box to move • Del to remove
           </span>
         </div>
 
@@ -507,7 +741,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                     ariaLabel={`Class for box ${idx + 1}`}
                   />
                   <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
-                    {box.w}×{box.h}
+                    {box.w}×{box.h} px
                   </span>
                   <button
                     onClick={(e) => {
@@ -523,6 +757,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                       display: 'flex',
                     }}
                     title="Remove box"
+                    type="button"
                   >
                     <Trash2 size={13} />
                   </button>

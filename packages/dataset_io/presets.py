@@ -289,6 +289,14 @@ def export_ultralytics_yolo(manifest: dict[str, Any]) -> dict[str, bytes]:
         payload = r.get("annotation", {}).get("payload", {})
         boxes = payload.get("boxes", [])
 
+        # Retrieve source image dimensions for precise normalization
+        first_asset = (r.get("assets") or [{}])[0]
+        dims = first_asset.get("dimensions") or {}
+        img_dims = payload.get("image_dimensions") if isinstance(payload, dict) else {}
+        img_w = float(dims.get("width") or (img_dims.get("width") if img_dims else 640))
+        img_h = float(dims.get("height") or (img_dims.get("height") if img_dims else 480))
+        coord_sys = payload.get("coordinate_system") if isinstance(payload, dict) else None
+
         # Label lines: <class_idx> <x_center> <y_center> <width> <height>
         yolo_lines: list[str] = []
         for box in boxes:
@@ -300,17 +308,30 @@ def export_ultralytics_yolo(manifest: dict[str, Any]) -> dict[str, bytes]:
             w = float(box.get("w", box.get("width", 0.1)))
             h = float(box.get("h", box.get("height", 0.1)))
 
-            # If pixel coordinates, normalize assuming standard display bounds if needed
-            if x > 1.0 or y > 1.0 or w > 1.0 or h > 1.0:
-                # Treat as normalized if already in 0-1, otherwise normalize by 1000
-                x = min(1.0, max(0.0, x / 1000.0))
-                y = min(1.0, max(0.0, y / 1000.0))
-                w = min(1.0, max(0.001, w / 1000.0))
-                h = min(1.0, max(0.001, h / 1000.0))
+            # If coordinates are in pixel space, normalize using source image dimensions
+            is_pixel = (coord_sys == "pixel-intrinsic") or (
+                coord_sys != "normalized" and (x > 1.0 or y > 1.0 or w > 1.0 or h > 1.0)
+            )
+            if is_pixel:
+                norm_x = x / img_w
+                norm_y = y / img_h
+                norm_w = w / img_w
+                norm_h = h / img_h
+            else:
+                norm_x = x
+                norm_y = y
+                norm_w = w
+                norm_h = h
 
-            x_center = min(1.0, max(0.0, x + (w / 2.0)))
-            y_center = min(1.0, max(0.0, y + (h / 2.0)))
-            yolo_lines.append(f"{c_idx} {x_center:.6f} {y_center:.6f} {w:.6f} {h:.6f}")
+            # Clamp normalized coordinates to [0, 1]
+            norm_x = max(0.0, min(1.0, norm_x))
+            norm_y = max(0.0, min(1.0, norm_y))
+            norm_w = max(0.0001, min(1.0 - norm_x, norm_w))
+            norm_h = max(0.0001, min(1.0 - norm_y, norm_h))
+
+            x_center = min(1.0, max(0.0, norm_x + (norm_w / 2.0)))
+            y_center = min(1.0, max(0.0, norm_y + (norm_h / 2.0)))
+            yolo_lines.append(f"{c_idx} {x_center:.6f} {y_center:.6f} {norm_w:.6f} {norm_h:.6f}")
 
         label_content = ("\n".join(yolo_lines) + "\n").encode("utf-8")
         files[f"labels/{split}/{rec_id}.txt"] = label_content

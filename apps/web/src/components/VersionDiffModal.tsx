@@ -24,6 +24,11 @@ interface SpatialDiffViewerProps {
   assetUrl: string | null;
   boxesV1: any[];
   boxesV2: any[];
+  coordinateSystemV1?: string | null;
+  coordinateSystemV2?: string | null;
+  imageDimensionsV1?: { width: number; height: number } | null;
+  imageDimensionsV2?: { width: number; height: number } | null;
+  assetDimensions?: { width: number; height: number } | null;
   viewMode: 'overlay' | 'sideBySide';
   v1Opacity: number;
   v2Opacity: number;
@@ -34,6 +39,11 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   assetUrl,
   boxesV1,
   boxesV2,
+  coordinateSystemV1,
+  coordinateSystemV2,
+  imageDimensionsV1,
+  imageDimensionsV2,
+  assetDimensions,
   viewMode,
   v1Opacity,
   v2Opacity,
@@ -43,6 +53,15 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   const [naturalDims, setNaturalDims] = useState<{ width: number; height: number } | null>(null);
   const [containerDims, setContainerDims] = useState<{ width: number; height: number }>({ width: 300, height: 170 });
   const [imgError, setImgError] = useState(false);
+
+  // Resolved reference dimensions: prefer loaded natural dimensions, then asset metadata, then payload dimensions
+  const refDims = useMemo(() => {
+    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0) return naturalDims;
+    if (assetDimensions && assetDimensions.width > 0 && assetDimensions.height > 0) return assetDimensions;
+    if (imageDimensionsV2 && imageDimensionsV2.width > 0 && imageDimensionsV2.height > 0) return imageDimensionsV2;
+    if (imageDimensionsV1 && imageDimensionsV1.width > 0 && imageDimensionsV1.height > 0) return imageDimensionsV1;
+    return null;
+  }, [naturalDims, assetDimensions, imageDimensionsV1, imageDimensionsV2]);
 
   // Measure container dimensions with ResizeObserver
   useEffect(() => {
@@ -62,7 +81,7 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   }, [viewMode]);
 
   // Compute image-relative bounding box dimensions accounting for object-fit: contain letterbox offsets
-  const computeBoxStyle = (box: any) => {
+  const computeBoxStyle = (box: any, isV1: boolean) => {
     const cw = containerDims.width;
     const ch = containerDims.height;
     const bx = Number(box.x) || 0;
@@ -71,10 +90,11 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
     const bh = Number(box.h ?? box.height) || 0;
 
     const isNormalized = bx <= 1 && by <= 1 && bw <= 1 && bh <= 1 && (bw > 0 || bh > 0);
+    const activeVersionDims = isV1 ? (imageDimensionsV1 || refDims) : (imageDimensionsV2 || refDims);
 
-    if (naturalDims && naturalDims.width > 0 && naturalDims.height > 0 && !imgError) {
-      const nw = naturalDims.width;
-      const nh = naturalDims.height;
+    if (activeVersionDims && activeVersionDims.width > 0 && activeVersionDims.height > 0) {
+      const nw = activeVersionDims.width;
+      const nh = activeVersionDims.height;
       const rImg = nw / nh;
       const rCont = cw / ch;
 
@@ -130,18 +150,19 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
       };
     }
 
-    // Fallback when image asset or natural dimensions are unavailable
-    const normX = isNormalized ? bx : Math.min(1, Math.max(0, bx / 640));
-    const normY = isNormalized ? by : Math.min(1, Math.max(0, by / 480));
-    const normW = isNormalized ? bw : Math.min(1, Math.max(0.01, bw / 640));
-    const normH = isNormalized ? bh : Math.min(1, Math.max(0.01, bh / 480));
+    // Fallback: If image asset or dimensions are unavailable, do NOT invent a 640x480 grid.
+    // Normalized coordinates can map directly to the container frame; uncalibrated coordinates cannot be plotted accurately.
+    if (isNormalized) {
+      return {
+        left: `${bx * cw}px`,
+        top: `${by * ch}px`,
+        width: `${Math.max(2, bw * cw)}px`,
+        height: `${Math.max(2, bh * ch)}px`,
+      };
+    }
 
-    return {
-      left: `${normX * cw}px`,
-      top: `${normY * ch}px`,
-      width: `${Math.max(2, normW * cw)}px`,
-      height: `${Math.max(2, normH * ch)}px`,
-    };
+    // Non-normalized coordinates without source dimensions cannot be positioned accurately.
+    return null;
   };
 
   const renderBoxesLayer = (boxes: any[], isV1: boolean, opacity: number) => {
@@ -157,7 +178,8 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
         }}
       >
         {boxes.map((b: any, idx: number) => {
-          const style = computeBoxStyle(b);
+          const style = computeBoxStyle(b, isV1);
+          if (!style) return null;
           return (
             <div
               key={`${isV1 ? 'v1' : 'v2'}_${idx}`}
@@ -197,6 +219,41 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
   };
 
   const hasValidAsset = Boolean(assetUrl && !imgError);
+  const hasDimensions = Boolean(refDims && refDims.width > 0 && refDims.height > 0);
+  const isLegacyV1 = coordinateSystemV1 !== 'pixel-intrinsic';
+  const isLegacyV2 = coordinateSystemV2 !== 'pixel-intrinsic';
+
+  if (!hasValidAsset && !hasDimensions) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          minHeight: '140px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-surface)',
+          border: '1px dashed var(--border-hairline)',
+          borderRadius: '4px',
+          padding: '1rem',
+          textAlign: 'center',
+          gap: '0.35rem',
+        }}
+      >
+        <AlertCircle size={20} style={{ color: 'var(--amber)' }} />
+        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          Spatial Geometry Unavailable
+        </div>
+        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', maxWidth: '280px', lineHeight: 1.4 }}>
+          Media asset and intrinsic dimensions are not recorded for record {recordId.slice(0, 8)}. Exact bounding coordinates cannot be accurately projected.
+        </div>
+        <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          Baseline: {boxesV1.length} box{boxesV1.length === 1 ? '' : 'es'} · Target: {boxesV2.length} box{boxesV2.length === 1 ? '' : 'es'}
+        </div>
+      </div>
+    );
+  }
 
   if (viewMode === 'overlay') {
     return (
@@ -242,9 +299,51 @@ const SpatialDiffViewer: React.FC<SpatialDiffViewerProps> = ({
               textAlign: 'center',
             }}
           >
-            <span>Geometry-only canvas (media asset unavailable)</span>
+            <span>Geometry projected onto source frame ({refDims?.width}×{refDims?.height}px)</span>
           </div>
         )}
+
+        {/* Calibration & Coordinate Space Badges */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '4px',
+            right: '4px',
+            display: 'flex',
+            gap: '4px',
+            pointerEvents: 'none',
+          }}
+        >
+          {refDims && (
+            <span
+              style={{
+                fontSize: '0.58rem',
+                fontFamily: 'var(--font-mono)',
+                padding: '1px 4px',
+                borderRadius: '2px',
+                background: 'rgba(0,0,0,0.65)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {refDims.width}×{refDims.height}px
+            </span>
+          )}
+          {(isLegacyV1 || isLegacyV2) && (
+            <span
+              style={{
+                fontSize: '0.58rem',
+                fontFamily: 'var(--font-mono)',
+                padding: '1px 4px',
+                borderRadius: '2px',
+                background: 'rgba(217, 119, 6, 0.8)',
+                color: '#fff',
+              }}
+              title="One or more versions lack explicit coordinate system calibration metadata"
+            >
+              Legacy Coords
+            </span>
+          )}
+        </div>
 
         {renderBoxesLayer(boxesV1, true, v1Opacity)}
         {renderBoxesLayer(boxesV2, false, v2Opacity)}
@@ -812,6 +911,11 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                               assetUrl={rawAssetUrl}
                               boxesV1={item.boxes_v1 || []}
                               boxesV2={item.boxes_v2 || []}
+                              coordinateSystemV1={item.coordinate_system_v1}
+                              coordinateSystemV2={item.coordinate_system_v2}
+                              imageDimensionsV1={item.image_dimensions_v1}
+                              imageDimensionsV2={item.image_dimensions_v2}
+                              assetDimensions={item.asset_dimensions}
                               viewMode={viewMode}
                               v1Opacity={v1LayerOpacity}
                               v2Opacity={v2LayerOpacity}

@@ -407,9 +407,11 @@ class VersioningService:
 
                 # Find primary image asset for rendering
                 asset_url = None
+                assets_1 = r1.get("assets", [])
                 assets_2 = r2.get("assets", [])
-                if assets_2:
-                    asset_url = f"/api/v1/assets/{assets_2[0].get('asset_id')}/file"
+                primary_asset = assets_2[0] if assets_2 else (assets_1[0] if assets_1 else None)
+                if primary_asset and primary_asset.get("asset_id"):
+                    asset_url = f"/api/v1/assets/{primary_asset.get('asset_id')}/file"
 
                 spatial_diffs.append({
                     "record_id": rid,
@@ -418,6 +420,11 @@ class VersioningService:
                     "boxes_v2": boxes_2,
                     "mean_iou": rec_iou,
                     "iou_shift": round(1.0 - rec_iou, 4),
+                    "coordinate_system_v1": p1.get("coordinate_system"),
+                    "coordinate_system_v2": p2.get("coordinate_system"),
+                    "image_dimensions_v1": p1.get("image_dimensions"),
+                    "image_dimensions_v2": p2.get("image_dimensions"),
+                    "asset_dimensions": primary_asset.get("dimensions") if primary_asset else None,
                 })
 
         # Class distribution delta table across train/val/test
