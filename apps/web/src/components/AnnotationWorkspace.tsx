@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   fetchDatasetQueue,
   fetchRecordDetail,
@@ -66,6 +67,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [currentRecord, setCurrentRecord] = useState<RecordDetail | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
+  const [isTransitioningRecord, setIsTransitioningRecord] = useState(false);
+  const recordCache = useRef<Map<string, RecordDetail>>(new Map());
+  const currentRecordRef = useRef<RecordDetail | null>(null);
+  currentRecordRef.current = currentRecord;
   const [copied, setCopied] = useState(false);
 
   // Annotation Editor Form State
@@ -190,10 +195,75 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     }
   }, [filteredQueue, selectedRecordId]);
 
-  // Load Active Record Details & Reset Form (State Leakage Prevention)
+  // Helper: cleanly populate form state for a record detail
+  const applyRecordDetail = useCallback(
+    (detail: RecordDetail) => {
+      setCurrentRecord(detail);
+
+      // Populate or cleanly reset form fields
+      if (detail.annotation?.payload?.label) {
+        setSelectedLabel(detail.annotation.payload.label);
+        setConfidence(detail.annotation.confidence ?? 1.0);
+        setNotes(detail.annotation.payload.notes || detail.annotation.payload.rationale || '');
+      } else {
+        setSelectedLabel(allowedClasses[0] || '');
+        setConfidence(1.0);
+        setNotes('');
+      }
+
+      if (detail.annotation?.payload?.boxes && Array.isArray(detail.annotation.payload.boxes)) {
+        setBoxes(detail.annotation.payload.boxes);
+      } else {
+        setBoxes([]);
+      }
+      setCanvasImageDims(null);
+
+      const existingCoord = detail.annotation?.payload?.coordinate_system;
+      const boxCount = Array.isArray(detail.annotation?.payload?.boxes)
+        ? detail.annotation.payload.boxes.length
+        : 0;
+      const isLegacy =
+        existingCoord === 'uncalibrated-legacy' ||
+        (existingCoord !== 'pixel-intrinsic' && existingCoord !== 'normalized' && boxCount > 0);
+      setIsLegacyRecord(isLegacy);
+      setActiveCoordSystem(existingCoord || null);
+      setIsNewlyRecreated(false);
+
+      if (dataset.task_type === 'audio_transcription') {
+        setTranscriptText(detail.annotation?.payload?.text || '');
+        setTranscriptSegments(detail.annotation?.payload?.segments || []);
+      }
+
+      setIsDirty(false);
+    },
+    [allowedClasses, dataset.task_type]
+  );
+
+  // Background Prefetch for Adjacent Queue Items
+  const prefetchAdjacent = useCallback(
+    (activeId: string) => {
+      const curIdx = filteredQueue.findIndex((item) => item.id === activeId);
+      if (curIdx === -1) return;
+      const targets = [curIdx + 1, curIdx + 2, curIdx - 1];
+      targets.forEach((idx) => {
+        if (idx >= 0 && idx < filteredQueue.length) {
+          const targetId = filteredQueue[idx].id;
+          if (!recordCache.current.has(targetId)) {
+            fetchRecordDetail(targetId)
+              .then((d) => {
+                recordCache.current.set(targetId, d);
+              })
+              .catch(() => {});
+          }
+        }
+      });
+    },
+    [filteredQueue]
+  );
+
+  // Load Active Record Details & Reset Form (With Cache & Smooth Non-destructive Transition)
   const loadActiveRecord = useCallback(
     async (recordId: string) => {
-      setLoadingRecord(true);
       // Pause any ongoing audio playback
       if (audioRef.current) {
         audioRef.current.pause();
@@ -201,52 +271,36 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         setIsPlaying(false);
       }
 
+      // 1. Instant Cache Hit (0ms synchronous switch — zero DOM unmount / zero blink)
+      if (recordCache.current.has(recordId)) {
+        const cached = recordCache.current.get(recordId)!;
+        applyRecordDetail(cached);
+        setLoadingRecord(false);
+        setIsTransitioningRecord(false);
+        prefetchAdjacent(recordId);
+        return;
+      }
+
+      // 2. Cache Miss: Keep existing record mounted to prevent visual jarring / glitching
+      if (!currentRecordRef.current) {
+        setLoadingRecord(true);
+      } else {
+        setIsTransitioningRecord(true);
+      }
+
       try {
         const detail: RecordDetail = await fetchRecordDetail(recordId);
-        setCurrentRecord(detail);
-
-        // Populate or cleanly reset form fields
-        if (detail.annotation?.payload?.label) {
-          setSelectedLabel(detail.annotation.payload.label);
-          setConfidence(detail.annotation.confidence ?? 1.0);
-          setNotes(detail.annotation.payload.notes || detail.annotation.payload.rationale || '');
-        } else {
-          setSelectedLabel(allowedClasses[0] || '');
-          setConfidence(1.0);
-          setNotes('');
-        }
-
-        if (detail.annotation?.payload?.boxes && Array.isArray(detail.annotation.payload.boxes)) {
-          setBoxes(detail.annotation.payload.boxes);
-        } else {
-          setBoxes([]);
-        }
-        setCanvasImageDims(null);
-
-        const existingCoord = detail.annotation?.payload?.coordinate_system;
-        const boxCount = Array.isArray(detail.annotation?.payload?.boxes)
-          ? detail.annotation.payload.boxes.length
-          : 0;
-        const isLegacy =
-          existingCoord === 'uncalibrated-legacy' ||
-          (existingCoord !== 'pixel-intrinsic' && existingCoord !== 'normalized' && boxCount > 0);
-        setIsLegacyRecord(isLegacy);
-        setActiveCoordSystem(existingCoord || null);
-        setIsNewlyRecreated(false);
-
-        if (dataset.task_type === 'audio_transcription') {
-          setTranscriptText(detail.annotation?.payload?.text || '');
-          setTranscriptSegments(detail.annotation?.payload?.segments || []);
-        }
-
-        setIsDirty(false);
+        recordCache.current.set(recordId, detail);
+        applyRecordDetail(detail);
+        prefetchAdjacent(recordId);
       } catch (err: any) {
         showToast(`Error loading record: ${err.message}`);
       } finally {
         setLoadingRecord(false);
+        setIsTransitioningRecord(false);
       }
     },
-    [allowedClasses, dataset.task_type]
+    [applyRecordDetail, prefetchAdjacent]
   );
 
   // Recreate uncalibrated legacy annotation into verified intrinsic source pixels
@@ -410,6 +464,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
 
       setIsDirty(false);
       // Refresh current record & queue
+      recordCache.current.delete(currentRecord.id);
       await loadActiveRecord(currentRecord.id);
       loadQueue();
 
@@ -441,6 +496,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         comment || `Reviewer marked as ${action}`
       );
       showToast(`Status changed to ${action.replace('_', ' ')}`);
+      recordCache.current.delete(currentRecord.id);
       await loadActiveRecord(currentRecord.id);
       loadQueue();
 
@@ -475,6 +531,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
           confidence
         );
         showToast("Marked as 'Not Similar / Disagree' (Rejected)");
+        recordCache.current.delete(currentRecord.id);
         await loadActiveRecord(currentRecord.id);
         loadQueue();
         if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
@@ -863,38 +920,57 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                       key={item.id}
                       onClick={() => setSelectedRecordId(item.id)}
                       className={`workbench-queue-item ${isActive ? 'active' : ''}`}
+                      style={{ position: 'relative' }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeQueueItemIndicator"
+                          transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
                           style={{
-                            fontSize: '0.825rem',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: isActive ? 700 : 500,
-                            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1.5px solid var(--accent-interactive)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                            boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.2), var(--shadow-sm)',
+                            pointerEvents: 'none',
+                            zIndex: 0,
+                          }}
+                        />
+                      )}
+                      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span
+                            style={{
+                              fontSize: '0.825rem',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: isActive ? 700 : 500,
+                              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            }}
+                          >
+                            #{idx + 1} {item.external_key || item.id.slice(0, 8)}
+                          </span>
+                          <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                            {item.review_status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.72rem',
+                            color: 'var(--text-muted)',
                           }}
                         >
-                          #{idx + 1} {item.external_key || item.id.slice(0, 8)}
-                        </span>
-                        <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                          {item.review_status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontSize: '0.72rem',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        <span>Split: {item.split || 'train'}</span>
-                        {item.annotation_payload?.label && (
-                          <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
-                            {item.annotation_payload.label}
-                          </span>
-                        )}
+                          <span>Split: {item.split || 'train'}</span>
+                          {item.annotation_payload?.label && (
+                            <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
+                              {item.annotation_payload.label}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -907,8 +983,33 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         {/* ========================================================================= */}
         {/* Center Column: Primary Annotation Surface */}
         {/* ========================================================================= */}
-        <div className="workbench-panel-center">
-          {loadingRecord ? (
+        <div className="workbench-panel-center" style={{ position: 'relative', overflow: 'hidden' }}>
+          {isTransitioningRecord && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                zIndex: 60,
+                background: 'rgba(59, 130, 246, 0.15)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                className="workbench-transition-bar"
+                style={{
+                  height: '100%',
+                  width: '40%',
+                  background: 'var(--accent-interactive)',
+                  borderRadius: '2px',
+                }}
+              />
+            </div>
+          )}
+
+          {loadingRecord && !currentRecord ? (
             <div className="loading-container" style={{ flex: 1 }}>
               <div className="spinner"></div>
               <div>Loading record asset...</div>
@@ -922,7 +1023,15 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               <p className="empty-desc">Choose a record from the queue to start labeling.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentRecord.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
+              >
               {/* Contextual Asset Metadata Header */}
               <div
                 style={{
@@ -1352,7 +1461,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 <div><kbd>J / K</kbd>Next / Prev</div>
                 <div><kbd>?</kbd>All Shortcuts</div>
               </div>
-            </div>
+            </motion.div>
+          </AnimatePresence>
           )}
         </div>
 
@@ -1393,8 +1503,18 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               </div>
             </div>
 
-            {/* Section 2: Task-Specific Label / Audio Inputs */}
-            {dataset.task_type === 'audio_transcription' ? (
+            {/* Record-Specific Inspector Controls with Smooth Crossfade */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentRecord?.id || 'empty-inspector'}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              >
+                {/* Section 2: Task-Specific Label / Audio Inputs */}
+                {dataset.task_type === 'audio_transcription' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
@@ -1598,24 +1718,41 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                             setIsDirty(true);
                           }}
                           style={{
+                            position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             padding: '0.5rem 0.75rem',
                             borderRadius: 'var(--radius-sm)',
-                            backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-elevated)',
+                            backgroundColor: isSelected ? 'transparent' : 'var(--bg-elevated)',
                             border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-hairline)'}`,
                             color: isSelected ? 'var(--accent-primary-fg)' : 'var(--text-primary)',
                             fontWeight: isSelected ? 600 : 500,
                             cursor: 'pointer',
                             textAlign: 'left',
-                            transition: 'all 0.15s ease',
+                            overflow: 'hidden',
+                            transition: 'color 0.15s ease, border-color 0.15s ease',
                           }}
                         >
-                          <span style={{ fontSize: '0.825rem' }}>{lbl}</span>
+                          {isSelected && (
+                            <motion.div
+                              layoutId="activeClassSelectionPill"
+                              transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                backgroundColor: 'var(--accent-primary)',
+                                borderRadius: 'inherit',
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
+                          <span style={{ position: 'relative', zIndex: 1, fontSize: '0.825rem' }}>{lbl}</span>
                           {shortcutKey && (
                             <kbd
                               style={{
+                                position: 'relative',
+                                zIndex: 1,
                                 background: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'var(--bg-surface)',
                                 border: `1px solid ${isSelected ? 'rgba(255, 255, 255, 0.3)' : 'var(--border-hairline)'}`,
                                 padding: '0.1rem 0.35rem',
@@ -1890,6 +2027,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 )}
               </div>
             )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         )}
       </div>

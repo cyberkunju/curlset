@@ -1071,6 +1071,7 @@ select option {
 }
 
 .workbench-queue-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -1078,7 +1079,7 @@ select option {
   border-radius: var(--radius-sm);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
   margin-bottom: 0.35rem;
   background: var(--bg-surface);
 }
@@ -1088,9 +1089,9 @@ select option {
 }
 
 .workbench-queue-item.active {
-  background: var(--bg-elevated);
-  border-color: var(--accent-interactive);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .workbench-hotkey-legend {
@@ -1257,5 +1258,16 @@ select option {
 .boneyard-card-skeleton {
   transition: opacity 0.2s ease-out;
 }
+
+@keyframes workbenchIndeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(300%); }
+}
+
+.workbench-transition-bar {
+  animation: workbenchIndeterminate 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 
 

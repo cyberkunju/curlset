@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   HardDrive,
@@ -735,12 +736,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               ariaLabel="Filter records by review status"
             />
 
-            {/* View Mode Toggle */}
-            <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-sm)', padding: '2px' }}>
+            {/* View Mode Toggle with Smooth Selection Transfer */}
+            <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-sm)', padding: '2px', position: 'relative' }}>
               <button
                 onClick={() => setViewMode('table')}
                 style={{
-                  background: viewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
+                  position: 'relative',
+                  background: 'transparent',
                   border: 'none',
                   borderRadius: '3px',
                   padding: '0.25rem 0.5rem',
@@ -751,12 +753,29 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 }}
                 title="Table view"
               >
-                <List size={14} />
+                {viewMode === 'table' && (
+                  <motion.div
+                    layoutId="activeViewModeIndicator"
+                    transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'var(--bg-surface)',
+                      borderRadius: 'inherit',
+                      boxShadow: 'var(--shadow-xs)',
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+                <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+                  <List size={14} />
+                </span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
                 style={{
-                  background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent',
+                  position: 'relative',
+                  background: 'transparent',
                   border: 'none',
                   borderRadius: '3px',
                   padding: '0.25rem 0.5rem',
@@ -767,7 +786,23 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 }}
                 title="Grid view"
               >
-                <LayoutGrid size={14} />
+                {viewMode === 'grid' && (
+                  <motion.div
+                    layoutId="activeViewModeIndicator"
+                    transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'var(--bg-surface)',
+                      borderRadius: 'inherit',
+                      boxShadow: 'var(--shadow-xs)',
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+                <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+                  <LayoutGrid size={14} />
+                </span>
               </button>
             </div>
 
@@ -879,7 +914,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         )}
 
         {/* Records Content Area */}
-        {recordsLoading ? (
+        {recordsLoading && records.length === 0 ? (
           <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             <div className="spinner" style={{ margin: '0 auto 0.75rem auto' }}></div>
             <div>Loading records...</div>
@@ -920,9 +955,44 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Reset All Filters</span>
             </SpringButton>
           </div>
-        ) : viewMode === 'table' ? (
-          <div className="data-table-container">
-            <table className="data-table">
+        ) : (
+          <div style={{ position: 'relative' }}>
+            {recordsLoading && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  zIndex: 20,
+                  overflow: 'hidden',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                }}
+              >
+                <div
+                  className="workbench-transition-bar"
+                  style={{
+                    height: '100%',
+                    width: '35%',
+                    background: 'var(--accent-interactive)',
+                    borderRadius: '2px',
+                  }}
+                />
+              </div>
+            )}
+            <div style={{ opacity: recordsLoading ? 0.65 : 1, transition: 'opacity 0.18s ease' }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${page}-${viewMode}-${splitFilter}-${statusFilter}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                >
+                  {viewMode === 'table' ? (
+                    <div className="data-table-container">
+                      <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ width: '48px' }}>#</th>
@@ -1192,6 +1262,11 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                   <ChevronRight size={14} style={{ marginLeft: '2px' }} />
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         )}
