@@ -5,8 +5,8 @@ export interface FloatingScrollbarProps {
   offsetTop?: number;      // Height of top sticky header (default: 56px)
   offsetBottom?: number;   // Inset from bottom of viewport (default: 8px)
   thumbMinHeight?: number; // Minimum thumb height (default: 36px)
-  thumbMaxHeight?: number; // Maximum thumb height to keep it compact (default: 72px)
-  autoHideDelay?: number;  // Delay before fading out (default: 850ms)
+  thumbMaxHeight?: number; // Maximum thumb height to keep it compact (default: 80px)
+  autoHideDelay?: number;  // Delay before fading out (default: 1100ms)
 }
 
 export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
@@ -14,8 +14,8 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
   offsetTop = 56,
   offsetBottom = 8,
   thumbMinHeight = 36,
-  thumbMaxHeight = 72,
-  autoHideDelay = 850,
+  thumbMaxHeight = 80,
+  autoHideDelay = 1100,
 }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollHeight, setScrollHeight] = useState(0);
@@ -37,6 +37,15 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
     setScrollHeight(el.scrollHeight);
     setClientHeight(el.clientHeight);
   }, [containerRef]);
+
+  // Initial gentle presence preview on mount to show user where the scrollbar sits
+  useEffect(() => {
+    setIsScrolling(true);
+    const timer = setTimeout(() => {
+      setIsScrolling(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Attach scroll & resize observers
   useEffect(() => {
@@ -174,13 +183,16 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
         top: `${trackTop}px`,
         height: `${trackHeight}px`,
         right: '4px',
-        width: '10px',
+        width: '16px',
         zIndex: 40,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
-        pointerEvents: isVisible ? 'auto' : 'none',
+        backgroundColor: isHovered || isDragging ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+        borderRadius: '9999px',
+        pointerEvents: isVisible || isHovered ? 'auto' : 'none',
         userSelect: 'none',
+        transition: 'background-color 0.2s ease',
       }}
       title="Scroll indicator"
     >
@@ -188,21 +200,23 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
       <div
         onPointerDown={handlePointerDown}
         style={{
-          width: isHovered || isDragging ? '6px' : '4px',
+          width: isHovered || isDragging ? '8px' : '5px',
           height: `${thumbHeight}px`,
-          transform: `translateY(${thumbTop}px) ${isVisible ? 'translateX(0)' : 'translateX(6px)'}`,
+          transform: `translateY(${thumbTop}px) ${isVisible ? 'translateX(0)' : 'translateX(8px)'}`,
           opacity: isVisible ? 1 : 0,
           borderRadius: '9999px',
           backgroundColor: isDragging
             ? 'var(--accent-interactive, #3b82f6)'
             : isHovered
-            ? 'var(--text-secondary, #a1a1aa)'
-            : 'var(--border-strong, #71717a)',
-          boxShadow: isDragging ? '0 0 8px rgba(59, 130, 246, 0.5)' : 'none',
+            ? 'var(--text-primary, #ffffff)'
+            : 'var(--text-secondary, rgba(161, 161, 170, 0.7))',
+          boxShadow: isDragging
+            ? '0 0 10px rgba(59, 130, 246, 0.6)'
+            : '0 1px 3px rgba(0, 0, 0, 0.35)',
           cursor: 'pointer',
           transition: isDragging
             ? 'width 0.15s ease, background-color 0.15s ease'
-            : 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), width 0.15s ease, background-color 0.15s ease',
+            : 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.15s ease, background-color 0.15s ease',
         }}
       />
     </div>
