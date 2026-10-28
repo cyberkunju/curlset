@@ -355,31 +355,40 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0.45rem 0.75rem',
+          padding: '0.4rem 0.75rem',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-hairline)',
           borderRadius: 'var(--radius-sm)',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
+          gap: '0.75rem',
           flexShrink: 0,
+          minHeight: '44px',
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        {/* Left Section: Annotation Controls & Calibration */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           <SpringButton
             variant={magneticSnapEnabled ? 'primary' : 'secondary'}
             size="sm"
             shortcut="Shift"
             onClick={() => setMagneticSnapEnabled(!magneticSnapEnabled)}
-            title="Sobel gradient edge boundary snapping in canonical source pixels"
+            title="Sobel gradient edge boundary snapping in canonical source pixels (Toggle with Shift)"
+            style={{ padding: '0.28rem 0.6rem', fontSize: '0.78rem' }}
           >
-            <Magnet size={14} strokeWidth={1.75} style={{ marginRight: '4px' }} />
-            {magneticSnapEnabled ? 'Magnetic Edge-Snap ON' : 'Magnetic Edge-Snap OFF'}
+            <Magnet size={13} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+            <span>Edge-Snap {magneticSnapEnabled ? 'ON' : 'OFF'}</span>
           </SpringButton>
 
           {boxes.length > 0 && (
-            <SpringButton variant="secondary" size="sm" onClick={handleSnapExistingBoxes}>
-              <Sparkles size={14} strokeWidth={1.75} style={{ marginRight: '4px' }} />
-              Snap Boxes
+            <SpringButton
+              variant="secondary"
+              size="sm"
+              onClick={handleSnapExistingBoxes}
+              title="Re-align all current boxes to high-contrast image edges"
+              style={{ padding: '0.28rem 0.6rem', fontSize: '0.78rem' }}
+            >
+              <Sparkles size={13} strokeWidth={1.75} style={{ marginRight: '4px' }} />
+              <span>Snap Boxes</span>
             </SpringButton>
           )}
 
@@ -387,13 +396,15 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
           {naturalDims && (
             <span
               style={{
-                fontSize: '0.7rem',
+                fontSize: '0.72rem',
                 fontFamily: 'var(--font-mono)',
                 color: isLegacyUncalibrated ? 'var(--amber)' : isExplicitlyNormalized ? 'var(--text-secondary)' : 'var(--emerald)',
                 background: isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
                 border: `1px solid ${isLegacyUncalibrated ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
-                padding: '0.15rem 0.45rem',
+                padding: '0.2rem 0.5rem',
                 borderRadius: 'var(--radius-xs)',
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
               }}
               title={
                 isLegacyUncalibrated
@@ -410,68 +421,219 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                 : `Source: ${srcW}×${srcH}px`}
             </span>
           )}
-
-          {hoverCoords && (
-            <span
-              style={{
-                fontSize: '0.68rem',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              <Crosshair size={11} />
-              X: {hoverCoords.x}, Y: {hoverCoords.y}
-            </span>
-          )}
         </div>
 
-        {/* Zoom Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <button
-            className="btn btn-secondary"
-            disabled={zoom <= 0.75}
-            onClick={() => setZoom((z) => Math.max(0.75, Math.round((z - 0.25) * 100) / 100))}
-            style={{ padding: '0.25rem 0.45rem' }}
-            title="Zoom Out"
-            type="button"
-          >
-            <ZoomOut size={13} />
-          </button>
-          <span
+        {/* Center Section: Contextual Information At-A-Glance (Uses leftover space effectively) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Active Target Class Pill */}
+          <div
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
               fontSize: '0.75rem',
-              fontFamily: 'var(--font-mono)',
-              minWidth: '44px',
-              textAlign: 'center',
+              padding: '0.2rem 0.55rem',
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-xs)',
+              border: '1px solid var(--border-hairline)',
+              whiteSpace: 'nowrap',
+            }}
+            title="Active target class for newly drawn bounding boxes"
+          >
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Class:</span>
+            <span
+              style={{
+                display: 'inline-block',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: getClassColor(selectedClass || classes[0] || 'object', classes),
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {selectedClass || classes[0] || 'object'}
+            </span>
+          </div>
+
+          {/* Total Box Count Badge */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.72rem',
               color: 'var(--text-secondary)',
+              padding: '0.2rem 0.5rem',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: 'var(--radius-xs)',
+              whiteSpace: 'nowrap',
             }}
           >
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            className="btn btn-secondary"
-            disabled={zoom >= 3.0}
-            onClick={() => setZoom((z) => Math.min(3.0, Math.round((z + 0.25) * 100) / 100))}
-            style={{ padding: '0.25rem 0.45rem' }}
-            title="Zoom In"
-            type="button"
+            <Layers size={12} style={{ color: 'var(--text-muted)' }} />
+            <span>{boxes.length} {boxes.length === 1 ? 'box' : 'boxes'}</span>
+          </div>
+
+          {/* Active Selection / Drawing Status */}
+          {isDrawing ? (
+            <span
+              style={{
+                fontSize: '0.72rem',
+                color: 'var(--accent-interactive)',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-interactive)' }} />
+              Drawing Box...
+            </span>
+          ) : selectedBoxIndex !== null && boxes[selectedBoxIndex] ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.72rem',
+                color: 'var(--accent-interactive)',
+                padding: '0.15rem 0.45rem',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: 'var(--radius-xs)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>Box #{selectedBoxIndex + 1} ({Math.round(boxes[selectedBoxIndex].w)}×{Math.round(boxes[selectedBoxIndex].h)}px)</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteBox(selectedBoxIndex);
+                }}
+                title="Delete selected box"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--rose, #f43f5e)',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Right Section: Fixed-Width Jitter-Free Coordinates HUD & Zoom Viewport Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+          {/* Dedicated Coordinate HUD: Fixed 132px slot with tabular numbers prevents any UI shifts or shaking */}
+          <div
+            style={{
+              width: '132px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              padding: '0.24rem 0.5rem',
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: hoverCoords ? 'var(--bg-elevated)' : 'transparent',
+              border: '1px solid',
+              borderColor: hoverCoords ? 'var(--border-hairline)' : 'transparent',
+              fontSize: '0.72rem',
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              color: hoverCoords ? 'var(--text-primary)' : 'var(--text-muted)',
+              opacity: hoverCoords ? 1 : 0.4,
+              transition: 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease',
+              userSelect: 'none',
+            }}
+            title={hoverCoords ? 'Real-time source coordinate' : 'Hover over image to view live coordinates'}
           >
-            <ZoomIn size={13} />
-          </button>
-          {zoom !== 1.0 && (
+            <Crosshair
+              size={12}
+              style={{
+                color: hoverCoords ? 'var(--accent-interactive)' : 'var(--text-muted)',
+                transition: 'color 0.2s ease',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+              {hoverCoords
+                ? `X: ${hoverCoords.x}, Y: ${hoverCoords.y}`
+                : 'X: —, Y: —'}
+            </span>
+          </div>
+
+          {/* Divider line */}
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)' }} />
+
+          {/* Zoom Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <button
               className="btn btn-secondary"
-              onClick={() => setZoom(1.0)}
-              style={{ padding: '0.25rem 0.45rem', fontSize: '0.7rem' }}
-              title="Reset Zoom to 100%"
+              disabled={zoom <= 0.75}
+              onClick={() => setZoom((z) => Math.max(0.75, Math.round((z - 0.25) * 100) / 100))}
+              style={{ padding: '0.25rem 0.45rem' }}
+              title="Zoom Out"
               type="button"
             >
-              1:1
+              <ZoomOut size={13} />
             </button>
-          )}
+            <span
+              onClick={() => setZoom(1.0)}
+              style={{
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                minWidth: '42px',
+                textAlign: 'center',
+                color: zoom === 1.0 ? 'var(--text-secondary)' : 'var(--accent-interactive)',
+                cursor: zoom === 1.0 ? 'default' : 'pointer',
+                fontWeight: zoom === 1.0 ? 500 : 700,
+                userSelect: 'none',
+              }}
+              title={zoom === 1.0 ? 'Current zoom: 100%' : 'Click to reset zoom to 100%'}
+            >
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              className="btn btn-secondary"
+              disabled={zoom >= 3.0}
+              onClick={() => setZoom((z) => Math.min(3.0, Math.round((z + 0.25) * 100) / 100))}
+              style={{ padding: '0.25rem 0.45rem' }}
+              title="Zoom In"
+              type="button"
+            >
+              <ZoomIn size={13} />
+            </button>
+            {zoom !== 1.0 && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setZoom(1.0)}
+                style={{ padding: '0.25rem 0.45rem', fontSize: '0.7rem' }}
+                title="Reset Zoom to 100%"
+                type="button"
+              >
+                1:1
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
