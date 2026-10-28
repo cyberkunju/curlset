@@ -16,8 +16,14 @@ import { Project } from '../types';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
-import { ProjectListSkeleton } from './ui/ProjectListSkeleton';
+import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
 import { Skeleton } from 'boneyard-js/react';
+
+declare global {
+  interface Window {
+    __HAS_LOADED_PROJECTS_ONCE__?: boolean;
+  }
+}
 
 interface ProjectListProps {
   projects: Project[];
@@ -41,6 +47,25 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'name'>('date_desc');
   const [localSearch, setLocalSearch] = useState('');
+
+  // Ensure the boneyard skeleton is visible on first mount so loading is perceptible, then retain afterwards
+  const [isInitialMounting, setIsInitialMounting] = useState(() => {
+    return typeof window !== 'undefined' ? !window.__HAS_LOADED_PROJECTS_ONCE__ : true;
+  });
+
+  React.useEffect(() => {
+    if (isInitialMounting) {
+      const timer = setTimeout(() => {
+        setIsInitialMounting(false);
+        if (typeof window !== 'undefined') {
+          window.__HAS_LOADED_PROJECTS_ONCE__ = true;
+        }
+      }, 850);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialMounting]);
+
+  const isDataLoading = loading || isInitialMounting;
 
   const effectiveSearch = searchQuery || localSearch;
 
@@ -100,9 +125,16 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 backgroundColor: 'var(--bg-elevated)',
                 border: '1px solid var(--border-hairline)',
                 color: 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: '22px',
               }}
             >
-              {filtered.length} {filtered.length === 1 ? 'project' : 'projects'}
+              {isDataLoading ? (
+                <span className="boneyard-bone" style={{ width: '55px', height: '10px', borderRadius: '9999px' }} />
+              ) : (
+                `${filtered.length} ${filtered.length === 1 ? 'project' : 'projects'}`
+              )}
             </span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', marginTop: '0.2rem' }}>
@@ -117,11 +149,9 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         </SpringButton>
       </div>
 
-      {/* Boneyard-powered Skeleton Integration */}
-      <Skeleton name="project-list" loading={loading} fallback={<ProjectListSkeleton />}>
-        {/* Real Summary Metrics Bar */}
-        <div
-          style={{
+      {/* Real Summary Metrics Bar (Stable card shells with skeleton on dynamic values) */}
+      <div
+        style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '0.85rem',
@@ -156,8 +186,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>
               Total Workspaces
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-              {totalCount}
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', minHeight: '1.4rem', display: 'flex', alignItems: 'center' }}>
+              {isDataLoading ? (
+                <span className="boneyard-bone" style={{ width: '32px', height: '18px', borderRadius: '4px' }} />
+              ) : (
+                totalCount
+              )}
             </div>
           </div>
         </div>
@@ -190,8 +224,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>
               Active Projects
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--emerald)', fontFamily: 'var(--font-mono)' }}>
-              {activeCount}
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--emerald)', fontFamily: 'var(--font-mono)', minHeight: '1.4rem', display: 'flex', alignItems: 'center' }}>
+              {isDataLoading ? (
+                <span className="boneyard-bone" style={{ width: '32px', height: '18px', borderRadius: '4px' }} />
+              ) : (
+                activeCount
+              )}
             </div>
           </div>
         </div>
@@ -224,8 +262,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>
               Archived
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {archivedCount}
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minHeight: '1.4rem', display: 'flex', alignItems: 'center' }}>
+              {isDataLoading ? (
+                <span className="boneyard-bone" style={{ width: '32px', height: '18px', borderRadius: '4px' }} />
+              ) : (
+                archivedCount
+              )}
             </div>
           </div>
         </div>
@@ -395,14 +437,15 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         </div>
       </div>
 
-      {/* Main TriState View: Skeleton, Empty, or Populated Content */}
-      <TriStateView<Project[]>
-        skeletonName="project-list-grid"
-        loading={loading}
-        data={filtered}
-        isEmpty={(items) => items.length === 0}
-        boneyardFixture={<ProjectListSkeleton />}
-        emptyState={
+      {/* Main TriState View: Boneyard Skeleton on database cards, Empty, or Populated Content */}
+      <Skeleton name="project-cards" loading={isDataLoading} fallback={<ProjectCardsSkeleton />}>
+        <TriStateView<Project[]>
+          skeletonName="project-cards-grid"
+          loading={isDataLoading}
+          data={filtered}
+          isEmpty={(items) => items.length === 0}
+          boneyardFixture={<ProjectCardsSkeleton />}
+          emptyState={
           <div className="empty-state">
             <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
               <FolderKanban size={36} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />

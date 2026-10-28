@@ -336,3 +336,129 @@ export const ProjectListSkeleton: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * 6 Project Cards Skeleton representing ONLY the fetched data boxes from the database.
+ * Does not cover buttons, page titles, or stable HTML input controls.
+ */
+export const ProjectCardsSkeleton: React.FC = () => {
+  return (
+    <div
+      className="cards-grid"
+      aria-busy="true"
+      aria-label="Loading project workspaces from database"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: '1rem',
+      }}
+    >
+      {[1, 2, 3, 4, 5, 6].map((idx) => (
+        <div
+          key={idx}
+          className="boneyard-card-skeleton"
+          style={{
+            padding: '1.25rem',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '155px',
+          }}
+        >
+          <div>
+            {/* Header: Icon box + Title bar + Status badge pill */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div
+                  className="boneyard-bone"
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '8px',
+                    flexShrink: 0,
+                  }}
+                />
+                <div
+                  className="boneyard-bone"
+                  style={{
+                    width: '120px',
+                    height: '14px',
+                    borderRadius: '9999px',
+                  }}
+                />
+              </div>
+              <div
+                className="boneyard-bone"
+                style={{
+                  width: '58px',
+                  height: '20px',
+                  borderRadius: '9999px',
+                }}
+              />
+            </div>
+
+            {/* Description: 2 lines */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.1rem' }}>
+              <div
+                className="boneyard-bone"
+                style={{
+                  width: '88%',
+                  height: '11px',
+                  borderRadius: '9999px',
+                }}
+              />
+              <div
+                className="boneyard-bone"
+                style={{
+                  width: '56%',
+                  height: '11px',
+                  borderRadius: '9999px',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Footer: Dataset count pill on left, date pill on right */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: '0.65rem',
+              borderTop: '1px solid var(--border-hairline)',
+            }}
+          >
+            <div
+              className="boneyard-bone"
+              style={{
+                width: '74px',
+                height: '14px',
+                borderRadius: '9999px',
+              }}
+            />
+            <div
+              className="boneyard-bone"
+              style={{
+                width: '64px',
+                height: '14px',
+                borderRadius: '9999px',
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
