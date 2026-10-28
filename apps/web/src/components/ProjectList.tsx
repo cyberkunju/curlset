@@ -470,6 +470,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       {/* Main TriState View: Boneyard Skeleton on database cards, Empty, or Populated Content */}
       <TriStateView<Project[]>
         skeletonName="project-cards-grid"
+        minHeight={420}
         loading={isDataLoading}
         data={filtered}
         isEmpty={(items) => items.length === 0}

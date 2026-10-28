@@ -2,22 +2,23 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 export interface FloatingScrollbarProps {
   containerRef: React.RefObject<HTMLElement | null>;
-  offsetTop?: number;      // Height of top sticky header (default: 56px)
-  offsetBottom?: number;   // Inset from bottom of viewport (default: 8px)
-  thumbMinHeight?: number; // Minimum thumb height (default: 48px)
-  autoHideDelay?: number;  // Delay before fading out (default: 1100ms)
+  offsetTop?: number;      // Inset from top of scroll container (default: 6px)
+  offsetBottom?: number;   // Inset from bottom of scroll container (default: 6px)
+  thumbMinHeight?: number; // Minimum thumb height (default: 64px)
+  autoHideDelay?: number;  // Delay before fading out (default: 1200ms)
 }
 
 export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
   containerRef,
-  offsetTop = 56,
-  offsetBottom = 8,
-  thumbMinHeight = 48,
-  autoHideDelay = 1100,
+  offsetTop = 6,
+  offsetBottom = 6,
+  thumbMinHeight = 64,
+  autoHideDelay = 1200,
 }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollHeight, setScrollHeight] = useState(0);
   const [clientHeight, setClientHeight] = useState(0);
+  const [containerRect, setContainerRect] = useState({ top: 56, height: 800 });
   const [isScrolling, setIsScrolling] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -34,14 +35,16 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
     setScrollTop(el.scrollTop);
     setScrollHeight(el.scrollHeight);
     setClientHeight(el.clientHeight);
+    const rect = el.getBoundingClientRect();
+    setContainerRect({ top: rect.top, height: rect.height });
   }, [containerRef]);
 
-  // Initial gentle presence preview on mount to show user where the scrollbar sits
+  // Initial gentle presence preview on mount/route change
   useEffect(() => {
     setIsScrolling(true);
     const timer = setTimeout(() => {
       setIsScrolling(false);
-    }, 1500);
+    }, 1800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -66,6 +69,7 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
     };
 
     el.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', updateMetrics);
 
     // Observe size changes of container and its content
     const resizeObserver = new ResizeObserver(() => {
@@ -79,6 +83,7 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
 
     return () => {
       el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', updateMetrics);
       resizeObserver.disconnect();
       if (hideTimeoutRef.current) {
         clearTimeout(hideTimeoutRef.current);
@@ -98,17 +103,16 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
     dragStartYRef.current = e.clientY;
     dragStartScrollTopRef.current = el.scrollTop;
 
+    const trackHeight = Math.max(0, containerRect.height - offsetTop - offsetBottom);
+    const rawThumbHeight = scrollHeight > 0
+      ? (clientHeight / scrollHeight) * trackHeight
+      : thumbMinHeight;
+    const thumbHeight = Math.max(thumbMinHeight, Math.min(trackHeight - 4, Math.round(rawThumbHeight)));
+    const availableTrack = trackHeight - thumbHeight;
+
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const deltaY = moveEvent.clientY - dragStartYRef.current;
-      const trackHeight = clientHeight - (offsetTop + 4) - offsetBottom;
-      const rawThumbHeight = clientHeight > 0 && scrollHeight > 0
-        ? (clientHeight / scrollHeight) * trackHeight
-        : thumbMinHeight;
-      const thumbHeight = Math.max(thumbMinHeight, Math.round(rawThumbHeight));
-      const availableTrack = trackHeight - thumbHeight;
-
       if (availableTrack <= 0) return;
-
+      const deltaY = moveEvent.clientY - dragStartYRef.current;
       const maxScroll = scrollHeight - clientHeight;
       const scrollDelta = (deltaY / availableTrack) * maxScroll;
       el.scrollTop = Math.max(0, Math.min(maxScroll, dragStartScrollTopRef.current + scrollDelta));
@@ -119,7 +123,6 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
 
-      // Start hide timer
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
       hideTimeoutRef.current = setTimeout(() => {
         setIsScrolling(false);
@@ -140,8 +143,8 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
     const clickY = e.clientY - rect.top;
     const trackHeight = rect.height;
 
-    const rawThumbHeight = (clientHeight / scrollHeight) * trackHeight;
-    const thumbHeight = Math.max(thumbMinHeight, Math.round(rawThumbHeight));
+    const rawThumbHeight = scrollHeight > 0 ? (clientHeight / scrollHeight) * trackHeight : thumbMinHeight;
+    const thumbHeight = Math.max(thumbMinHeight, Math.min(trackHeight - 4, Math.round(rawThumbHeight)));
     const availableTrack = trackHeight - thumbHeight;
     if (availableTrack <= 0) return;
 
@@ -157,18 +160,18 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
   const canScroll = scrollHeight > clientHeight + 4;
   if (!canScroll) return null;
 
-  const trackTop = offsetTop + 4;
-  const trackHeight = Math.max(0, clientHeight - trackTop - offsetBottom);
-  if (trackHeight <= 0) return null;
+  const trackTop = containerRect.top + offsetTop;
+  const trackHeight = Math.max(0, containerRect.height - offsetTop - offsetBottom);
+  if (trackHeight <= 20) return null;
 
   // Natural proportional thumb size (never artificially shrunken)
   const rawThumbHeight = (clientHeight / scrollHeight) * trackHeight;
-  const thumbHeight = Math.max(thumbMinHeight, Math.round(rawThumbHeight));
+  const thumbHeight = Math.max(thumbMinHeight, Math.min(trackHeight - 4, Math.round(rawThumbHeight)));
   const maxScroll = scrollHeight - clientHeight;
   const scrollRatio = maxScroll > 0 ? Math.max(0, Math.min(1, scrollTop / maxScroll)) : 0;
   const thumbTop = scrollRatio * (trackHeight - thumbHeight);
 
-  // Visible only when actively scrolling, hovered on right rail, or dragging
+  // Visible when actively scrolling, hovered on right rail, or dragging
   const isVisible = isScrolling || isHovered || isDragging;
 
   return (
@@ -195,23 +198,23 @@ export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
       }}
       title="Scroll indicator"
     >
-      {/* Natural Proportional Thumb */}
+      {/* Natural Proportional Thumb with Comfortable Size */}
       <div
         onPointerDown={handlePointerDown}
         style={{
-          width: isHovered || isDragging ? '8px' : '6px',
+          width: isHovered || isDragging ? '10px' : '7px',
           height: `${thumbHeight}px`,
-          transform: `translateY(${thumbTop}px) ${isVisible ? 'translateX(0)' : 'translateX(8px)'}`,
+          transform: `translateY(${thumbTop}px) ${isVisible ? 'translateX(0)' : 'translateX(6px)'}`,
           opacity: isVisible ? 1 : 0,
           borderRadius: '9999px',
           backgroundColor: isDragging
             ? 'var(--accent-interactive, #3b82f6)'
             : isHovered
-            ? 'var(--text-primary, #ffffff)'
-            : 'var(--text-secondary, rgba(161, 161, 170, 0.8))',
+            ? 'rgba(255, 255, 255, 0.85)'
+            : 'rgba(161, 161, 170, 0.55)',
           boxShadow: isDragging
             ? '0 0 10px rgba(59, 130, 246, 0.6)'
-            : '0 1px 4px rgba(0, 0, 0, 0.4)',
+            : '0 1px 4px rgba(0, 0, 0, 0.35)',
           cursor: 'pointer',
           transition: isDragging
             ? 'width 0.15s ease, background-color 0.15s ease'

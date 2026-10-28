@@ -29,15 +29,15 @@ export function TriStateView<T>({
   const hasData = Boolean(data && !isEmpty(data));
 
   return (
-    <div style={{ position: 'relative', width: '100%', minHeight: loading ? `${minHeight}px` : undefined }}>
-      <AnimatePresence mode="wait">
+    <div style={{ position: 'relative', width: '100%', minHeight: `${minHeight}px` }}>
+      <AnimatePresence initial={false}>
         {loading && (
           <motion.div
             key="skeleton-state"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            transition={{ duration: 0.15 }}
             style={{ width: '100%' }}
           >
             {boneyardFixture || (

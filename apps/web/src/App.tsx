@@ -39,7 +39,7 @@ export const App: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState<any>(null);
-  const mainWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Responsive sidebar collapse state (default collapsed on tablet 768-1023px)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -257,83 +257,85 @@ export const App: React.FC = () => {
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div className="main-wrapper" ref={mainWrapperRef}>
+      <div className="main-wrapper">
         <Header
           breadcrumbs={breadcrumbs}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
 
-        <main className="content-body">
-          <DirectionalPageTransition
-            activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
-            direction={direction}
-          >
-            {currentView === 'landing' && (
-              <LandingPage
-                onOpenProjects={() => handleNavigate('projects')}
-                onOpenHealth={() => handleNavigate('health')}
-                onOpenGovernance={() => handleNavigate('governance')}
-                onOpenCreateProject={() => setIsCreateModalOpen(true)}
-                projectCount={projects.length}
-              />
-            )}
+        <div className="content-scroll-container" ref={scrollContainerRef}>
+          <main className="content-body">
+            <DirectionalPageTransition
+              activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
+              direction={direction}
+            >
+              {currentView === 'landing' && (
+                <LandingPage
+                  onOpenProjects={() => handleNavigate('projects')}
+                  onOpenHealth={() => handleNavigate('health')}
+                  onOpenGovernance={() => handleNavigate('governance')}
+                  onOpenCreateProject={() => setIsCreateModalOpen(true)}
+                  projectCount={projects.length}
+                />
+              )}
 
-            {currentView === 'projects' && (
-              <ProjectList
-                projects={projects}
-                loading={loading}
-                onSelectProject={handleSelectProject}
-                onOpenCreateModal={() => setIsCreateModalOpen(true)}
-                includeArchived={includeArchived}
-                onToggleArchived={setIncludeArchived}
-                searchQuery={searchQuery}
-              />
-            )}
+              {currentView === 'projects' && (
+                <ProjectList
+                  projects={projects}
+                  loading={loading}
+                  onSelectProject={handleSelectProject}
+                  onOpenCreateModal={() => setIsCreateModalOpen(true)}
+                  includeArchived={includeArchived}
+                  onToggleArchived={setIncludeArchived}
+                  searchQuery={searchQuery}
+                />
+              )}
 
-            {currentView === 'project_detail' && selectedProjectId && (
-              <ProjectDetail
-                projectId={selectedProjectId}
-                onSelectDataset={handleSelectDataset}
-                onBack={() => handleNavigate('projects')}
-                searchQuery={searchQuery}
-              />
-            )}
+              {currentView === 'project_detail' && selectedProjectId && (
+                <ProjectDetail
+                  projectId={selectedProjectId}
+                  onSelectDataset={handleSelectDataset}
+                  onBack={() => handleNavigate('projects')}
+                  searchQuery={searchQuery}
+                />
+              )}
 
-            {currentView === 'dataset_detail' && selectedDatasetId && (
-              <DatasetDetail
-                datasetId={selectedDatasetId}
-                onBack={() => {
-                  setDirection(-1);
-                  if (selectedProjectId) {
-                    window.location.hash = `project/${selectedProjectId}`;
-                  } else {
-                    window.location.hash = 'projects';
-                  }
-                }}
-              />
-            )}
+              {currentView === 'dataset_detail' && selectedDatasetId && (
+                <DatasetDetail
+                  datasetId={selectedDatasetId}
+                  onBack={() => {
+                    setDirection(-1);
+                    if (selectedProjectId) {
+                      window.location.hash = `project/${selectedProjectId}`;
+                    } else {
+                      window.location.hash = 'projects';
+                    }
+                  }}
+                />
+              )}
 
-            {currentView === 'health' && (
-              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading health diagnostics...</div>}>
-                <SystemHealthView />
-              </React.Suspense>
-            )}
-            {currentView === 'governance' && (
-              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading governance console...</div>}>
-                <GovernanceView />
-              </React.Suspense>
-            )}
-            {currentView === 'providers' && (
-              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading model providers...</div>}>
-                <ProvidersView />
-              </React.Suspense>
-            )}
-          </DirectionalPageTransition>
-        </main>
+              {currentView === 'health' && (
+                <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading health diagnostics...</div>}>
+                  <SystemHealthView />
+                </React.Suspense>
+              )}
+              {currentView === 'governance' && (
+                <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading governance console...</div>}>
+                  <GovernanceView />
+                </React.Suspense>
+              )}
+              {currentView === 'providers' && (
+                <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading model providers...</div>}>
+                  <ProvidersView />
+                </React.Suspense>
+              )}
+            </DirectionalPageTransition>
+          </main>
 
-        {/* Shorter, Auto-Fading Overlay Scrollbar Docked Strictly Below Top Header */}
-        <FloatingScrollbar containerRef={mainWrapperRef} offsetTop={56} />
+          {/* Sleek, auto-hiding scrollbar strictly inside scrollable content area */}
+          <FloatingScrollbar containerRef={scrollContainerRef} />
+        </div>
       </div>
 
       {/* Global Command Palette */}
