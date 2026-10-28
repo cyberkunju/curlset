@@ -1131,6 +1131,21 @@ select option {
   display: none;
 }
 
+.workbench-collapsed-tab-left,
+.workbench-collapsed-tab-right {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.workbench-collapsed-tab-left:hover,
+.workbench-collapsed-tab-right:hover {
+  background-color: var(--bg-elevated) !important;
+}
+
+.workbench-collapsed-tab-left:hover svg,
+.workbench-collapsed-tab-right:hover svg {
+  color: var(--accent-interactive) !important;
+}
+
 .workbench-queue-item {
   position: relative;
   display: flex;

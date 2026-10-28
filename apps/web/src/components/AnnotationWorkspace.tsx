@@ -658,30 +658,134 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       )}
 
       {/* Top Workbench Navigation & Control Bar */}
-      <div className="workbench-top-bar">
-        {/* Left: Back to Dataset & Identity */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+      <div className="workbench-top-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+        {/* Left Section: Back to Dataset, Left Queue Toggle & Dataset Details */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button
             className="btn btn-secondary"
             onClick={onBack}
-            style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem' }}
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '4px' }}
             title="Return to Dataset Details"
           >
-            <ArrowLeft size={14} style={{ marginRight: '4px' }} />
+            <ArrowLeft size={14} />
             <span>Dataset</span>
           </button>
+
+          {/* Record Queue Toggle Button - Anchored on the LEFT */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
+            title={isLeftPanelOpen ? 'Collapse Record Queue' : 'Expand Record Queue'}
+            style={{
+              padding: '0.35rem 0.65rem',
+              fontSize: '0.825rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              backgroundColor: isLeftPanelOpen ? 'var(--bg-elevated)' : 'transparent',
+              borderColor: isLeftPanelOpen ? 'var(--accent-interactive)' : 'var(--border-hairline)',
+              color: isLeftPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+            }}
+          >
+            {isLeftPanelOpen ? (
+              <PanelLeftClose size={15} style={{ color: 'var(--accent-interactive)' }} />
+            ) : (
+              <PanelLeftOpen size={15} />
+            )}
+            <span style={{ fontWeight: 600 }}>Queue</span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                padding: '0.08rem 0.4rem',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: isLeftPanelOpen ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-elevated)',
+                color: isLeftPanelOpen ? 'var(--accent-interactive)' : 'var(--text-muted)',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+              }}
+            >
+              {filteredQueue.length}
+            </span>
+          </button>
+
           <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)' }} />
+
+          {/* Dataset Title & Badges */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: '0.925rem',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+                maxWidth: '240px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={dataset.name}
+            >
               {dataset.name}
             </span>
-            <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
-            <span className="badge badge-neutral">v{dataset.schema_version}</span>
+            <span className="badge badge-blue" style={{ fontSize: '0.72rem', textTransform: 'capitalize' }}>
+              {dataset.task_type.replace(/_/g, ' ')}
+            </span>
+            <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>
+              v{dataset.schema_version}
+            </span>
           </div>
         </div>
 
-        {/* Center: Filters & Progress */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {/* Center Section: Active Record Status, Filters & Reviewed Progress */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
+          {currentRecord && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.22rem 0.55rem',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-hairline)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.74rem',
+              }}
+              title={`Active Record ID: ${currentRecord.id}`}
+            >
+              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Active:</span>
+              <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                {currentRecord.external_key || currentRecord.id.slice(0, 8)}
+              </span>
+              <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '0.08rem 0.3rem' }}>
+                {currentRecord.split}
+              </span>
+              {currentRecord.annotation?.status && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '0.08rem 0.3rem',
+                    borderRadius: 'var(--radius-xs)',
+                    fontWeight: 600,
+                    backgroundColor:
+                      currentRecord.annotation.status === 'approved'
+                        ? 'rgba(16, 185, 129, 0.12)'
+                        : currentRecord.annotation.status === 'rejected'
+                        ? 'rgba(239, 68, 68, 0.12)'
+                        : 'rgba(245, 158, 11, 0.12)',
+                    color:
+                      currentRecord.annotation.status === 'approved'
+                        ? 'var(--emerald)'
+                        : currentRecord.annotation.status === 'rejected'
+                        ? 'var(--rose)'
+                        : 'var(--amber)',
+                  }}
+                >
+                  {currentRecord.annotation.status.replace(/_/g, ' ')}
+                </span>
+              )}
+            </div>
+          )}
+
           <CustomSelect
             value={selectedSplit}
             onChange={(val) => setSelectedSplit(val)}
@@ -692,7 +796,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               { value: 'test', label: 'Test' },
             ]}
             size="sm"
-            style={{ minWidth: '115px' }}
+            style={{ minWidth: '110px' }}
             ariaLabel="Filter queue by split"
           />
 
@@ -708,7 +812,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               { value: 'rejected', label: 'Rejected' },
             ]}
             size="sm"
-            style={{ minWidth: '140px' }}
+            style={{ minWidth: '130px' }}
             ariaLabel="Filter queue by review status"
           />
 
@@ -716,23 +820,45 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.25rem 0.6rem',
+              gap: '0.45rem',
+              padding: '0.22rem 0.55rem',
               background: 'var(--bg-elevated)',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-hairline)',
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
             }}
           >
             <span style={{ color: 'var(--text-secondary)' }}>Reviewed:</span>
             <span style={{ fontWeight: 700, color: 'var(--accent-interactive)', fontFamily: 'var(--font-mono)' }}>
-              {reviewedCount} / {queue.length} ({reviewPct}%)
+              {reviewedCount} / {queue.length}
+            </span>
+            <div
+              style={{
+                width: '42px',
+                height: '6px',
+                backgroundColor: 'var(--border-hairline)',
+                borderRadius: '999px',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${reviewPct}%`,
+                  height: '100%',
+                  backgroundColor: 'var(--accent-interactive)',
+                  borderRadius: '999px',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
+              {reviewPct}%
             </span>
           </div>
         </div>
 
-        {/* Right: Record Counter, Navigation, Panel Toggles & Shortcuts Help */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+        {/* Right Section: Navigation, Shortcuts & Right Inspector Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
           {/* Navigation Controls */}
           <button
             className="btn btn-secondary"
@@ -749,7 +875,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               fontSize: '0.8rem',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-secondary)',
-              minWidth: '95px',
+              minWidth: '85px',
               textAlign: 'center',
             }}
           >
@@ -766,35 +892,43 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             Next <kbd style={{ marginLeft: '4px', fontSize: '0.68rem' }}>J</kbd>
           </button>
 
-          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)', margin: '0 0.2rem' }} />
-
-          {/* Panel Visibility Toggles */}
-          <button
-            className="btn btn-secondary"
-            onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
-            title={isLeftPanelOpen ? 'Collapse Queue Panel' : 'Expand Queue Panel'}
-            style={{ padding: '0.35rem 0.5rem' }}
-          >
-            {isLeftPanelOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-            title={isRightPanelOpen ? 'Collapse Inspector Panel' : 'Expand Inspector Panel'}
-            style={{ padding: '0.35rem 0.5rem' }}
-          >
-            {isRightPanelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
-          </button>
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)', margin: '0 0.15rem' }} />
 
           {/* Shortcut Help Trigger */}
           <button
             className="btn btn-secondary"
             onClick={() => setIsShortcutModalOpen(true)}
             title="Keyboard Shortcuts (?)"
-            style={{ padding: '0.35rem 0.55rem' }}
+            style={{ padding: '0.35rem 0.55rem', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem' }}
           >
-            <HelpCircle size={15} />
+            <HelpCircle size={14} />
+            <span>Shortcuts</span>
+          </button>
+
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-hairline)', margin: '0 0.15rem' }} />
+
+          {/* Right Panel Toggle: Guidelines & Inspector - Anchored on the RIGHT */}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            title={isRightPanelOpen ? 'Collapse Guidelines & Inspector' : 'Expand Guidelines & Inspector'}
+            style={{
+              padding: '0.35rem 0.65rem',
+              fontSize: '0.825rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              backgroundColor: isRightPanelOpen ? 'var(--bg-elevated)' : 'transparent',
+              borderColor: isRightPanelOpen ? 'var(--accent-interactive)' : 'var(--border-hairline)',
+              color: isRightPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>Inspector</span>
+            {isRightPanelOpen ? (
+              <PanelRightClose size={15} style={{ color: 'var(--accent-interactive)' }} />
+            ) : (
+              <PanelRightOpen size={15} />
+            )}
           </button>
         </div>
       </div>
@@ -803,13 +937,76 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
       <div
         className="workbench-body"
         style={{
-          gridTemplateColumns: `${isLeftPanelOpen ? '280px' : '0px'} minmax(0, 1fr) ${isRightPanelOpen ? '340px' : '0px'}`,
+          gridTemplateColumns: `${isLeftPanelOpen ? '280px' : '36px'} minmax(0, 1fr) ${isRightPanelOpen ? '340px' : '36px'}`,
           transition: 'grid-template-columns 0.2s ease',
         }}
       >
         {/* ========================================================================= */}
-        {/* Left Column: Record Queue Navigator */}
+        {/* Left Column: Record Queue Navigator (or Collapsed Strip) */}
         {/* ========================================================================= */}
+        {!isLeftPanelOpen && (
+          <div
+            onClick={() => setIsLeftPanelOpen(true)}
+            title="Expand Record Queue (Click to open)"
+            className="workbench-collapsed-tab-left"
+            style={{
+              width: '36px',
+              height: '100%',
+              backgroundColor: 'var(--bg-surface)',
+              borderRight: '1px solid var(--border-hairline)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: '0.75rem',
+              gap: '0.75rem',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: 'var(--radius-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-elevated)',
+              }}
+            >
+              <PanelLeftOpen size={14} />
+            </div>
+            <div
+              style={{
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                transform: 'rotate(180deg)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <span>Record Queue</span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--accent-interactive)',
+                  fontWeight: 700,
+                }}
+              >
+                ({filteredQueue.length})
+              </span>
+            </div>
+          </div>
+        )}
+
         {isLeftPanelOpen && (
           <div className="workbench-panel-left">
             {/* Queue Header & Search */}
@@ -2087,7 +2284,57 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 </AnimatePresence>
               </div>
             )}
-              </motion.div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Right Column Collapsed Handle Strip */}
+        {!isRightPanelOpen && (
+          <div
+            onClick={() => setIsRightPanelOpen(true)}
+            title="Expand Guidelines & Inspector (Click to open)"
+            className="workbench-collapsed-tab-right"
+            style={{
+              width: '36px',
+              height: '100%',
+              backgroundColor: 'var(--bg-surface)',
+              borderLeft: '1px solid var(--border-hairline)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: '0.75rem',
+              gap: '0.75rem',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: 'var(--radius-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-elevated)',
+              }}
+            >
+              <PanelRightOpen size={14} />
+            </div>
+            <div
+              style={{
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Guidelines & Inspector
+            </div>
           </div>
         )}
       </div>
