@@ -75,8 +75,8 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
               ],
             },
             {
-              duration: 480,
-              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+              duration: 800,
+              easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
               pseudoElement: '::view-transition-new(root)',
             }
           );
@@ -134,7 +134,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             initial={{ rotate: -90, scale: 0.5, opacity: 0 }}
             animate={{ rotate: 0, scale: 1, opacity: 1 }}
             exit={{ rotate: 90, scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Sun size={15} strokeWidth={2} style={{ color: 'var(--amber, #F59E0B)' }} />
@@ -145,7 +145,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             initial={{ rotate: 90, scale: 0.5, opacity: 0 }}
             animate={{ rotate: 0, scale: 1, opacity: 1 }}
             exit={{ rotate: -90, scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Moon size={15} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
