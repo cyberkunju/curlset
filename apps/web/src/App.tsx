@@ -60,12 +60,16 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Global Cmd+K / Ctrl+K keyboard shortcut listener
+  // Global keyboard shortcuts (Cmd+K for Command Palette, Cmd+B to toggle sidebar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);

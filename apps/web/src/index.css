@@ -291,8 +291,16 @@ body {
   }
 }
 
+.mobile-sidebar-toggle {
+  display: none !important;
+}
+
 /* Mobile (below 768px): Accessible Slide-Out Drawer */
 @media (max-width: 767px) {
+  .mobile-sidebar-toggle {
+    display: inline-flex !important;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;

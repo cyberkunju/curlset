@@ -119,32 +119,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Desktop/Tablet Collapse Toggle */}
-          {onToggleCollapse && !isMobileOpen && (
-            <button
-              type="button"
-              className="sidebar-collapse-btn"
-              onClick={onToggleCollapse}
-              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-muted)',
-                padding: '0.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 'var(--radius-sm)',
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              {isCollapsed ? <PanelLeftOpen size={16} strokeWidth={1.75} /> : <PanelLeftClose size={16} strokeWidth={1.75} />}
-            </button>
-          )}
-
           {/* Mobile Close Button */}
           {onCloseMobile && isMobileOpen && (
             <button
@@ -207,6 +181,89 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </SpringButton>
           ))}
         </nav>
+
+        {/* Sidebar Footer: Discretely tucked-away collapse/expand toggle */}
+        {onToggleCollapse && !isMobileOpen && (
+          <div
+            className="sidebar-footer"
+            style={{
+              padding: isCollapsed ? '0.75rem 0.5rem' : '0.75rem 0.85rem',
+              borderTop: '1px solid var(--border-hairline)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'space-between',
+              backgroundColor: 'var(--bg-surface)',
+              marginTop: 'auto',
+            }}
+          >
+            {!isCollapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                <div
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor:
+                      systemHealth?.status === 'healthy' || systemHealth?.status === 'ok'
+                        ? 'var(--emerald)'
+                        : 'var(--amber)',
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.74rem',
+                    color: 'var(--text-muted)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {systemHealth?.status === 'healthy' || systemHealth?.status === 'ok'
+                    ? 'System Ready'
+                    : 'Local Mode'}
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              className="sidebar-collapse-btn"
+              onClick={onToggleCollapse}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-hairline)',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                padding: '0.35rem',
+                borderRadius: 'var(--radius-sm)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.backgroundColor = 'var(--bg-elevated)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-muted)';
+                e.currentTarget.style.borderColor = 'var(--border-hairline)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              {isCollapsed ? (
+                <PanelLeftOpen size={15} strokeWidth={1.75} />
+              ) : (
+                <PanelLeftClose size={15} strokeWidth={1.75} />
+              )}
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
