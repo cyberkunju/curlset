@@ -201,27 +201,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </SpringButton>
           ))}
         </nav>
-
-        {/* Footer */}
-        <div className="sidebar-footer" style={{ justifyContent: isCollapsed ? 'center' : 'space-between' }}>
-          {!isCollapsed ? (
-            <>
-              <div className="status-indicator">
-                <span className="status-dot"></span>
-                <span>{systemHealth?.privacy_mode === 'local_only' ? 'Local Mode' : 'Ready'}</span>
-              </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                v0.1.0
-              </span>
-            </>
-          ) : (
-            <div
-              className="status-dot"
-              title={`Status: ${systemHealth?.privacy_mode === 'local_only' ? 'Local Mode' : 'Ready'}`}
-              style={{ margin: '0 auto' }}
-            />
-          )}
-        </div>
       </aside>
     </>
   );
