@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Bot, CheckCircle2, AlertTriangle, ShieldCheck, Code2, ArrowRight, X } from 'lucide-react';
+import { Bot, CheckCircle2, AlertTriangle, ShieldCheck, Code2, ArrowRight, X, KeyRound } from 'lucide-react';
 import { fetchProviders, triggerAIAnnotation } from '../api';
 import { PerceptualProgressBar } from './ui/PerceptualProgressBar';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { ModalShell } from './ui/ModalShell';
+import { ProviderIcon } from './ui/ProviderIcon';
 
 export interface AIAnnotationModalProps {
   datasetId: string;
@@ -356,9 +357,28 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
             {/* Provider and Model Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', marginBottom: '0.85rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                  Gateway Provider
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', fontWeight: 600 }}>
+                    <ProviderIcon provider={selectedProvider} size={14} />
+                    <span>Gateway Provider</span>
+                  </label>
+                  <a
+                    href="#providers"
+                    onClick={onClose}
+                    style={{
+                      fontSize: '0.7rem',
+                      color: 'var(--indigo)',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    <KeyRound size={11} />
+                    <span>Manage Keys</span>
+                  </a>
+                </div>
                 <CustomSelect
                   value={selectedProvider}
                   onChange={handleProviderChange}

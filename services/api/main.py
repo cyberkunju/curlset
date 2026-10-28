@@ -35,6 +35,7 @@ from services.api.routes import (
     inference,
     ingestion,
     projects,
+    providers,
     records,
     security,
     sources,
@@ -172,6 +173,7 @@ app.include_router(exports.router)
 app.include_router(sources.router)
 app.include_router(synthesis.router)
 app.include_router(evaluation.router)
+app.include_router(providers.router)
 
 
 

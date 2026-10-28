@@ -420,6 +420,59 @@ export async function fetchProjectAuditLogs(projectId: string, limit = 50) {
   return handleResponse<any[]>(res);
 }
 
+// --- Model Provider Credentials & API Keys ---
+
+export async function fetchProviderCredentials() {
+  const res = await fetch(`${API_BASE}/provider-credentials`);
+  return handleResponse<any[]>(res);
+}
+
+export async function createProviderCredential(payload: {
+  provider?: string;
+  label?: string;
+  api_key?: string;
+  base_url?: string;
+  models?: string[];
+  is_default?: boolean;
+}) {
+  const res = await fetch(`${API_BASE}/provider-credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<any>(res);
+}
+
+export async function testProviderCredential(credId: string) {
+  const res = await fetch(`${API_BASE}/provider-credentials/${credId}/test`, {
+    method: 'POST',
+  });
+  return handleResponse<any>(res);
+}
+
+export async function deleteProviderCredential(credId: string) {
+  const res = await fetch(`${API_BASE}/provider-credentials/${credId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Failed to remove provider credential (${res.status})`);
+  }
+}
+
+export async function detectProviderMetadata(input: {
+  api_key?: string;
+  base_url?: string;
+  input_text?: string;
+}) {
+  const res = await fetch(`${API_BASE}/provider-credentials/detect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<any>(res);
+}
+
+
 
 
 

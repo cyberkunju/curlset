@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Home, FolderKanban, ShieldCheck, Activity, Layers, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Home, FolderKanban, ShieldCheck, Activity, Layers, X, PanelLeftClose, PanelLeftOpen, KeyRound } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
 
 interface SidebarProps {
@@ -66,6 +66,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Governance & Quotas',
       icon: <ShieldCheck size={17} strokeWidth={1.75} />,
       isActive: currentView === 'governance',
+    },
+    {
+      id: 'providers',
+      label: 'Model Providers & Keys',
+      icon: <KeyRound size={17} strokeWidth={1.75} />,
+      isActive: currentView === 'providers',
     },
     {
       id: 'health',

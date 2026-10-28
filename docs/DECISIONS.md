@@ -171,4 +171,16 @@ This log records material decisions. New decisions should include context, the c
 
 **Consequences:** Developers and students can immediately clone, run unit tests, and annotate datasets offline without needing Docker or running database daemons. When Docker Compose is used, it connects to PostgreSQL and MinIO seamlessly.
 
+## ADR-016 — Multi-Provider API Key Management and Smart Recognition
+
+**Status:** Accepted  
+**Decision:** Provide a unified Model Providers & API Keys management interface with real-time heuristic provider auto-recognition (key prefixes, endpoint URLs, and fuzzy keywords) that loads matching SVG provider assets. The backend supports OpenAI (`OpenAIProvider` for `gpt-4o`, `gpt-4o-mini`), Anthropic Claude (`AnthropicProvider` for `claude-3-5-sonnet`, `claude-3-5-haiku`), local nodes (`OllamaProvider`), and generic OpenAI-compatible endpoints (`OpenAICompatibleProvider`). API keys are stored locally with reversible obfuscation and masked on retrieval (`sk-ant-••••••••abcd`), never exposed to browser logs or client bundles.
+
+**Context:** Users require using external frontier models (OpenAI, Claude) and local servers with their own keys without hardcoded per-provider forms, while keeping the platform functional offline when no keys are provided.
+
+**Alternatives:** Hardcoded separate pages for each provider; saving raw keys in plain client local storage; requiring cloud secrets manager for local development.
+
+**Consequences:** Enables flexible multi-key workflows, unified recognition UI, dynamic model switching in AI annotation batches, and strict compliance with secret redaction and privacy principles.
+
+
 

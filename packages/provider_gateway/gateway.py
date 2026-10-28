@@ -5,9 +5,11 @@ and strict secret redaction.
 import re
 from typing import Any
 
+from packages.provider_gateway.anthropic_provider import AnthropicProvider
 from packages.provider_gateway.base import BaseProvider
 from packages.provider_gateway.fake_provider import FakeProvider
 from packages.provider_gateway.ollama_provider import OllamaProvider
+from packages.provider_gateway.openai_provider import OpenAIProvider
 from packages.provider_gateway.types import (
     ProviderError,
     ProviderRateLimitError,
@@ -48,6 +50,8 @@ class ProviderGateway:
         # Register standard default providers
         self.register_provider(FakeProvider())
         self.register_provider(OllamaProvider())
+        self.register_provider(OpenAIProvider())
+        self.register_provider(AnthropicProvider())
 
     @classmethod
     def get_instance(cls) -> "ProviderGateway":

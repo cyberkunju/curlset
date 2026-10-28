@@ -17,8 +17,11 @@ const SystemHealthView = React.lazy(() =>
 const GovernanceView = React.lazy(() =>
   import('./components/GovernanceView').then((m) => ({ default: m.GovernanceView }))
 );
+const ProvidersView = React.lazy(() =>
+  import('./components/ProvidersView').then((m) => ({ default: m.ProvidersView }))
+);
 
-type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance';
+type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance' | 'providers';
 
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
@@ -115,6 +118,10 @@ export const App: React.FC = () => {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
       setCurrentView('governance');
+    } else if (raw === 'providers') {
+      setSelectedProjectId(null);
+      setSelectedDatasetId(null);
+      setCurrentView('providers');
     } else if (raw === 'health') {
       setCurrentView('health');
     }
@@ -176,6 +183,10 @@ export const App: React.FC = () => {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
       window.location.hash = 'governance';
+    } else if (view === 'providers') {
+      setSelectedProjectId(null);
+      setSelectedDatasetId(null);
+      window.location.hash = 'providers';
     } else if (view === 'health') {
       window.location.hash = 'health';
     }
@@ -195,6 +206,8 @@ export const App: React.FC = () => {
     breadcrumbs.push({ label: 'Projects' });
   } else if (currentView === 'governance') {
     breadcrumbs.push({ label: 'Governance & Quotas' });
+  } else if (currentView === 'providers') {
+    breadcrumbs.push({ label: 'Model Providers & API Keys' });
   } else if (currentView === 'health') {
     breadcrumbs.push({ label: 'System Diagnostics' });
   } else if (currentView === 'project_detail') {
@@ -303,6 +316,11 @@ export const App: React.FC = () => {
             {currentView === 'governance' && (
               <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading governance console...</div>}>
                 <GovernanceView />
+              </React.Suspense>
+            )}
+            {currentView === 'providers' && (
+              <React.Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto 0.5rem' }} />Loading model providers...</div>}>
+                <ProvidersView />
               </React.Suspense>
             )}
           </DirectionalPageTransition>

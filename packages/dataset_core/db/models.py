@@ -299,9 +299,33 @@ class AuditLogModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
 
 
+class ProviderCredentialModel(Base):
+    __tablename__ = "provider_credentials"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), default="default_user", index=True)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    key_prefix: Mapped[str] = mapped_column(String(32), default="")
+    key_suffix: Mapped[str] = mapped_column(String(32), default="")
+    base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    models: Mapped[list[str]] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(32), default="configured")
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
 # Explicit composite indexes for high-frequency queries
 Index("idx_records_dataset_split", DatasetRecordModel.dataset_id, DatasetRecordModel.split)
 Index("idx_assets_dataset_sha256", AssetModel.dataset_id, AssetModel.sha256)
 Index("idx_annotations_dataset_status", AnnotationModel.dataset_id, AnnotationModel.status)
 Index("idx_revisions_annotation_number", AnnotationRevisionModel.annotation_id, AnnotationRevisionModel.revision_number)
 Index("idx_project_members_project_user", ProjectMemberModel.project_id, ProjectMemberModel.user_id, unique=True)
+Index("idx_provider_credentials_user_prov", ProviderCredentialModel.user_id, ProviderCredentialModel.provider)
+

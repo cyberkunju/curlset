@@ -394,5 +394,26 @@ export interface AuditLogEntry {
   created_at?: string;
 }
 
+export interface ProviderCredential {
+  id: string;
+  user_id: string;
+  provider: string;
+  label: string;
+  key_prefix: string;
+  key_suffix: string;
+  key_mask: string;
+  base_url?: string | null;
+  is_active: boolean;
+  is_default: boolean;
+  models: string[];
+  status: 'configured' | 'operational' | 'failed';
+  latency_ms?: number | null;
+  last_tested_at?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+
 
 

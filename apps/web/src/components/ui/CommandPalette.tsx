@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Database,
   X,
+  KeyRound,
 } from 'lucide-react';
 import { Project } from '../../types';
 
@@ -90,6 +91,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         icon: <ShieldCheck size={16} strokeWidth={1.75} />,
         onSelect: () => onNavigate('governance'),
         keywords: ['quotas', 'storage', 'audit', 'rbac', 'security'],
+      },
+      {
+        id: 'nav-providers',
+        title: 'Model Providers & API Keys',
+        subtitle: 'Configure OpenAI, Anthropic Claude, Ollama, and model credentials',
+        category: 'Navigation',
+        icon: <KeyRound size={16} strokeWidth={1.75} />,
+        onSelect: () => onNavigate('providers'),
+        keywords: ['providers', 'keys', 'openai', 'claude', 'anthropic', 'ollama', 'api', 'gpt', 'models'],
       },
       {
         id: 'nav-health',

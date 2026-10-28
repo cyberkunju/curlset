@@ -232,3 +232,24 @@ class ReviewEventContract(DomainBaseModel):
     to_status: ReviewStatus
     reason: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class ProviderCredentialContract(DomainBaseModel):
+    id: str
+    user_id: str = "default_user"
+    provider: str
+    label: str
+    key_prefix: str = ""
+    key_suffix: str = ""
+    key_mask: str = ""
+    base_url: str | None = None
+    is_active: bool = True
+    is_default: bool = False
+    models: list[str] = Field(default_factory=list)
+    status: str = "configured"
+    latency_ms: float | None = None
+    last_tested_at: datetime | None = None
+    error_message: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
