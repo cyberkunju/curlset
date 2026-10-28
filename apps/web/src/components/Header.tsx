@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Sun, Moon, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { SpringButton } from './ui/SpringButton';
+import { ThemeToggle } from './ui/ThemeToggle';
 
 export interface BreadcrumbItem {
   label: string;
@@ -29,18 +30,6 @@ export const Header: React.FC<HeaderProps> = ({
       setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform || navigator.userAgent));
     }
   }, []);
-
-  const toggleTheme = () => {
-    if (document.documentElement.classList.contains('dark')) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
-  };
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -192,16 +181,8 @@ export const Header: React.FC<HeaderProps> = ({
           </kbd>
         </button>
 
-        {/* Theme Toggle */}
-        <SpringButton
-          variant="secondary"
-          onClick={toggleTheme}
-          aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          style={{ width: '32px', height: '32px', padding: 0, borderRadius: 'var(--radius-sm)' }}
-        >
-          {isDark ? <Sun size={15} strokeWidth={1.75} /> : <Moon size={15} strokeWidth={1.75} />}
-        </SpringButton>
+        {/* Theme Toggle with Circular View Transition */}
+        <ThemeToggle isDark={isDark} onThemeChange={(val) => setIsDark(val)} />
       </div>
     </header>
   );
