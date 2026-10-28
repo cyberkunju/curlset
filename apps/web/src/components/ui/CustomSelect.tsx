@@ -263,10 +263,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               const isHighlighted = idx === highlightedIndex;
 
               return (
-                <div
+                <motion.div
                   key={option.value}
                   role="option"
                   aria-selected={isSelected}
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.025, duration: 0.18, ease: 'easeOut' }}
                   onClick={() => {
                     if (!option.disabled) {
                       onChange(option.value);
@@ -275,6 +278,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   }}
                   onMouseEnter={() => !option.disabled && setHighlightedIndex(idx)}
                   style={{
+                    position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -288,18 +292,31 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                       : option.disabled
                       ? 'var(--text-muted)'
                       : 'var(--text-secondary)',
-                    backgroundColor: isSelected
-                      ? 'rgba(255, 255, 255, 0.08)'
-                      : isHighlighted
+                    backgroundColor: isHighlighted && !isSelected
                       ? 'var(--bg-subtle-hover)'
                       : 'transparent',
                     cursor: option.disabled ? 'not-allowed' : 'pointer',
                     opacity: option.disabled ? 0.45 : 1,
-                    transition: 'background-color 0.1s ease',
                     userSelect: 'none',
+                    overflow: 'hidden',
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  {isSelected && (
+                    <motion.div
+                      layoutId={`custom-select-active-${selectId}`}
+                      transition={{ type: 'spring' as const, stiffness: 500, damping: 35 }}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundColor: 'var(--accent-subtle, rgba(59, 130, 246, 0.12))',
+                        border: '1px solid var(--accent-interactive)',
+                        borderRadius: '4px',
+                        zIndex: 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                       {option.icon && <span>{option.icon}</span>}
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -323,9 +340,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   {isSelected && (
                     <span
                       style={{
+                        position: 'relative',
+                        zIndex: 1,
                         display: 'inline-flex',
                         alignItems: 'center',
-                        color: 'var(--accent-primary-fg, #fff)',
+                        color: 'var(--accent-interactive)',
                         flexShrink: 0,
                         marginLeft: '0.45rem',
                       }}
@@ -333,7 +352,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                       <Check size={14} strokeWidth={2.5} />
                     </span>
                   )}
-                </div>
+                </motion.div>
               );
             })}
           </motion.div>

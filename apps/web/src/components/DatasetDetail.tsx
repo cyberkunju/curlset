@@ -1041,9 +1041,12 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                   const rowNum = page * PAGE_SIZE + idx + 1;
 
                   return (
-                    <tr
+                    <motion.tr
                       key={rec.id}
                       id={`record-${rec.id}`}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                       style={
                         rec.id === highlightedRecordId
                           ? {
@@ -1121,7 +1124,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                           <span>Annotate</span>
                         </SpringButton>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
               </tbody>
@@ -1176,10 +1179,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 const rowNum = page * PAGE_SIZE + idx + 1;
 
                 return (
-                  <div
+                  <motion.div
                     key={rec.id}
                     id={`record-${rec.id}`}
                     className="record-card"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(idx * 0.03, 0.35), duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                     style={
                       rec.id === highlightedRecordId
                         ? {
@@ -1250,7 +1256,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                         <span>Annotate</span>
                       </SpringButton>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

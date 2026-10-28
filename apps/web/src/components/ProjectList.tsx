@@ -18,6 +18,7 @@ import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
 import { Skeleton } from 'boneyard-js/react';
+import { motion } from 'framer-motion';
 
 declare global {
   interface Window {
@@ -399,39 +400,71 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               type="button"
               onClick={() => setViewMode('grid')}
               style={{
-                background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent',
+                position: 'relative',
+                background: 'transparent',
                 border: 'none',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: viewMode === 'grid' ? 'var(--shadow-sm)' : 'none',
                 display: 'flex',
                 alignItems: 'center',
               }}
               title="Card Grid View"
               aria-label="Grid view"
             >
-              <LayoutGrid size={15} strokeWidth={1.75} />
+              {viewMode === 'grid' && (
+                <motion.div
+                  layoutId="projectListViewToggleIndicator"
+                  transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'var(--bg-surface)',
+                    borderRadius: 'inherit',
+                    boxShadow: 'var(--shadow-xs)',
+                    zIndex: 0,
+                  }}
+                />
+              )}
+              <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+                <LayoutGrid size={15} strokeWidth={1.75} />
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('table')}
               style={{
-                background: viewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
+                position: 'relative',
+                background: 'transparent',
                 border: 'none',
                 padding: '4px 8px',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 color: viewMode === 'table' ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: viewMode === 'table' ? 'var(--shadow-sm)' : 'none',
                 display: 'flex',
                 alignItems: 'center',
               }}
               title="Structured Table View"
               aria-label="Table view"
             >
-              <List size={15} strokeWidth={1.75} />
+              {viewMode === 'table' && (
+                <motion.div
+                  layoutId="projectListViewToggleIndicator"
+                  transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'var(--bg-surface)',
+                    borderRadius: 'inherit',
+                    boxShadow: 'var(--shadow-xs)',
+                    zIndex: 0,
+                  }}
+                />
+              )}
+              <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+                <List size={15} strokeWidth={1.75} />
+              </span>
             </button>
           </div>
         </div>
@@ -472,10 +505,18 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         {(items) =>
           viewMode === 'grid' ? (
             <div className="cards-grid">
-              {items.map((proj) => (
-                <div
+              {items.map((proj, idx) => (
+                <motion.div
                   key={proj.id}
                   className="card"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: Math.min(idx * 0.045, 0.4),
+                    duration: 0.24,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  layout="position"
                   onClick={() => onSelectProject(proj.id)}
                   tabIndex={0}
                   role="button"
@@ -543,7 +584,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                       <ChevronRight size={13} strokeWidth={1.75} />
                     </span>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           ) : (
@@ -559,9 +600,16 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((proj) => (
-                    <tr
+                  {items.map((proj, idx) => (
+                    <motion.tr
                       key={proj.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        delay: Math.min(idx * 0.035, 0.35),
+                        duration: 0.2,
+                        ease: [0.16, 1, 0.3, 1],
+                      }}
                       onClick={() => onSelectProject(proj.id)}
                       tabIndex={0}
                       onKeyDown={(e) => {
@@ -633,7 +681,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                           <ChevronRight size={14} strokeWidth={2} />
                         </span>
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>

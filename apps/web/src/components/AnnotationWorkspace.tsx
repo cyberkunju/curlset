@@ -887,9 +887,34 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               </div>
             </div>
 
-            {/* Queue Items List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
-              {loadingQueue ? (
+            {/* Queue Items List with Smooth Staggered Appearance */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem', position: 'relative' }}>
+              {loadingQueue && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    zIndex: 20,
+                    overflow: 'hidden',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                  }}
+                >
+                  <div
+                    className="workbench-transition-bar"
+                    style={{
+                      height: '100%',
+                      width: '40%',
+                      background: 'var(--accent-interactive)',
+                      borderRadius: '2px',
+                    }}
+                  />
+                </div>
+              )}
+
+              {loadingQueue && queue.length === 0 ? (
                 <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   <div className="spinner" style={{ margin: '0 auto 0.5rem auto' }}></div>
                   <div>Loading records...</div>
@@ -902,79 +927,92 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   <p style={{ fontSize: '0.78rem' }}>Adjust search or split/status filters.</p>
                 </div>
               ) : (
-                filteredQueue.map((item, idx) => {
-                  const isActive = item.id === selectedRecordId;
-                  const statusBadgeClass =
-                    item.review_status === 'approved'
-                      ? 'badge-emerald'
-                      : item.review_status === 'rejected'
-                      ? 'badge-rose'
-                      : item.review_status === 'needs_correction'
-                      ? 'badge-amber'
-                      : item.review_status === 'pending_review'
-                      ? 'badge-blue'
-                      : 'badge-neutral';
+                <div style={{ opacity: loadingQueue ? 0.7 : 1, transition: 'opacity 0.15s ease' }}>
+                  <AnimatePresence mode="popLayout">
+                    {filteredQueue.map((item, idx) => {
+                      const isActive = item.id === selectedRecordId;
+                      const statusBadgeClass =
+                        item.review_status === 'approved'
+                          ? 'badge-emerald'
+                          : item.review_status === 'rejected'
+                          ? 'badge-rose'
+                          : item.review_status === 'needs_correction'
+                          ? 'badge-amber'
+                          : item.review_status === 'pending_review'
+                          ? 'badge-blue'
+                          : 'badge-neutral';
 
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => setSelectedRecordId(item.id)}
-                      className={`workbench-queue-item ${isActive ? 'active' : ''}`}
-                      style={{ position: 'relative' }}
-                    >
-                      {isActive && (
+                      return (
                         <motion.div
-                          layoutId="activeQueueItemIndicator"
-                          transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1.5px solid var(--accent-interactive)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                            boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.2), var(--shadow-sm)',
-                            pointerEvents: 'none',
-                            zIndex: 0,
+                          key={item.id}
+                          layout="position"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.96 }}
+                          transition={{
+                            delay: Math.min(idx * 0.035, 0.35),
+                            duration: 0.22,
+                            ease: [0.16, 1, 0.3, 1],
                           }}
-                        />
-                      )}
-                      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span
-                            style={{
-                              fontSize: '0.825rem',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: isActive ? 700 : 500,
-                              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                            }}
-                          >
-                            #{idx + 1} {item.external_key || item.id.slice(0, 8)}
-                          </span>
-                          <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                            {item.review_status.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '0.72rem',
-                            color: 'var(--text-muted)',
-                          }}
+                          onClick={() => setSelectedRecordId(item.id)}
+                          className={`workbench-queue-item ${isActive ? 'active' : ''}`}
+                          style={{ position: 'relative' }}
                         >
-                          <span>Split: {item.split || 'train'}</span>
-                          {item.annotation_payload?.label && (
-                            <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
-                              {item.annotation_payload.label}
-                            </span>
+                          {isActive && (
+                            <motion.div
+                              layoutId="activeQueueItemIndicator"
+                              transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1.5px solid var(--accent-interactive)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.2), var(--shadow-sm)',
+                                pointerEvents: 'none',
+                                zIndex: 0,
+                              }}
+                            />
                           )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+                          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.825rem',
+                                  fontFamily: 'var(--font-mono)',
+                                  fontWeight: isActive ? 700 : 500,
+                                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                }}
+                              >
+                                #{idx + 1} {item.external_key || item.id.slice(0, 8)}
+                              </span>
+                              <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                                {item.review_status.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.72rem',
+                                color: 'var(--text-muted)',
+                              }}
+                            >
+                              <span>Split: {item.split || 'train'}</span>
+                              {item.annotation_payload?.label && (
+                                <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
+                                  {item.annotation_payload.label}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
               )}
             </div>
           </div>
