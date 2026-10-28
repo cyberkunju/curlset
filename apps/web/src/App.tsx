@@ -28,7 +28,8 @@ export const App: React.FC = () => {
   const [direction, setDirection] = useState<1 | -1>(1);
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasLoadedProjectsOnce, setHasLoadedProjectsOnce] = useState(false);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -68,11 +69,14 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const loadProjects = async () => {
-    setLoading(true);
+  const loadProjects = async (silent = false) => {
+    if (!silent && !hasLoadedProjectsOnce) {
+      setLoading(true);
+    }
     try {
       const data = await fetchProjects(includeArchived);
       setProjects(data);
+      setHasLoadedProjectsOnce(true);
     } catch (err: any) {
       console.error('Failed to load projects', err);
     } finally {
@@ -123,7 +127,7 @@ export const App: React.FC = () => {
   }, [syncFromHash]);
 
   useEffect(() => {
-    loadProjects();
+    loadProjects(hasLoadedProjectsOnce);
     loadHealth();
   }, [includeArchived]);
 

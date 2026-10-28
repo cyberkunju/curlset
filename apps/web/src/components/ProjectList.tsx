@@ -16,6 +16,8 @@ import { Project } from '../types';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+import { ProjectListSkeleton } from './ui/ProjectListSkeleton';
+import { Skeleton } from 'boneyard-js/react';
 
 interface ProjectListProps {
   projects: Project[];
@@ -115,9 +117,11 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         </SpringButton>
       </div>
 
-      {/* Real Summary Metrics Bar */}
-      <div
-        style={{
+      {/* Boneyard-powered Skeleton Integration */}
+      <Skeleton name="project-list" loading={loading} fallback={<ProjectListSkeleton />}>
+        {/* Real Summary Metrics Bar */}
+        <div
+          style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '0.85rem',
@@ -397,34 +401,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
         loading={loading}
         data={filtered}
         isEmpty={(items) => items.length === 0}
-        boneyardFixture={
-          <div className="cards-grid">
-            {[1, 2, 3].map((n) => (
-              <div
-                key={n}
-                style={{
-                  height: '140px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-hairline)',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div>
-                  <div style={{ width: '45%', height: '18px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px', marginBottom: '0.75rem' }} />
-                  <div style={{ width: '80%', height: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div style={{ width: '25%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                  <div style={{ width: '20%', height: '10px', backgroundColor: 'var(--bg-elevated)', borderRadius: '4px' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        }
+        boneyardFixture={<ProjectListSkeleton />}
         emptyState={
           <div className="empty-state">
             <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
@@ -621,6 +598,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           )
         }
       </TriStateView>
+      </Skeleton>
     </div>
   );
 };

@@ -52,9 +52,9 @@ export function TriStateView<T>({
                   border: '1px solid var(--border-hairline)',
                 }}
               >
-                <div style={{ height: '24px', width: '40%', borderRadius: '6px', backgroundColor: 'var(--bg-elevated)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
-                <div style={{ height: '14px', width: '70%', borderRadius: '4px', backgroundColor: 'var(--bg-elevated)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
-                <div style={{ height: '120px', width: '100%', borderRadius: '8px', backgroundColor: 'var(--bg-elevated)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                <div className="boneyard-bone" style={{ height: '24px', width: '40%', borderRadius: '6px' }} />
+                <div className="boneyard-bone" style={{ height: '14px', width: '70%', borderRadius: '4px' }} />
+                <div className="boneyard-bone" style={{ height: '120px', width: '100%', borderRadius: '8px' }} />
               </div>
             )}
           </motion.div>
