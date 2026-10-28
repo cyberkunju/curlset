@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   fetchProjects,
   fetchProjectMembers,
@@ -36,6 +37,7 @@ export const GovernanceView: React.FC = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState<'quotas' | 'team' | 'audit'>('quotas');
   const [loadingData, setLoadingData] = useState(false);
+  const [loadedTabs, setLoadedTabs] = useState<{ [key: string]: boolean }>({});
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -74,11 +76,34 @@ export const GovernanceView: React.FC = () => {
     init();
   }, []);
 
+  // Background preload counts for other tabs so tab badges are immediately available and switching is instant
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    fetchProjectMembers(selectedProjectId)
+      .then((m) => {
+        setMembers(m);
+        setLoadedTabs((prev) => ({ ...prev, [`${selectedProjectId}-team`]: true }));
+      })
+      .catch(() => {});
+    fetchProjectAuditLogs(selectedProjectId, 50)
+      .then((a) => {
+        setAuditLogs(a);
+        setLoadedTabs((prev) => ({ ...prev, [`${selectedProjectId}-audit`]: true }));
+      })
+      .catch(() => {});
+  }, [selectedProjectId]);
+
   // Load project details when selection or tab changes
   useEffect(() => {
     if (!selectedProjectId) return;
+    const cacheKey = `${selectedProjectId}-${activeTab}`;
+    const isAlreadyLoaded = loadedTabs[cacheKey];
+
     const loadDetails = async () => {
-      setLoadingData(true);
+      // Only show full loading spinner if this tab has never been loaded for this project
+      if (!isAlreadyLoaded) {
+        setLoadingData(true);
+      }
       setError(null);
       setSuccessMessage(null);
       try {
@@ -92,6 +117,7 @@ export const GovernanceView: React.FC = () => {
           const a = await fetchProjectAuditLogs(selectedProjectId, 50);
           setAuditLogs(a);
         }
+        setLoadedTabs((prev) => ({ ...prev, [cacheKey]: true }));
       } catch (err: any) {
         setError(err.message || 'Failed to load governance data');
       } finally {
@@ -233,7 +259,7 @@ export const GovernanceView: React.FC = () => {
         </div>
       ) : (
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          {/* Sub Navigation Tabs */}
+          {/* Sub Navigation Tabs with Smooth Selection Transfer Indicator */}
           <div
             style={{
               display: 'flex',
@@ -241,59 +267,66 @@ export const GovernanceView: React.FC = () => {
               padding: '0 0.5rem',
               background: 'var(--bg-elevated)',
               overflowX: 'auto',
+              position: 'relative',
             }}
           >
-            <button
-              onClick={() => setActiveTab('quotas')}
-              className="btn btn-ghost"
-              style={{
-                borderBottom: activeTab === 'quotas' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
-                borderRadius: 0,
-                color: activeTab === 'quotas' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: activeTab === 'quotas' ? 600 : 500,
-                padding: '0.75rem 1rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <BarChart2 size={16} /> Quotas & Usage Limits
-            </button>
-            <button
-              onClick={() => setActiveTab('team')}
-              className="btn btn-ghost"
-              style={{
-                borderBottom: activeTab === 'team' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
-                borderRadius: 0,
-                color: activeTab === 'team' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: activeTab === 'team' ? 600 : 500,
-                padding: '0.75rem 1rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Users size={16} /> Team & RBAC Roles ({members.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('audit')}
-              className="btn btn-ghost"
-              style={{
-                borderBottom: activeTab === 'audit' ? '2px solid var(--accent-interactive)' : '2px solid transparent',
-                borderRadius: 0,
-                color: activeTab === 'audit' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: activeTab === 'audit' ? 600 : 500,
-                padding: '0.75rem 1rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <FileText size={16} /> Security Audit Trail ({auditLogs.length})
-            </button>
+            {[
+              { id: 'quotas' as const, label: 'Quotas & Usage Limits', icon: BarChart2, count: null },
+              { id: 'team' as const, label: 'Team & RBAC Roles', icon: Users, count: members.length },
+              { id: 'audit' as const, label: 'Security Audit Trail', icon: FileText, count: auditLogs.length },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className="btn btn-ghost"
+                  style={{
+                    position: 'relative',
+                    border: 'none',
+                    borderRadius: 0,
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: isActive ? 600 : 500,
+                    padding: '0.75rem 1rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    whiteSpace: 'nowrap',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Icon size={16} />
+                  <span>
+                    {tab.label}
+                    {tab.count !== null ? ` (${tab.count})` : ''}
+                  </span>
+
+                  {/* Smooth selection transfer animation for the active indicator */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="governance-active-tab-indicator"
+                      transition={{
+                        type: 'spring',
+                        stiffness: 500,
+                        damping: 38,
+                      }}
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '2px',
+                        backgroundColor: 'var(--accent-interactive)',
+                        borderRadius: '2px 2px 0 0',
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ padding: '1.5rem' }}>
@@ -338,12 +371,22 @@ export const GovernanceView: React.FC = () => {
               </div>
             )}
 
-            {loadingData ? (
+            {loadingData && !loadedTabs[`${selectedProjectId}-${activeTab}`] ? (
               <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <div className="spinner" style={{ margin: '0 auto 0.75rem' }} />
                 Loading {activeTab} data for project...
               </div>
-            ) : activeTab === 'quotas' ? (
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ width: '100%' }}
+                >
+                  {activeTab === 'quotas' ? (
               /* TAB 1: QUOTAS & USAGE LIMITS */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
@@ -801,6 +844,9 @@ export const GovernanceView: React.FC = () => {
                   </div>
                 )}
               </div>
+            )}
+                </motion.div>
+              </AnimatePresence>
             )}
           </div>
         </div>
