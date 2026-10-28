@@ -48,22 +48,20 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'name'>('date_desc');
   const [localSearch, setLocalSearch] = useState('');
 
-  // Ensure the boneyard skeleton is visible on first mount so loading is perceptible, then retain afterwards
+  // Skeleton is only active while data is actually being fetched from the database
   const [isInitialMounting, setIsInitialMounting] = useState(() => {
-    return typeof window !== 'undefined' ? !window.__HAS_LOADED_PROJECTS_ONCE__ : true;
+    if (typeof window !== 'undefined' && window.__HAS_LOADED_PROJECTS_ONCE__) return false;
+    return loading;
   });
 
   React.useEffect(() => {
-    if (isInitialMounting) {
-      const timer = setTimeout(() => {
-        setIsInitialMounting(false);
-        if (typeof window !== 'undefined') {
-          window.__HAS_LOADED_PROJECTS_ONCE__ = true;
-        }
-      }, 850);
-      return () => clearTimeout(timer);
+    if (isInitialMounting && !loading) {
+      setIsInitialMounting(false);
+      if (typeof window !== 'undefined') {
+        window.__HAS_LOADED_PROJECTS_ONCE__ = true;
+      }
     }
-  }, [isInitialMounting]);
+  }, [isInitialMounting, loading]);
 
   const isDataLoading = loading || isInitialMounting;
 
