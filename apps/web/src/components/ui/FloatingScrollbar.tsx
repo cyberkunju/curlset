@@ -1,0 +1,210 @@
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+
+export interface FloatingScrollbarProps {
+  containerRef: React.RefObject<HTMLElement | null>;
+  offsetTop?: number;      // Height of top sticky header (default: 56px)
+  offsetBottom?: number;   // Inset from bottom of viewport (default: 8px)
+  thumbMinHeight?: number; // Minimum thumb height (default: 36px)
+  thumbMaxHeight?: number; // Maximum thumb height to keep it compact (default: 72px)
+  autoHideDelay?: number;  // Delay before fading out (default: 850ms)
+}
+
+export const FloatingScrollbar: React.FC<FloatingScrollbarProps> = ({
+  containerRef,
+  offsetTop = 56,
+  offsetBottom = 8,
+  thumbMinHeight = 36,
+  thumbMaxHeight = 72,
+  autoHideDelay = 850,
+}) => {
+  const [scrollTop, setScrollTop] = useState(0);
+  const [scrollHeight, setScrollHeight] = useState(0);
+  const [clientHeight, setClientHeight] = useState(0);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartYRef = useRef(0);
+  const dragStartScrollTopRef = useRef(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // Measure and sync metrics from container
+  const updateMetrics = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setScrollTop(el.scrollTop);
+    setScrollHeight(el.scrollHeight);
+    setClientHeight(el.clientHeight);
+  }, [containerRef]);
+
+  // Attach scroll & resize observers
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    updateMetrics();
+
+    const handleScroll = () => {
+      setScrollTop(el.scrollTop);
+      setIsScrolling(true);
+
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+
+      hideTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, autoHideDelay);
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Observe size changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateMetrics();
+    });
+
+    resizeObserver.observe(el);
+    if (el.firstElementChild) {
+      resizeObserver.observe(el.firstElementChild);
+    }
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      resizeObserver.disconnect();
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, [containerRef, updateMetrics, autoHideDelay]);
+
+  // Handle Dragging
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    setIsDragging(true);
+    dragStartYRef.current = e.clientY;
+    dragStartScrollTopRef.current = el.scrollTop;
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const deltaY = moveEvent.clientY - dragStartYRef.current;
+      const trackHeight = clientHeight - (offsetTop + 4) - offsetBottom;
+      const rawThumbHeight = clientHeight > 0 && scrollHeight > 0
+        ? (clientHeight / scrollHeight) * trackHeight * 0.7
+        : thumbMinHeight;
+      const thumbHeight = Math.max(thumbMinHeight, Math.min(thumbMaxHeight, rawThumbHeight));
+      const availableTrack = trackHeight - thumbHeight;
+
+      if (availableTrack <= 0) return;
+
+      const maxScroll = scrollHeight - clientHeight;
+      const scrollDelta = (deltaY / availableTrack) * maxScroll;
+      el.scrollTop = Math.max(0, Math.min(maxScroll, dragStartScrollTopRef.current + scrollDelta));
+    };
+
+    const onPointerUp = () => {
+      setIsDragging(false);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+
+      // Start hide timer
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, autoHideDelay);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  // Jump scroll when clicking on track outside thumb
+  const handleTrackClick = (e: React.MouseEvent) => {
+    const el = containerRef.current;
+    const track = trackRef.current;
+    if (!el || !track) return;
+
+    const rect = track.getBoundingClientRect();
+    const clickY = e.clientY - rect.top;
+    const trackHeight = rect.height;
+
+    const rawThumbHeight = (clientHeight / scrollHeight) * trackHeight * 0.7;
+    const thumbHeight = Math.max(thumbMinHeight, Math.min(thumbMaxHeight, rawThumbHeight));
+    const availableTrack = trackHeight - thumbHeight;
+    if (availableTrack <= 0) return;
+
+    const maxScroll = scrollHeight - clientHeight;
+    const clickRatio = Math.max(0, Math.min(1, (clickY - thumbHeight / 2) / availableTrack));
+    el.scrollTo({
+      top: clickRatio * maxScroll,
+      behavior: 'smooth',
+    });
+  };
+
+  // Check if content exceeds visible client height
+  const canScroll = scrollHeight > clientHeight + 4;
+  if (!canScroll) return null;
+
+  const trackTop = offsetTop + 4;
+  const trackHeight = Math.max(0, clientHeight - trackTop - offsetBottom);
+  if (trackHeight <= 0) return null;
+
+  const rawThumbHeight = (clientHeight / scrollHeight) * trackHeight * 0.7;
+  const thumbHeight = Math.max(thumbMinHeight, Math.min(thumbMaxHeight, rawThumbHeight));
+  const maxScroll = scrollHeight - clientHeight;
+  const scrollRatio = maxScroll > 0 ? Math.max(0, Math.min(1, scrollTop / maxScroll)) : 0;
+  const thumbTop = scrollRatio * (trackHeight - thumbHeight);
+
+  // Visible only when actively scrolling, hovered on right rail, or dragging
+  const isVisible = isScrolling || isHovered || isDragging;
+
+  return (
+    <div
+      ref={trackRef}
+      onClick={handleTrackClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        position: 'fixed',
+        top: `${trackTop}px`,
+        height: `${trackHeight}px`,
+        right: '4px',
+        width: '10px',
+        zIndex: 40,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        pointerEvents: isVisible ? 'auto' : 'none',
+        userSelect: 'none',
+      }}
+      title="Scroll indicator"
+    >
+      {/* Shorter Pill Thumb */}
+      <div
+        onPointerDown={handlePointerDown}
+        style={{
+          width: isHovered || isDragging ? '6px' : '4px',
+          height: `${thumbHeight}px`,
+          transform: `translateY(${thumbTop}px) ${isVisible ? 'translateX(0)' : 'translateX(6px)'}`,
+          opacity: isVisible ? 1 : 0,
+          borderRadius: '9999px',
+          backgroundColor: isDragging
+            ? 'var(--accent-interactive, #3b82f6)'
+            : isHovered
+            ? 'var(--text-secondary, #a1a1aa)'
+            : 'var(--border-strong, #71717a)',
+          boxShadow: isDragging ? '0 0 8px rgba(59, 130, 246, 0.5)' : 'none',
+          cursor: 'pointer',
+          transition: isDragging
+            ? 'width 0.15s ease, background-color 0.15s ease'
+            : 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), width 0.15s ease, background-color 0.15s ease',
+        }}
+      />
+    </div>
+  );
+};

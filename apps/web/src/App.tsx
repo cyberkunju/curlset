@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { checkHealth, fetchProjects, fetchDatasetDetail } from './api';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import { DatasetDetail } from './components/DatasetDetail';
@@ -9,6 +9,7 @@ import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
 import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
 import { CommandPalette } from './components/ui/CommandPalette';
+import { FloatingScrollbar } from './components/ui/FloatingScrollbar';
 import { Project } from './types';
 
 const SystemHealthView = React.lazy(() =>
@@ -38,6 +39,7 @@ export const App: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState<any>(null);
+  const mainWrapperRef = useRef<HTMLDivElement>(null);
 
   // Responsive sidebar collapse state (default collapsed on tablet 768-1023px)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -255,7 +257,7 @@ export const App: React.FC = () => {
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" ref={mainWrapperRef}>
         <Header
           breadcrumbs={breadcrumbs}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -329,6 +331,9 @@ export const App: React.FC = () => {
             )}
           </DirectionalPageTransition>
         </main>
+
+        {/* Shorter, Auto-Fading Overlay Scrollbar Docked Strictly Below Top Header */}
+        <FloatingScrollbar containerRef={mainWrapperRef} offsetTop={56} />
       </div>
 
       {/* Global Command Palette */}
