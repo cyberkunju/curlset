@@ -14,7 +14,11 @@ import {
   Zap,
 } from 'lucide-react';
 import { fetchProviders } from '../api';
-import { parseHealthProbeResult, computeOverallSystemStatus } from '../utils/uiIntegrityContracts';
+import {
+  parseHealthProbeResult,
+  computeOverallSystemStatus,
+  mapParsedProbeToServiceStatus,
+} from '../utils/uiIntegrityContracts';
 
 interface HealthData {
   status?: string;
@@ -62,14 +66,16 @@ export const SystemHealthView: React.FC = () => {
       const text = await res.text();
       const parsed = parseHealthProbeResult(res.status, contentType, text, { probeType });
       const latency = Math.round(performance.now() - start);
-      if (!parsed.ok) {
-        const failureStatus = res.status === 503 || parsed.statusText === 'degraded' ? 'degraded' : 'unreachable';
-        return { data: { status: failureStatus, error: parsed.error }, latency };
-      }
-      return { data: parsed.data as T, latency };
+      const mapped = mapParsedProbeToServiceStatus<T>(parsed);
+      return { data: mapped.data as T, latency };
     } catch (err: any) {
       const latency = Math.round(performance.now() - start);
-      return { data: { status: 'unreachable', error: err?.message || 'Probe request failed' }, latency };
+      const parsed = parseHealthProbeResult(null, null, null, {
+        networkError: err?.message || 'Probe request failed',
+        probeType,
+      });
+      const mapped = mapParsedProbeToServiceStatus<T>(parsed);
+      return { data: mapped.data as T, latency };
     }
   };
 

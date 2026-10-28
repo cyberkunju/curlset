@@ -77,6 +77,113 @@ export function computeOverallSystemStatus(
   return 'degraded';
 }
 
+export type ServiceDisplayStatus = 'operational' | 'degraded' | 'unreachable';
+
+export interface ServiceStatusMapping<T = any> {
+  status: string;
+  displayStatus: ServiceDisplayStatus;
+  isOperational: boolean;
+  isDegraded: boolean;
+  isUnreachable: boolean;
+  data: T | { status: string; error?: string };
+  error?: string;
+  httpStatus: number | null;
+}
+
+/**
+ * Maps a parsed health or readiness probe result into a structured service status.
+ *
+ * Operational: Both transport and application health/readiness success conditions are satisfied.
+ * Degraded: Service is reachable (transport and JSON parsing succeeded), but reports 'degraded',
+ *           a dependency failure, or another valid but unexpected service status (e.g. 'maintenance', 'warning').
+ * Unreachable: Network failures, HTML SPA fallback responses, malformed non-JSON payloads,
+ *              or HTTP transport failures without valid JSON payloads that prevent trustworthy status determination.
+ */
+export function mapParsedProbeToServiceStatus<T = any>(
+  parsed: HealthProbeResult
+): ServiceStatusMapping<T> {
+  // 1. Operational: parsing succeeded and application-level criteria were met
+  if (parsed.ok) {
+    const statusStr = (parsed.data && typeof parsed.data === 'object' && parsed.data.status)
+      ? String(parsed.data.status)
+      : parsed.statusText || 'ok';
+    return {
+      status: statusStr,
+      displayStatus: 'operational',
+      isOperational: true,
+      isDegraded: false,
+      isUnreachable: false,
+      data: parsed.data as T,
+      error: undefined,
+      httpStatus: parsed.httpStatus,
+    };
+  }
+
+  // 2. Unreachable: Transport/protocol level failure preventing status determination
+  const isTransportFailure =
+    parsed.httpStatus === null ||
+    parsed.statusText === 'network_failure' ||
+    parsed.isHtmlFallback === true ||
+    parsed.statusText === 'route_fallback_error' ||
+    parsed.statusText === 'malformed_json' ||
+    parsed.statusText === 'malformed_payload' ||
+    (parsed.httpStatus !== null && parsed.httpStatus !== 503 && !parsed.data);
+
+  if (isTransportFailure) {
+    const errorMsg = parsed.error || 'Service is unreachable';
+    const fallbackData = (parsed.data && typeof parsed.data === 'object')
+      ? { ...parsed.data, status: 'unreachable', error: errorMsg }
+      : { status: 'unreachable', error: errorMsg };
+    return {
+      status: 'unreachable',
+      displayStatus: 'unreachable',
+      isOperational: false,
+      isDegraded: false,
+      isUnreachable: true,
+      data: fallbackData as any,
+      error: errorMsg,
+      httpStatus: parsed.httpStatus,
+    };
+  }
+
+  // 3. Degraded: Service was reached, returned valid payload, but is degraded, in maintenance,
+  // or reported dependency failures / unexpected service status
+  let statusStr = 'degraded';
+  if (
+    parsed.data &&
+    typeof parsed.data === 'object' &&
+    parsed.data.status &&
+    typeof parsed.data.status === 'string'
+  ) {
+    const rawStatus = parsed.data.status.trim();
+    // If the raw status is an unexpected status (e.g. 'maintenance', 'warning', 'degraded'), preserve it.
+    // If it was 'ready' or 'ok' but parsed.ok was false (e.g. dependency failures), report 'degraded'.
+    if (rawStatus !== 'ready' && rawStatus !== 'ok' && rawStatus !== 'healthy') {
+      statusStr = rawStatus;
+    } else {
+      statusStr = 'degraded';
+    }
+  } else if (parsed.statusText && parsed.statusText !== 'ready' && parsed.statusText !== 'ok') {
+    statusStr = parsed.statusText;
+  }
+
+  const errorMsg = parsed.error || `Service reported non-operational status: '${statusStr}'`;
+  const degradedData = (parsed.data && typeof parsed.data === 'object')
+    ? { ...parsed.data, status: statusStr, error: errorMsg }
+    : { status: statusStr, error: errorMsg };
+
+  return {
+    status: statusStr,
+    displayStatus: 'degraded',
+    isOperational: false,
+    isDegraded: true,
+    isUnreachable: false,
+    data: degradedData as any,
+    error: errorMsg,
+    httpStatus: parsed.httpStatus,
+  };
+}
+
 /**
  * Validates and parses health and readiness probe responses, guarding against
  * unproxied Nginx HTML SPA fallback responses and HTTP degradation.

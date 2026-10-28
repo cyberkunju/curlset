@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   parseHealthProbeResult,
   computeOverallSystemStatus,
+  mapParsedProbeToServiceStatus,
   isDateRangeValid,
   filterAuditLogs,
   filterCandidatesByLicense,
@@ -221,7 +222,96 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.equal(computeOverallSystemStatus(null, 'ready'), 'unreachable', 'null health status must map to unreachable');
   assert.equal(computeOverallSystemStatus('ok', null), 'unreachable', 'null readiness status must map to unreachable');
   assert.equal(computeOverallSystemStatus(null, null), 'unreachable', 'missing statuses must map to unreachable');
-  assert.equal(computeOverallSystemStatus('', 'ready'), 'unreachable', 'empty string status must map to unreachable');
+  // 1.7: End-to-End Integration Contract: mapParsedProbeToServiceStatus + computeOverallSystemStatus
+  // 1.7.1: Health 'ok' and readiness 'ready' produce 'operational'
+  const hOperational = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'ok', service: 'api' }), { probeType: 'health' })
+  );
+  const rOperational = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'ready', database: 'connected' }), { probeType: 'readiness' })
+  );
+  assert.equal(hOperational.displayStatus, 'operational');
+  assert.equal(hOperational.status, 'ok');
+  assert.equal(rOperational.displayStatus, 'operational');
+  assert.equal(rOperational.status, 'ready');
+  assert.equal(computeOverallSystemStatus(hOperational.status, rOperational.status), 'operational');
+
+  // 1.7.2: A valid HTTP 200 JSON response with health status 'maintenance' produces 'degraded'
+  const hMaintenance = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'maintenance', service: 'api' }), { probeType: 'health' })
+  );
+  assert.equal(hMaintenance.displayStatus, 'degraded');
+  assert.equal(hMaintenance.status, 'maintenance');
+  assert.equal(hMaintenance.isDegraded, true);
+  assert.equal(hMaintenance.isUnreachable, false);
+  assert.equal(computeOverallSystemStatus(hMaintenance.status, rOperational.status), 'degraded');
+
+  // 1.7.3: A valid HTTP 200 JSON response with readiness status 'warning' produces 'degraded'
+  const rWarning = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'warning', database: 'connected' }), { probeType: 'readiness' })
+  );
+  assert.equal(rWarning.displayStatus, 'degraded');
+  assert.equal(rWarning.status, 'warning');
+  assert.equal(rWarning.isDegraded, true);
+  assert.equal(rWarning.isUnreachable, false);
+  assert.equal(computeOverallSystemStatus(hOperational.status, rWarning.status), 'degraded');
+
+  // 1.7.4: A valid 'degraded' response remains degraded
+  const rDegraded200 = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'degraded', database: 'connected' }), { probeType: 'readiness' })
+  );
+  assert.equal(rDegraded200.displayStatus, 'degraded');
+  assert.equal(rDegraded200.status, 'degraded');
+  assert.equal(computeOverallSystemStatus(hOperational.status, rDegraded200.status), 'degraded');
+
+  // Also readiness 200 with failed dependency flag
+  const rFailedDep = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'ready', database: 'failed' }), { probeType: 'readiness' })
+  );
+  assert.equal(rFailedDep.displayStatus, 'degraded');
+  assert.equal(rFailedDep.status, 'degraded');
+  assert.equal(computeOverallSystemStatus(hOperational.status, rFailedDep.status), 'degraded');
+
+  // 1.7.5: HTTP 503 readiness remains degraded
+  const rDegraded503 = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(503, 'application/json', JSON.stringify({ status: 'degraded', database: 'timeout' }), { probeType: 'readiness' })
+  );
+  assert.equal(rDegraded503.displayStatus, 'degraded');
+  assert.equal(rDegraded503.status, 'degraded');
+  assert.equal(rDegraded503.httpStatus, 503);
+  assert.equal(computeOverallSystemStatus(hOperational.status, rDegraded503.status), 'degraded');
+
+  // 1.7.6: Network failure, HTML SPA fallback, and malformed JSON remain unreachable
+  const netUnreachable = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(null, null, null, { networkError: 'Connection refused' })
+  );
+  assert.equal(netUnreachable.displayStatus, 'unreachable');
+  assert.equal(netUnreachable.status, 'unreachable');
+  assert.equal(netUnreachable.isUnreachable, true);
+  assert.equal(computeOverallSystemStatus(netUnreachable.status, rOperational.status), 'unreachable');
+
+  const htmlUnreachable = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'text/html', '<!doctype html><html>SPA</html>')
+  );
+  assert.equal(htmlUnreachable.displayStatus, 'unreachable');
+  assert.equal(htmlUnreachable.status, 'unreachable');
+  assert.equal(htmlUnreachable.isUnreachable, true);
+  assert.equal(computeOverallSystemStatus(hOperational.status, htmlUnreachable.status), 'unreachable');
+
+  const malformedUnreachable = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', 'Not JSON{')
+  );
+  assert.equal(malformedUnreachable.displayStatus, 'unreachable');
+  assert.equal(malformedUnreachable.status, 'unreachable');
+  assert.equal(malformedUnreachable.isUnreachable, true);
+  assert.equal(computeOverallSystemStatus(malformedUnreachable.status, rOperational.status), 'unreachable');
+
+  // 1.7.7: An unexpected status on one endpoint cannot produce an overall operational state
+  assert.notEqual(computeOverallSystemStatus(hMaintenance.status, rOperational.status), 'operational');
+  assert.notEqual(computeOverallSystemStatus(hOperational.status, rWarning.status), 'operational');
+  assert.notEqual(computeOverallSystemStatus(hMaintenance.status, rWarning.status), 'operational');
+  assert.notEqual(computeOverallSystemStatus('maintenance', 'ready'), 'operational');
+  assert.notEqual(computeOverallSystemStatus('ok', 'warning'), 'operational');
 
   console.log('✓ Health & readiness endpoint handling verified across all production scenarios');
 }

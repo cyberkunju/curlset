@@ -1275,15 +1275,31 @@ Phase R8 is the **final phase** of the UI redesign roadmap. While Phase R7 achie
   - Canonical operational readiness statuses: `'ready'` and `'ok'`.
   - Updated `computeOverallSystemStatus` so that both endpoints must independently satisfy their respective success condition for the system to report `Operational`.
   - Fully distinguished `operational`, `degraded`, and `unreachable` states across both `SystemHealthView` and test suites.
-- **Regression Tests**: Expanded Test Suite 1 in `apps/web/tests/ui_integrity.test.ts` to test all accepted status combinations, failed dependency flags, unexpected statuses, degraded responses, malformed JSON, and network errors.
-
-
-
-
-
-
-
-
-
-
+### 26.6 Phase R8 Final System Health Status-Mapping Correction
+- **Problem Statement**:
+  - The previous probe status resolution logic in `probeEndpoint` reduced a failed probe parser result to `degraded` only if `res.status === 503 || parsed.statusText === 'degraded'`.
+  - Valid HTTP 200 JSON responses reporting application statuses such as `maintenance`, `warning`, or `read_only` were converted to `unreachable`, violating the contract that `unreachable` is reserved for transport/protocol failures.
+- **Pure Production Helper (`mapParsedProbeToServiceStatus`)**:
+  - Extracted pure helper `mapParsedProbeToServiceStatus<T>(parsed: HealthProbeResult): ServiceStatusMapping<T>` in `apps/web/src/utils/uiIntegrityContracts.ts`.
+  - **Operational**: `parsed.ok === true` meets accepted success criteria (`ok` / `healthy` for health, `ready` / `ok` for readiness).
+  - **Degraded**: Service is reachable (`httpStatus !== null && !isHtmlFallback && !malformed_json`) but reports `degraded`, dependency failures (`database: "failed"`, `storage: "failed"`), or unexpected application statuses (e.g. `maintenance`, `warning`, `read_only`).
+  - **Unreachable**: Network failures, unproxied HTML SPA fallback responses, malformed JSON, and other transport/protocol failures preventing trustworthy status determination.
+  - Preserves HTTP status, probe error messages, and payload data.
+- **Production Integration (`SystemHealthView.tsx`)**:
+  - `probeEndpoint` utilizes `mapParsedProbeToServiceStatus` on both successful responses and caught network errors, standardizing displayed status across Core Health and System Readiness cards.
+- **Integration Contract Regression Tests (`apps/web/tests/ui_integrity.test.ts`)**:
+  - Added Section 1.7 exercising the full production pipeline (parsing, intermediate probe-to-service mapping, and overall system status computation) across all 7 required scenarios:
+    1. Health `ok` and readiness `ready` produce `operational`.
+    2. Valid HTTP 200 JSON health response with `maintenance` produces `degraded`.
+    3. Valid HTTP 200 JSON readiness response with `warning` produces `degraded`.
+    4. Valid `degraded` response with dependency failure remains `degraded`.
+    5. HTTP 503 readiness remains `degraded`.
+    6. Network failure, HTML SPA fallback, and malformed JSON remain `unreachable`.
+    7. Unexpected status on one endpoint cannot produce an overall operational state.
+- **Verification Results**:
+  - Coordinate contract tests: 19/19 passed.
+  - UI integrity tests: 6/6 suites passed (35 total assertions).
+  - Frontend production build: 0 TypeScript errors, 0 warnings (main bundle 423.53 kB in 6.55s).
+  - Pytest: 150 passed.
+  - Ruff: All checks passed.
 
