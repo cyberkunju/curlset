@@ -49,7 +49,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           }}
         >
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--emerald)' }}></span>
-          Multimodal Dataset Engineering Platform
+          Curlset — Multimodal Platform
         </div>
 
         <h1

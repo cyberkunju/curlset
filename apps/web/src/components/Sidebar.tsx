@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Home, FolderKanban, ShieldCheck, Activity, Layers, X, PanelLeftClose, PanelLeftOpen, KeyRound } from 'lucide-react';
+import { Home, FolderKanban, ShieldCheck, Activity, X, PanelLeftClose, PanelLeftOpen, KeyRound } from 'lucide-react';
+import curlsetIcon from '../assets/curlset-icon.png';
 import { SpringButton } from './ui/SpringButton';
 
 interface SidebarProps {
@@ -106,14 +107,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               minWidth: 0,
             }}
             onClick={() => handleNavClick('landing')}
-            title="Dataset Engine Multimodal Platform"
+            title="Curlset Multimodal Platform"
           >
             <div className="brand-icon" style={{ flexShrink: 0 }}>
-              <Layers size={18} strokeWidth={2} />
+              <img
+                src={curlsetIcon}
+                alt="Curlset Logo"
+                style={{ width: '24px', height: '24px', objectFit: 'contain', display: 'block' }}
+              />
             </div>
             {!isCollapsed && (
               <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                <div className="brand-title" style={{ whiteSpace: 'nowrap' }}>Dataset Engine</div>
+                <div className="brand-title" style={{ whiteSpace: 'nowrap' }}>Curlset</div>
                 <div className="brand-subtitle" style={{ whiteSpace: 'nowrap' }}>Multimodal Platform</div>
               </div>
             )}
