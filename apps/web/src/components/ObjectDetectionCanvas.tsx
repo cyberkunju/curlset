@@ -574,7 +574,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                 flexShrink: 0,
               }}
             />
-            <span style={{ letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+            <span style={{ letterSpacing: 'var(--letter-spacing-base)', whiteSpace: 'nowrap' }}>
               {hoverCoords
                 ? `X: ${hoverCoords.x}, Y: ${hoverCoords.y}`
                 : 'X: —, Y: —'}

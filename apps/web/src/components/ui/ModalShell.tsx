@@ -257,7 +257,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                       fontWeight: 700,
                       color: 'var(--text-primary)',
                       margin: 0,
-                      letterSpacing: '-0.015em',
+                      letterSpacing: 'var(--letter-spacing-heading)',
                       lineHeight: 1.3,
                       display: 'flex',
                       alignItems: 'center',

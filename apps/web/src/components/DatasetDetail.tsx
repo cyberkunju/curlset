@@ -307,7 +307,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Project</span>
             </button>
             <span style={{ color: 'var(--text-muted)' }}>/</span>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)', margin: 0 }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: 'var(--letter-spacing-heading)', color: 'var(--text-primary)', margin: 0 }}>
               {dataset.name}
             </h1>
             <span className="badge badge-blue">{dataset.task_type.replace(/_/g, ' ')}</span>
@@ -664,7 +664,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 fontSize: '1.15rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
+                letterSpacing: 'var(--letter-spacing-heading)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',

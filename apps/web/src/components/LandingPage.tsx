@@ -56,7 +56,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           style={{
             fontSize: '2.5rem',
             fontWeight: 800,
-            letterSpacing: '-0.03em',
+            letterSpacing: 'var(--letter-spacing-heading)',
             lineHeight: 1.18,
             color: 'var(--text-primary)',
             maxWidth: '780px',
@@ -170,7 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* 5-Stage Dataset Engineering Lifecycle */}
       <section style={{ marginBottom: '2.5rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, letterSpacing: 'var(--letter-spacing-heading)', color: 'var(--text-primary)' }}>
             The 5-Stage Engineering Lifecycle
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '0.2rem' }}>

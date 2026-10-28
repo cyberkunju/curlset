@@ -130,7 +130,7 @@ export const ProvidersView: React.FC = () => {
           style={{
             fontSize: '1.5rem',
             fontWeight: 700,
-            letterSpacing: '-0.02em',
+            letterSpacing: 'var(--letter-spacing-heading)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.65rem',

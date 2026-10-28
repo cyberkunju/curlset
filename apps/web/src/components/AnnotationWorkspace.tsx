@@ -717,7 +717,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 fontWeight: 700,
                 fontSize: '0.925rem',
                 color: 'var(--text-primary)',
-                letterSpacing: '-0.01em',
+                letterSpacing: 'var(--letter-spacing-heading)',
                 maxWidth: '240px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

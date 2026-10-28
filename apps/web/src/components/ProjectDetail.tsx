@@ -152,7 +152,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
               style={{
                 fontSize: '1.55rem',
                 fontWeight: 700,
-                letterSpacing: '-0.025em',
+                letterSpacing: 'var(--letter-spacing-heading)',
                 color: 'var(--text-primary)',
               }}
             >
