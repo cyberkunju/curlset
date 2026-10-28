@@ -263,17 +263,16 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               const isHighlighted = idx === highlightedIndex;
 
               return (
-                <motion.div
+                <div
                   key={option.value}
                   role="option"
                   aria-selected={isSelected}
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.025, duration: 0.18, ease: 'easeOut' }}
                   onClick={() => {
                     if (!option.disabled) {
                       onChange(option.value);
-                      setIsOpen(false);
+                      setTimeout(() => {
+                        setIsOpen(false);
+                      }, 120);
                     }
                   }}
                   onMouseEnter={() => !option.disabled && setHighlightedIndex(idx)}
@@ -352,7 +351,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                       <Check size={14} strokeWidth={2.5} />
                     </span>
                   )}
-                </motion.div>
+                </div>
               );
             })}
           </motion.div>

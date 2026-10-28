@@ -1011,14 +1011,14 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 />
               </div>
             )}
-            <div style={{ opacity: recordsLoading ? 0.65 : 1, transition: 'opacity 0.18s ease' }}>
+            <div>
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`${page}-${viewMode}-${splitFilter}-${statusFilter}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  key={`${page}-${viewMode}-${splitFilter}-${statusFilter}-${searchQuery}`}
+                  initial={{ opacity: 0.25, filter: 'blur(1.5px)' }}
+                  animate={{ opacity: 1, filter: 'none' }}
+                  exit={{ opacity: 0.25, filter: 'blur(1px)' }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 >
                   {viewMode === 'table' ? (
                     <div className="data-table-container">
@@ -1041,12 +1041,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                   const rowNum = page * PAGE_SIZE + idx + 1;
 
                   return (
-                    <motion.tr
+                    <tr
                       key={rec.id}
                       id={`record-${rec.id}`}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                       style={
                         rec.id === highlightedRecordId
                           ? {
@@ -1124,7 +1121,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                           <span>Annotate</span>
                         </SpringButton>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -1179,13 +1176,10 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                 const rowNum = page * PAGE_SIZE + idx + 1;
 
                 return (
-                  <motion.div
+                  <div
                     key={rec.id}
                     id={`record-${rec.id}`}
                     className="record-card"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(idx * 0.03, 0.35), duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                     style={
                       rec.id === highlightedRecordId
                         ? {
@@ -1256,7 +1250,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
                         <span>Annotate</span>
                       </SpringButton>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

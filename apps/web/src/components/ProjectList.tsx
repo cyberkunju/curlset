@@ -18,7 +18,7 @@ import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
 import { Skeleton } from 'boneyard-js/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 declare global {
   interface Window {
@@ -502,192 +502,187 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           </div>
         }
       >
-        {(items) =>
-          viewMode === 'grid' ? (
-            <div className="cards-grid">
-              {items.map((proj, idx) => (
-                <motion.div
-                  key={proj.id}
-                  className="card"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: Math.min(idx * 0.045, 0.4),
-                    duration: 0.24,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  layout="position"
-                  onClick={() => onSelectProject(proj.id)}
-                  tabIndex={0}
-                  role="button"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectProject(proj.id);
-                    }
-                  }}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: '145px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
-                        <FolderKanban size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
-                        <h3 className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {proj.name}
-                        </h3>
-                      </div>
-                      {proj.is_archived ? (
-                        <span className="badge badge-amber" style={{ flexShrink: 0 }}>Archived</span>
-                      ) : (
-                        <span className="badge badge-emerald" style={{ flexShrink: 0 }}>Active</span>
-                      )}
-                    </div>
-                    <p
-                      className="card-desc"
-                      style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        fontSize: '0.84rem',
-                        lineHeight: 1.45,
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      {proj.description || 'No project description provided.'}
-                    </p>
-                  </div>
-
-                  <div className="card-footer" style={{ marginTop: '0.85rem', paddingTop: '0.65rem' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.74rem',
-                        color: 'var(--text-muted)',
-                        backgroundColor: 'var(--bg-elevated)',
-                        padding: '0.1rem 0.35rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-hairline)',
-                      }}
-                    >
-                      {proj.id.slice(0, 8)}...
-                    </span>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <span>{new Date(proj.created_at).toLocaleDateString()}</span>
-                      <ChevronRight size={13} strokeWidth={1.75} />
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="data-table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Project Name & Description</th>
-                    <th>Identifier</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((proj, idx) => (
-                    <motion.tr
+        {(items) => (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${viewMode}-${effectiveSearch}-${sortBy}-${includeArchived}`}
+              initial={{ opacity: 0.25, filter: 'blur(1.5px)' }}
+              animate={{ opacity: 1, filter: 'none' }}
+              exit={{ opacity: 0.25, filter: 'blur(1px)' }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {viewMode === 'grid' ? (
+                <div className="cards-grid">
+                  {items.map((proj) => (
+                    <div
                       key={proj.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        delay: Math.min(idx * 0.035, 0.35),
-                        duration: 0.2,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
+                      className="card"
                       onClick={() => onSelectProject(proj.id)}
                       tabIndex={0}
+                      role="button"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
                           onSelectProject(proj.id);
                         }
                       }}
-                      style={{ cursor: 'pointer' }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: '145px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
                     >
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                          <FolderKanban size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{proj.name}</div>
-                        </div>
-                        {proj.description && (
-                          <div
-                            style={{
-                              fontSize: '0.8rem',
-                              color: 'var(--text-secondary)',
-                              marginTop: '2px',
-                              maxWidth: '480px',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {proj.description}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                            <FolderKanban size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
+                            <h3 className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {proj.name}
+                            </h3>
                           </div>
-                        )}
-                      </td>
-                      <td>
-                        <code
+                          {proj.is_archived ? (
+                            <span className="badge badge-amber" style={{ flexShrink: 0 }}>Archived</span>
+                          ) : (
+                            <span className="badge badge-emerald" style={{ flexShrink: 0 }}>Active</span>
+                          )}
+                        </div>
+                        <p
+                          className="card-desc"
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            fontSize: '0.84rem',
+                            lineHeight: 1.45,
+                            color: 'var(--text-secondary)',
+                          }}
+                        >
+                          {proj.description || 'No project description provided.'}
+                        </p>
+                      </div>
+
+                      <div className="card-footer" style={{ marginTop: '0.85rem', paddingTop: '0.65rem' }}>
+                        <span
                           style={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '0.78rem',
+                            fontSize: '0.74rem',
                             color: 'var(--text-muted)',
                             backgroundColor: 'var(--bg-elevated)',
-                            padding: '0.15rem 0.4rem',
+                            padding: '0.1rem 0.35rem',
                             borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--border-hairline)',
                           }}
                         >
-                          {proj.id.slice(0, 12)}...
-                        </code>
-                      </td>
-                      <td>
-                        {proj.is_archived ? (
-                          <span className="badge badge-amber">Archived</span>
-                        ) : (
-                          <span className="badge badge-emerald">Active</span>
-                        )}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        {new Date(proj.created_at).toLocaleDateString()}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '2px',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            color: 'var(--accent-interactive)',
-                          }}
-                        >
-                          <span>Open</span>
-                          <ChevronRight size={14} strokeWidth={2} />
+                          {proj.id.slice(0, 8)}...
                         </span>
-                      </td>
-                    </motion.tr>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <span>{new Date(proj.created_at).toLocaleDateString()}</span>
+                          <ChevronRight size={13} strokeWidth={1.75} />
+                        </span>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        }
+                </div>
+              ) : (
+                <div className="data-table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Project Name & Description</th>
+                        <th>Identifier</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((proj) => (
+                        <tr
+                          key={proj.id}
+                          onClick={() => onSelectProject(proj.id)}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelectProject(proj.id);
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                              <FolderKanban size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{proj.name}</div>
+                            </div>
+                            {proj.description && (
+                              <div
+                                style={{
+                                  fontSize: '0.8rem',
+                                  color: 'var(--text-secondary)',
+                                  marginTop: '2px',
+                                  maxWidth: '480px',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {proj.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <code
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.78rem',
+                                color: 'var(--text-muted)',
+                                backgroundColor: 'var(--bg-elevated)',
+                                padding: '0.15rem 0.4rem',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--border-hairline)',
+                              }}
+                            >
+                              {proj.id.slice(0, 12)}...
+                            </code>
+                          </td>
+                          <td>
+                            {proj.is_archived ? (
+                              <span className="badge badge-amber">Archived</span>
+                            ) : (
+                              <span className="badge badge-emerald">Active</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {new Date(proj.created_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                color: 'var(--accent-interactive)',
+                              }}
+                            >
+                              <span>Open</span>
+                              <ChevronRight size={14} strokeWidth={2} />
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </TriStateView>
       </Skeleton>
     </div>

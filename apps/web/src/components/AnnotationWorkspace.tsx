@@ -927,90 +927,89 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   <p style={{ fontSize: '0.78rem' }}>Adjust search or split/status filters.</p>
                 </div>
               ) : (
-                <div style={{ opacity: loadingQueue ? 0.7 : 1, transition: 'opacity 0.15s ease' }}>
-                  <AnimatePresence mode="popLayout">
-                    {filteredQueue.map((item, idx) => {
-                      const isActive = item.id === selectedRecordId;
-                      const statusBadgeClass =
-                        item.review_status === 'approved'
-                          ? 'badge-emerald'
-                          : item.review_status === 'rejected'
-                          ? 'badge-rose'
-                          : item.review_status === 'needs_correction'
-                          ? 'badge-amber'
-                          : item.review_status === 'pending_review'
-                          ? 'badge-blue'
-                          : 'badge-neutral';
+                <div>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`${selectedSplit}-${selectedStatus}-${queueSearch}`}
+                      initial={{ opacity: 0.25, filter: 'blur(1px)' }}
+                      animate={{ opacity: 1, filter: 'none' }}
+                      exit={{ opacity: 0.25, filter: 'blur(1px)' }}
+                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      {filteredQueue.map((item, idx) => {
+                        const isActive = item.id === selectedRecordId;
+                        const statusBadgeClass =
+                          item.review_status === 'approved'
+                            ? 'badge-emerald'
+                            : item.review_status === 'rejected'
+                            ? 'badge-rose'
+                            : item.review_status === 'needs_correction'
+                            ? 'badge-amber'
+                            : item.review_status === 'pending_review'
+                            ? 'badge-blue'
+                            : 'badge-neutral';
 
-                      return (
-                        <motion.div
-                          key={item.id}
-                          layout="position"
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.96 }}
-                          transition={{
-                            delay: Math.min(idx * 0.035, 0.35),
-                            duration: 0.22,
-                            ease: [0.16, 1, 0.3, 1],
-                          }}
-                          onClick={() => setSelectedRecordId(item.id)}
-                          className={`workbench-queue-item ${isActive ? 'active' : ''}`}
-                          style={{ position: 'relative' }}
-                        >
-                          {isActive && (
-                            <motion.div
-                              layoutId="activeQueueItemIndicator"
-                              transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
-                              style={{
-                                position: 'absolute',
-                                inset: 0,
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1.5px solid var(--accent-interactive)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                                boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.2), var(--shadow-sm)',
-                                pointerEvents: 'none',
-                                zIndex: 0,
-                              }}
-                            />
-                          )}
-                          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => setSelectedRecordId(item.id)}
+                            className={`workbench-queue-item ${isActive ? 'active' : ''}`}
+                            style={{ position: 'relative' }}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeQueueItemIndicator"
+                                transition={{ type: 'spring' as const, stiffness: 480, damping: 36 }}
                                 style={{
-                                  fontSize: '0.825rem',
-                                  fontFamily: 'var(--font-mono)',
-                                  fontWeight: isActive ? 700 : 500,
-                                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                  position: 'absolute',
+                                  inset: 0,
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1.5px solid var(--accent-interactive)',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                  boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.2), var(--shadow-sm)',
+                                  pointerEvents: 'none',
+                                  zIndex: 0,
+                                }}
+                              />
+                            )}
+                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span
+                                  style={{
+                                    fontSize: '0.825rem',
+                                    fontFamily: 'var(--font-mono)',
+                                    fontWeight: isActive ? 700 : 500,
+                                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                  }}
+                                >
+                                  #{idx + 1} {item.external_key || item.id.slice(0, 8)}
+                                </span>
+                                <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                                  {item.review_status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontSize: '0.72rem',
+                                  color: 'var(--text-muted)',
                                 }}
                               >
-                                #{idx + 1} {item.external_key || item.id.slice(0, 8)}
-                              </span>
-                              <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                                {item.review_status.replace(/_/g, ' ')}
-                              </span>
-                            </div>
-
-                            <div
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontSize: '0.72rem',
-                                color: 'var(--text-muted)',
-                              }}
-                            >
-                              <span>Split: {item.split || 'train'}</span>
-                              {item.annotation_payload?.label && (
-                                <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
-                                  {item.annotation_payload.label}
-                                </span>
-                              )}
+                                <span>Split: {item.split || 'train'}</span>
+                                {item.annotation_payload?.label && (
+                                  <span className="badge badge-blue" style={{ fontSize: '0.68rem', padding: '0.05rem 0.3rem' }}>
+                                    {item.annotation_payload.label}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </motion.div>
-                      );
-                    })}
+                        );
+                      })}
+                    </motion.div>
                   </AnimatePresence>
                 </div>
               )}
@@ -1061,15 +1060,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               <p className="empty-desc">Choose a record from the queue to start labeling.</p>
             </div>
           ) : (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentRecord.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-                style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
-              >
+            <motion.div
+              key={currentRecord.id}
+              initial={{ opacity: 0.35, filter: 'blur(2px)' }}
+              animate={{ opacity: 1, filter: 'none' }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
+            >
               {/* Contextual Asset Metadata Header */}
               <div
                 style={{
@@ -1500,7 +1497,6 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 <div><kbd>?</kbd>All Shortcuts</div>
               </div>
             </motion.div>
-          </AnimatePresence>
           )}
         </div>
 
@@ -1541,16 +1537,14 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               </div>
             </div>
 
-            {/* Record-Specific Inspector Controls with Smooth Crossfade */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentRecord?.id || 'empty-inspector'}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.16, ease: 'easeOut' }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-              >
+            {/* Record-Specific Inspector Controls with Smooth Fade */}
+            <motion.div
+              key={currentRecord?.id || 'empty-inspector'}
+              initial={{ opacity: 0.4 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+            >
                 {/* Section 2: Task-Specific Label / Audio Inputs */}
                 {dataset.task_type === 'audio_transcription' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -2094,7 +2088,6 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               </div>
             )}
               </motion.div>
-            </AnimatePresence>
           </div>
         )}
       </div>
