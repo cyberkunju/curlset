@@ -184,40 +184,58 @@ export const ProvidersView: React.FC = () => {
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '1rem',
+            marginBottom: '1.25rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
               Connect Provider or Key
             </h2>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
               Paste your API key or local endpoint URL. The platform auto-recognizes the provider logo, security contract, and supported models.
             </p>
           </div>
 
-          {/* Real-time recognized provider preview pill */}
+          {/* Real-time recognized provider preview badge */}
           <AnimatePresence mode="wait">
             {detected && (
               <motion.div
                 key={detected.provider}
-                initial={{ opacity: 0, scale: 0.85, y: -4 }}
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.85, y: 4 }}
+                exit={{ opacity: 0, scale: 0.95, y: 4 }}
                 transition={springPhysics}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '9999px',
-                  backgroundColor: 'var(--bg-card-inner)',
+                  gap: '0.6rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-elevated)',
                   border: '1px solid var(--border-hairline)',
-                  boxShadow: 'var(--shadow-sm)',
+                  boxShadow: 'var(--shadow-xs)',
+                  flexShrink: 0,
+                  alignSelf: 'center',
                 }}
               >
-                <ProviderIcon provider={detected.provider} size={18} />
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {detected.displayName}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ProviderIcon provider={detected.provider} size={18} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                    Detected:
+                  </span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {detected.displayName}
+                  </span>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -559,7 +577,7 @@ export const ProvidersView: React.FC = () => {
                             fontSize: '0.7rem',
                             fontWeight: 600,
                             padding: '0.2rem 0.55rem',
-                            borderRadius: '9999px',
+                            borderRadius: 'var(--radius-sm)',
                             backgroundColor: isOperational
                               ? 'rgba(16, 185, 129, 0.1)'
                               : isFailed
