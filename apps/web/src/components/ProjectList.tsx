@@ -17,7 +17,6 @@ import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
-import { Skeleton } from 'boneyard-js/react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 declare global {
@@ -471,14 +470,13 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       </div>
 
       {/* Main TriState View: Boneyard Skeleton on database cards, Empty, or Populated Content */}
-      <Skeleton name="project-cards" loading={isDataLoading} fallback={<ProjectCardsSkeleton />}>
-        <TriStateView<Project[]>
-          skeletonName="project-cards-grid"
-          loading={isDataLoading}
-          data={filtered}
-          isEmpty={(items) => items.length === 0}
-          boneyardFixture={<ProjectCardsSkeleton />}
-          emptyState={
+      <TriStateView<Project[]>
+        skeletonName="project-cards-grid"
+        loading={isDataLoading}
+        data={filtered}
+        isEmpty={(items) => items.length === 0}
+        boneyardFixture={<ProjectCardsSkeleton />}
+        emptyState={
           <div className="empty-state">
             <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
               <FolderKanban size={36} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
@@ -506,10 +504,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           <AnimatePresence mode="wait">
             <motion.div
               key={`${viewMode}-${effectiveSearch}-${sortBy}-${includeArchived}`}
-              initial={{ opacity: 0.25, filter: 'blur(1.5px)' }}
-              animate={{ opacity: 1, filter: 'none' }}
-              exit={{ opacity: 0.25, filter: 'blur(1px)' }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0.35 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0.35 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             >
               {viewMode === 'grid' ? (
                 <div className="cards-grid">
@@ -532,7 +530,12 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                         justifyContent: 'space-between',
                         minHeight: '145px',
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease',
+                        backgroundColor: 'var(--bg-surface)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-hairline)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
                       }}
                     >
                       <div>
@@ -684,7 +687,6 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           </AnimatePresence>
         )}
       </TriStateView>
-      </Skeleton>
     </div>
   );
 };

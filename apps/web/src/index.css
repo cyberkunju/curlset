@@ -555,7 +555,8 @@ select option {
 }
 
 .card {
-  background: var(--bg-surface);
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   padding: 1.35rem;
@@ -563,6 +564,12 @@ select option {
   cursor: pointer;
   position: relative;
   box-shadow: var(--shadow-sm);
+}
+
+.dark .card {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary);
+  border-color: var(--border-hairline);
 }
 
 .card:hover {
@@ -1277,6 +1284,10 @@ select option {
   animation: none;
   mix-blend-mode: normal;
   display: block;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
 }
 
 ::view-transition-old(root) {

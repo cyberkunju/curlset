@@ -24,10 +24,10 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
 
     const willBeDark = !isDark;
 
-    // Retrieve origin coordinates from button capsule center
+    // Retrieve origin coordinates strictly from the button capsule center
     const rect = buttonRef.current?.getBoundingClientRect();
-    const x = e.clientX || (rect ? rect.left + rect.width / 2 : window.innerWidth / 2);
-    const y = e.clientY || (rect ? rect.top + rect.height / 2 : 32);
+    const x = rect ? rect.left + rect.width / 2 : (e.clientX || window.innerWidth / 2);
+    const y = rect ? rect.top + rect.height / 2 : (e.clientY || 32);
 
     const applyTheme = () => {
       if (willBeDark) {
@@ -52,11 +52,12 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
 
     isTransitioningRef.current = true;
 
-    // Calculate maximum radius to engulf the farthest corner of the viewport
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
-    );
+    // Calculate maximum radius with safety margin to completely clear all viewport edges
+    const endRadius =
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      ) * 1.05;
 
     try {
       const transition = startViewTransition.call(document, () => {
@@ -75,8 +76,8 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
               ],
             },
             {
-              duration: 800,
-              easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+              duration: 500,
+              easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
               pseudoElement: '::view-transition-new(root)',
             }
           );
