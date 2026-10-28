@@ -126,30 +126,24 @@ export const ProvidersView: React.FC = () => {
     <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', paddingBottom: '3rem' }}>
       {/* Top Header */}
       <div style={{ marginBottom: '1.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-          <div
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(99, 102, 241, 0.12)',
-              color: 'var(--indigo)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <KeyRound size={20} strokeWidth={2} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: '1.45rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Model Providers & API Keys
-            </h1>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Configure OpenAI, Anthropic Claude, Local Ollama, Groq, and custom model endpoints for automated AI labeling.
-            </p>
-          </div>
-        </div>
+        <h1
+          style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            color: 'var(--text-primary)',
+            margin: '0 0 0.25rem 0',
+          }}
+        >
+          <KeyRound size={24} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
+          <span>Model Providers & API Keys</span>
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+          Configure OpenAI, Anthropic Claude, Local Ollama, Groq, and custom model endpoints for automated AI labeling.
+        </p>
       </div>
 
       {error && (
