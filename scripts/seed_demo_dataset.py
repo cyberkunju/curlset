@@ -2,14 +2,16 @@
 Deterministic, zero-credential demo dataset seeder for AI Dataset Engineering Platform.
 Populates a comprehensive multimodal project with:
   1. Text Classification (Customer Support Intents)
-  2. Image Classification (Geometric Shapes)
-  3. Object Detection (Autonomous Driving Bounding Boxes) with a published immutable Version 1.0.0.
+  2. Image Classification (Realistic Visual Labels)
+  3. Object Detection (Localized 2D Bounding Boxes) with a published immutable Version 1.0.0.
 
 Requires zero paid API keys or external services; 100% runnable offline.
 """
 import io
 import logging
 import os
+import sys
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 
@@ -29,6 +31,20 @@ from services.api.config import settings
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] (seeder) %(message)s")
 logger = logging.getLogger("seeder")
 
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "demo_images"
+
+
+def _load_or_generate_image(filename: str, fallback_shape: str = "circle", index: int = 1) -> bytes:
+    """Load high-quality realistic image asset from fixtures, or fallback to synthetic generation."""
+    fixture_path = FIXTURES_DIR / filename
+    if fixture_path.exists():
+        try:
+            return fixture_path.read_bytes()
+        except Exception as e:
+            logger.warning("Could not read fixture %s: %s. Using synthetic fallback.", fixture_path, e)
+
+    return _generate_synthetic_image(draw_shape=fallback_shape, index=index)
+
 
 def _generate_synthetic_image(draw_shape: str = "circle", width: int = 256, height: int = 256, index: int = 1) -> bytes:
     """Generate a valid, deterministic synthetic test PNG image."""
@@ -43,12 +59,9 @@ def _generate_synthetic_image(draw_shape: str = "circle", width: int = 256, heig
     elif draw_shape == "triangle":
         draw.polygon([(width // 2, 40 + offset), (40, height - 40), (width - 40, height - 40)], fill=(245, 158 + offset, 11), outline=(180, 83, 9), width=3)
     elif draw_shape == "street":
-        # Road scene simulation
         draw.rectangle([0, height // 2, width, height], fill=(100 + offset, 116, 139))
         draw.line([(width // 2 + offset, height // 2), (width // 2 + offset, height)], fill=(255, 255, 255), width=4)
-        # Car proxy box
         draw.rectangle([60 + offset, height // 2 + 30, 140 + offset, height // 2 + 80], fill=(239, 68 + offset, 68))
-        # Pedestrian proxy box
         draw.rectangle([180 - offset, height // 2 + 10, 210 - offset, height // 2 + 70], fill=(16, 185, 129))
 
     buf = io.BytesIO()
@@ -56,7 +69,7 @@ def _generate_synthetic_image(draw_shape: str = "circle", width: int = 256, heig
     return buf.getvalue()
 
 
-def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
+def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[str, str]:
     """
     Populates the database with demo datasets.
     Returns mapping of created entity identifiers.
@@ -74,13 +87,18 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
         # 1. Project
         existing_proj = session.query(ProjectModel).filter_by(id="proj_demo_benchmark").first()
         if existing_proj:
-            logger.info("Demo project already exists (ID: %s).", existing_proj.id)
-            return {"project_id": existing_proj.id}
+            if reset:
+                logger.info("Reset requested. Removing existing demo project...")
+                session.delete(existing_proj)
+                session.flush()
+            else:
+                logger.info("Demo project already exists (ID: %s).", existing_proj.id)
+                return {"project_id": existing_proj.id}
 
         proj = ProjectModel(
             id="proj_demo_benchmark",
             name="Multimodal AI Engineering Benchmark",
-            description="Comprehensive benchmark project showcasing text classification, visual defect labeling, and autonomous vehicle object detection.",
+            description="Comprehensive benchmark project showcasing text classification, visual object labeling, and workspace object detection.",
             owner_id="usr_demo_lead",
         )
         session.add(proj)
@@ -95,6 +113,7 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
             task_type=TaskType.TEXT_CLASSIFICATION.value,
             description="Curated user support inquiries labeled into intent categories for triage models.",
             annotation_instructions="Assign exactly one primary intent label: billing, technical_support, feature_request, or general_inquiry.",
+            label_schema={"labels": ["billing", "technical_support", "feature_request", "general_inquiry"]},
             schema_version=1,
         )
         session.add(ds_text)
@@ -102,11 +121,7 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
 
         sample_texts = [
             ("I was charged twice for my subscription this month. Please issue a refund.", "billing", "train"),
-            ("The application crashes whenever I try to upload a large CSV file.", "technical_support", "train"),
-            ("Can you add dark mode and keyboard shortcuts to the annotation editor?", "feature_request", "train"),
-            ("Where can I find documentation on the REST API rate limits?", "general_inquiry", "train"),
-            ("My invoice does not match the annual discount promised during signup.", "billing", "val"),
-            ("Receiving error code 500 when saving revisions in the canvas tool.", "technical_support", "test"),
+            ("Can you add dark mode and keyboard shortcuts to the annotation editor?", "feature_request", "val"),
         ]
 
         for i, (text, label, split) in enumerate(sample_texts, start=1):
@@ -131,33 +146,31 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
 
         logger.info("Created Text Classification dataset with %d records.", len(sample_texts))
 
-        # 3. Image Classification Dataset
+        # 3. Image Classification Dataset (Realistic Images)
         ds_image = DatasetModel(
             id="ds_demo_shapes_classification",
             project_id=proj.id,
-            name="Synthetic Geometry & Shape Classifier",
+            name="Visual Species & Object Classifier",
             task_type=TaskType.IMAGE_CLASSIFICATION.value,
-            description="Synthetic high-contrast geometric shape dataset for image recognition validation.",
-            annotation_instructions="Identify the primary foreground geometric shape: circle, rectangle, or triangle.",
+            description="Realistic visual recognition dataset with high-resolution photographic samples.",
+            annotation_instructions="Identify the primary foreground subject: dog or cat.",
+            label_schema={"labels": ["dog", "cat"]},
             schema_version=1,
         )
         session.add(ds_image)
         session.flush()
 
-        shapes = [
-            ("circle", "train"),
-            ("rectangle", "train"),
-            ("triangle", "train"),
-            ("circle", "val"),
-            ("rectangle", "test"),
+        image_items = [
+            ("golden_retriever.jpg", "dog", "train", "circle"),
+            ("siamese_cat.jpg", "cat", "val", "rectangle"),
         ]
 
-        for i, (shape_name, split) in enumerate(shapes, start=1):
-            img_bytes = _generate_synthetic_image(draw_shape=shape_name, index=i)
+        for i, (filename, label, split, fallback) in enumerate(image_items, start=1):
+            img_bytes = _load_or_generate_image(filename=filename, fallback_shape=fallback, index=i)
             report = IngestionService.ingest_bytes(
                 session=session,
                 dataset_id=ds_image.id,
-                filename=f"shape_{shape_name}_{i:03d}.png",
+                filename=filename,
                 data=img_bytes,
                 split=split,
                 storage=storage,
@@ -169,62 +182,75 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
             AnnotationService.create_annotation(
                 session=session,
                 record_id=rec_id,
-                payload={"label": shape_name},
+                payload={"label": label},
                 origin=AnnotationOrigin.HUMAN,
                 confidence=1.0,
                 status=ReviewStatus.APPROVED,
             )
 
-        logger.info("Created Image Classification dataset with %d assets.", len(shapes))
+        logger.info("Created Image Classification dataset with %d assets.", len(image_items))
 
-        # 4. Object Detection Dataset with Published Version 1.0.0
+        # 4. Object Detection Dataset with Published Version 1.0.0 (Realistic Scenes)
         ds_object = DatasetModel(
             id="ds_demo_autonomous_detection",
             project_id=proj.id,
-            name="Autonomous Vehicle Street Scene Detection",
+            name="Scene Object Detection & Spatial Calibration",
             task_type=TaskType.OBJECT_DETECTION.value,
-            description="Simulated urban road scene imagery with localized bounding boxes for vehicles and pedestrians.",
-            annotation_instructions="Draw tightly bound bounding boxes for all vehicles, pedestrians, and traffic signs.",
+            description="Calibrated imagery with bounding box annotations for vehicles, pedestrians, and workspace items.",
+            annotation_instructions="Draw tightly bound bounding boxes for cars, pedestrians, laptops, and accessories.",
+            label_schema={"classes": ["car", "pedestrian", "cyclist", "laptop", "cup", "headphones", "tablet", "notebook"]},
             schema_version=1,
         )
         session.add(ds_object)
         session.flush()
 
-        scenes = [
+        detection_scenes = [
             (
+                "urban_street.jpg",
                 "train",
                 [
-                    {"box_2d": [0.23, 0.61, 0.31, 0.20], "label": "car"},
-                    {"box_2d": [0.70, 0.54, 0.12, 0.23], "label": "pedestrian"},
+                    {"label": "car", "x": 0.24, "y": 0.46, "w": 0.28, "h": 0.23},
+                    {"label": "pedestrian", "x": 0.74, "y": 0.42, "w": 0.12, "h": 0.31},
                 ],
+                "street",
             ),
             (
+                "desk_workspace.jpg",
                 "train",
                 [
-                    {"box_2d": [0.15, 0.58, 0.35, 0.22], "label": "car"},
+                    {"label": "laptop", "x": 0.20, "y": 0.27, "w": 0.50, "h": 0.50},
+                    {"label": "cup", "x": 0.75, "y": 0.50, "w": 0.17, "h": 0.17},
+                    {"label": "headphones", "x": 0.27, "y": 0.12, "w": 0.14, "h": 0.23},
                 ],
+                "rectangle",
             ),
             (
+                "car_intersection.jpg",
                 "val",
                 [
-                    {"box_2d": [0.30, 0.60, 0.25, 0.18], "label": "car"},
-                    {"box_2d": [0.65, 0.52, 0.10, 0.25], "label": "pedestrian"},
+                    {"label": "car", "x": 0.13, "y": 0.52, "w": 0.37, "h": 0.20},
+                    {"label": "cyclist", "x": 0.65, "y": 0.48, "w": 0.28, "h": 0.29},
                 ],
+                "street",
             ),
             (
+                "office_table.jpg",
                 "test",
                 [
-                    {"box_2d": [0.20, 0.62, 0.28, 0.21], "label": "car"},
+                    {"label": "notebook", "x": 0.38, "y": 0.32, "w": 0.53, "h": 0.48},
+                    {"label": "tablet", "x": 0.14, "y": 0.12, "w": 0.45, "h": 0.36},
+                    {"label": "cup", "x": 0.01, "y": 0.36, "w": 0.09, "h": 0.14},
                 ],
+                "triangle",
             ),
         ]
 
-        for i, (split, boxes) in enumerate(scenes, start=1):
-            img_bytes = _generate_synthetic_image(draw_shape="street", index=i)
+        for i, (filename, split, boxes, fallback) in enumerate(detection_scenes, start=1):
+            img_bytes = _load_or_generate_image(filename=filename, fallback_shape=fallback, index=i)
             report = IngestionService.ingest_bytes(
                 session=session,
                 dataset_id=ds_object.id,
-                filename=f"street_scene_{i:03d}.png",
+                filename=filename,
                 data=img_bytes,
                 split=split,
                 storage=storage,
@@ -234,13 +260,13 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
             AnnotationService.create_annotation(
                 session=session,
                 record_id=rec_id,
-                payload={"boxes": boxes},
+                payload={"boxes": boxes, "coordinate_system": "normalized"},
                 origin=AnnotationOrigin.HUMAN,
                 confidence=1.0,
                 status=ReviewStatus.APPROVED,
             )
 
-        logger.info("Created Object Detection dataset with %d scene records.", len(scenes))
+        logger.info("Created Object Detection dataset with %d scene records.", len(detection_scenes))
 
         # 5. Publish Immutable Version 1.0.0 for ds_object
         version = VersioningService.create_version(
@@ -262,7 +288,8 @@ def seed_demo_data(engine=None, storage_dir=None) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    result = seed_demo_data()
+    should_reset = "--reset" in sys.argv
+    result = seed_demo_data(reset=should_reset)
     print("\n Demo dataset seeding complete!")
     for k, v in result.items():
         print(f"  {k}: {v}")
