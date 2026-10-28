@@ -1153,8 +1153,9 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: 0.5rem;
   min-width: 0;
+  width: 100%;
 }
 
 .lifecycle-stage-title {
@@ -1170,10 +1171,11 @@ select option {
 
 .lifecycle-stage .badge {
   font-size: 0.7rem;
-  padding: 0.15rem 0.48rem;
-  line-height: 1.2;
+  padding: 0.15rem 0.45rem;
+  line-height: 1.25;
   white-space: nowrap;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .lifecycle-stage-actions {

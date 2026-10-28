@@ -523,7 +523,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <PenTool size={15} strokeWidth={1.75} />
               <span>Annotation</span>
             </div>
-            <span className="badge badge-blue">{reviewPct}% Reviewed</span>
+            <span className="badge badge-blue">{reviewPct}%</span>
           </div>
           <div className="lifecycle-stage-actions">
             <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
