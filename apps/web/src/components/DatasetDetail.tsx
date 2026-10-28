@@ -500,9 +500,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Ingestion</span>
             </div>
             {stats.total_records > 0 ? (
-              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>{stats.total_records} Ingested</span>
+              <span className="badge badge-emerald">{stats.total_records} Ingested</span>
             ) : (
-              <span className="badge badge-amber" style={{ fontSize: '0.72rem' }}>No Records</span>
+              <span className="badge badge-amber">No Records</span>
             )}
           </div>
           <div className="lifecycle-stage-actions">
@@ -523,7 +523,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <PenTool size={15} strokeWidth={1.75} />
               <span>Annotation</span>
             </div>
-            <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>{reviewPct}% Reviewed</span>
+            <span className="badge badge-blue">{reviewPct}% Reviewed</span>
           </div>
           <div className="lifecycle-stage-actions">
             <SpringButton variant="secondary" onClick={() => setIsWorkspaceOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
@@ -545,9 +545,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Quality</span>
             </div>
             {stats.rejected > 0 ? (
-              <span className="badge badge-rose" style={{ fontSize: '0.72rem' }}>{stats.rejected} Flagged</span>
+              <span className="badge badge-rose">{stats.rejected} Flagged</span>
             ) : (
-              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>Healthy</span>
+              <span className="badge badge-emerald">Healthy</span>
             )}
           </div>
           <div className="lifecycle-stage-actions">
@@ -572,9 +572,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Versioning</span>
             </div>
             {stats.approved > 0 ? (
-              <span className="badge badge-emerald" style={{ fontSize: '0.72rem' }}>Verified</span>
+              <span className="badge badge-emerald">Verified</span>
             ) : (
-              <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Draft</span>
+              <span className="badge badge-neutral">Draft</span>
             )}
           </div>
           <div className="lifecycle-stage-actions">
@@ -602,9 +602,9 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
               <span>Exports</span>
             </div>
             {stats.approved > 0 ? (
-              <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>Ready</span>
+              <span className="badge badge-blue">Ready</span>
             ) : (
-              <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>Requires Approval</span>
+              <span className="badge badge-neutral">Pending</span>
             )}
           </div>
           <div className="lifecycle-stage-actions">
