@@ -107,13 +107,16 @@ export function mapParsedProbeToServiceStatus<T = any>(
     const statusStr = (parsed.data && typeof parsed.data === 'object' && parsed.data.status)
       ? String(parsed.data.status)
       : parsed.statusText || 'ok';
+    const enrichedData = (parsed.data && typeof parsed.data === 'object')
+      ? { ...parsed.data, status: statusStr, displayStatus: 'operational' as ServiceDisplayStatus }
+      : { status: statusStr, displayStatus: 'operational' as ServiceDisplayStatus };
     return {
       status: statusStr,
       displayStatus: 'operational',
       isOperational: true,
       isDegraded: false,
       isUnreachable: false,
-      data: parsed.data as T,
+      data: enrichedData as any,
       error: undefined,
       httpStatus: parsed.httpStatus,
     };
@@ -132,8 +135,8 @@ export function mapParsedProbeToServiceStatus<T = any>(
   if (isTransportFailure) {
     const errorMsg = parsed.error || 'Service is unreachable';
     const fallbackData = (parsed.data && typeof parsed.data === 'object')
-      ? { ...parsed.data, status: 'unreachable', error: errorMsg }
-      : { status: 'unreachable', error: errorMsg };
+      ? { ...parsed.data, status: 'unreachable', displayStatus: 'unreachable' as ServiceDisplayStatus, error: errorMsg }
+      : { status: 'unreachable', displayStatus: 'unreachable' as ServiceDisplayStatus, error: errorMsg };
     return {
       status: 'unreachable',
       displayStatus: 'unreachable',
@@ -156,7 +159,7 @@ export function mapParsedProbeToServiceStatus<T = any>(
     typeof parsed.data.status === 'string'
   ) {
     const rawStatus = parsed.data.status.trim();
-    // If the raw status is an unexpected status (e.g. 'maintenance', 'warning', 'degraded'), preserve it.
+    // If the raw status is an unexpected status (e.g. 'maintenance', 'warning', 'read_only', 'degraded'), preserve it.
     // If it was 'ready' or 'ok' but parsed.ok was false (e.g. dependency failures), report 'degraded'.
     if (rawStatus !== 'ready' && rawStatus !== 'ok' && rawStatus !== 'healthy') {
       statusStr = rawStatus;
@@ -169,8 +172,8 @@ export function mapParsedProbeToServiceStatus<T = any>(
 
   const errorMsg = parsed.error || `Service reported non-operational status: '${statusStr}'`;
   const degradedData = (parsed.data && typeof parsed.data === 'object')
-    ? { ...parsed.data, status: statusStr, error: errorMsg }
-    : { status: statusStr, error: errorMsg };
+    ? { ...parsed.data, status: statusStr, displayStatus: 'degraded' as ServiceDisplayStatus, error: errorMsg }
+    : { status: statusStr, displayStatus: 'degraded' as ServiceDisplayStatus, error: errorMsg };
 
   return {
     status: statusStr,
@@ -183,6 +186,62 @@ export function mapParsedProbeToServiceStatus<T = any>(
     httpStatus: parsed.httpStatus,
   };
 }
+
+/**
+ * Resolves the 3-way display severity ('operational' | 'degraded' | 'unreachable')
+ * for a service status string or display status.
+ */
+export function resolveServiceDisplaySeverity(
+  statusOrDisplayStatus?: string | null,
+  probeType: ProbeType = 'auto'
+): ServiceDisplayStatus {
+  if (!statusOrDisplayStatus || statusOrDisplayStatus === 'unreachable') {
+    return 'unreachable';
+  }
+  if (statusOrDisplayStatus === 'operational') {
+    return 'operational';
+  }
+  if (statusOrDisplayStatus === 'degraded') {
+    return 'degraded';
+  }
+
+  const lower = statusOrDisplayStatus.toLowerCase().trim();
+  if (probeType === 'health') {
+    if (lower === 'ok' || lower === 'healthy') {
+      return 'operational';
+    }
+  } else if (probeType === 'readiness') {
+    if (lower === 'ready' || lower === 'ok') {
+      return 'operational';
+    }
+  } else {
+    if (lower === 'ok' || lower === 'healthy' || lower === 'ready') {
+      return 'operational';
+    }
+  }
+
+  // Any other non-unreachable status (e.g. 'maintenance', 'warning', 'read_only', 'degraded') is degraded
+  return 'degraded';
+}
+
+/**
+ * Returns the CSS badge severity class for a service display severity or status.
+ * Guarantees that the overall system status badge and individual service card badges
+ * follow the exact same three-way classification:
+ * - operational -> 'badge-emerald'
+ * - degraded -> 'badge-amber'
+ * - unreachable -> 'badge-rose'
+ */
+export function getServiceDisplayBadgeClass(
+  severityOrStatus?: ServiceDisplayStatus | string | null,
+  probeType: ProbeType = 'auto'
+): 'badge-emerald' | 'badge-amber' | 'badge-rose' {
+  const severity = resolveServiceDisplaySeverity(severityOrStatus, probeType);
+  if (severity === 'operational') return 'badge-emerald';
+  if (severity === 'degraded') return 'badge-amber';
+  return 'badge-rose';
+}
+
 
 /**
  * Validates and parses health and readiness probe responses, guarding against

@@ -9,6 +9,8 @@ import {
   parseHealthProbeResult,
   computeOverallSystemStatus,
   mapParsedProbeToServiceStatus,
+  resolveServiceDisplaySeverity,
+  getServiceDisplayBadgeClass,
   isDateRangeValid,
   filterAuditLogs,
   filterCandidatesByLicense,
@@ -306,12 +308,94 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.equal(malformedUnreachable.isUnreachable, true);
   assert.equal(computeOverallSystemStatus(malformedUnreachable.status, rOperational.status), 'unreachable');
 
-  // 1.7.7: An unexpected status on one endpoint cannot produce an overall operational state
-  assert.notEqual(computeOverallSystemStatus(hMaintenance.status, rOperational.status), 'operational');
-  assert.notEqual(computeOverallSystemStatus(hOperational.status, rWarning.status), 'operational');
-  assert.notEqual(computeOverallSystemStatus(hMaintenance.status, rWarning.status), 'operational');
-  assert.notEqual(computeOverallSystemStatus('maintenance', 'ready'), 'operational');
-  assert.notEqual(computeOverallSystemStatus('ok', 'warning'), 'operational');
+  // 1.8: Card Badge Severity Classification & Overall System Consistency Contract
+  // 1.8.1: Operational statuses resolve to 'operational' severity and 'badge-emerald'
+  assert.equal(resolveServiceDisplaySeverity('ok', 'health'), 'operational');
+  assert.equal(resolveServiceDisplaySeverity('healthy', 'health'), 'operational');
+  assert.equal(resolveServiceDisplaySeverity('ready', 'readiness'), 'operational');
+  assert.equal(resolveServiceDisplaySeverity('ok', 'readiness'), 'operational');
+  assert.equal(getServiceDisplayBadgeClass('ok', 'health'), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass('healthy', 'health'), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass('ready', 'readiness'), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass('operational'), 'badge-emerald');
+
+  // 1.8.2: Reachable non-operational statuses (degraded, maintenance, warning, read_only) resolve to 'degraded' and 'badge-amber'
+  assert.equal(resolveServiceDisplaySeverity('degraded'), 'degraded');
+  assert.equal(resolveServiceDisplaySeverity('maintenance'), 'degraded');
+  assert.equal(resolveServiceDisplaySeverity('warning'), 'degraded');
+  assert.equal(resolveServiceDisplaySeverity('read_only'), 'degraded');
+  assert.equal(getServiceDisplayBadgeClass('degraded'), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass('maintenance'), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass('warning'), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass('read_only'), 'badge-amber');
+
+  // 1.8.3: Unreachable, network errors, HTML fallbacks, malformed JSON, and missing statuses resolve to 'unreachable' and 'badge-rose'
+  assert.equal(resolveServiceDisplaySeverity('unreachable'), 'unreachable');
+  assert.equal(resolveServiceDisplaySeverity(null), 'unreachable');
+  assert.equal(resolveServiceDisplaySeverity(undefined), 'unreachable');
+  assert.equal(getServiceDisplayBadgeClass('unreachable'), 'badge-rose');
+  assert.equal(getServiceDisplayBadgeClass(null), 'badge-rose');
+  assert.equal(getServiceDisplayBadgeClass(undefined), 'badge-rose');
+
+  // 1.8.4: Read-only probe test: raw status remains intact and displayStatus is 'degraded'
+  const hReadOnly = mapParsedProbeToServiceStatus(
+    parseHealthProbeResult(200, 'application/json', JSON.stringify({ status: 'read_only', service: 'api' }), { probeType: 'health' })
+  );
+  assert.equal(hReadOnly.displayStatus, 'degraded');
+  assert.equal(hReadOnly.status, 'read_only');
+  assert.equal((hReadOnly.data as any).status, 'read_only');
+  assert.equal((hReadOnly.data as any).displayStatus, 'degraded');
+  assert.equal(getServiceDisplayBadgeClass(hReadOnly.displayStatus), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass((hReadOnly.data as any).displayStatus), 'badge-amber');
+
+  // 1.8.5: Verification that data carries displayStatus across all probe results
+  assert.equal((hOperational.data as any).displayStatus, 'operational');
+  assert.equal((hOperational.data as any).status, 'ok');
+  assert.equal((rOperational.data as any).displayStatus, 'operational');
+  assert.equal((rOperational.data as any).status, 'ready');
+  assert.equal((hMaintenance.data as any).displayStatus, 'degraded');
+  assert.equal((hMaintenance.data as any).status, 'maintenance');
+  assert.equal((rWarning.data as any).displayStatus, 'degraded');
+  assert.equal((rWarning.data as any).status, 'warning');
+  assert.equal((netUnreachable.data as any).displayStatus, 'unreachable');
+  assert.equal((htmlUnreachable.data as any).displayStatus, 'unreachable');
+  assert.equal((malformedUnreachable.data as any).displayStatus, 'unreachable');
+
+  // 1.8.6: Individual card severity does not contradict overall system severity
+  // Scenario A: Both operational -> Card 1 emerald, Card 2 emerald -> Overall system emerald
+  assert.equal(getServiceDisplayBadgeClass(hOperational.displayStatus), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass(rOperational.displayStatus), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass(computeOverallSystemStatus(hOperational.status, rOperational.status)), 'badge-emerald');
+
+  // Scenario B: Health maintenance (amber) + Readiness ready (emerald) -> Overall system amber
+  assert.equal(getServiceDisplayBadgeClass(hMaintenance.displayStatus), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass(rOperational.displayStatus), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass(computeOverallSystemStatus(hMaintenance.status, rOperational.status)), 'badge-amber');
+
+  // Scenario C: Health ok (emerald) + Readiness warning (amber) -> Overall system amber
+  assert.equal(getServiceDisplayBadgeClass(hOperational.displayStatus), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass(rWarning.displayStatus), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass(computeOverallSystemStatus(hOperational.status, rWarning.status)), 'badge-amber');
+
+  // Scenario D: Health read_only (amber) + Readiness degraded (amber) -> Overall system amber
+  assert.equal(getServiceDisplayBadgeClass(hReadOnly.displayStatus), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass(rDegraded200.displayStatus), 'badge-amber');
+  assert.equal(getServiceDisplayBadgeClass(computeOverallSystemStatus(hReadOnly.status, rDegraded200.status)), 'badge-amber');
+
+  // Scenario E: Health ok (emerald) + Readiness unreachable (rose) -> Overall system rose
+  assert.equal(getServiceDisplayBadgeClass(hOperational.displayStatus), 'badge-emerald');
+  assert.equal(getServiceDisplayBadgeClass(netUnreachable.displayStatus), 'badge-rose');
+  assert.equal(getServiceDisplayBadgeClass(computeOverallSystemStatus(hOperational.status, netUnreachable.status)), 'badge-rose');
+
+  // Invariants:
+  // - A degraded service card (amber) can never yield an overall operational system (emerald)
+  assert.notEqual(getServiceDisplayBadgeClass(computeOverallSystemStatus(hMaintenance.status, rOperational.status)), 'badge-emerald');
+  assert.notEqual(getServiceDisplayBadgeClass(computeOverallSystemStatus(hOperational.status, rWarning.status)), 'badge-emerald');
+  assert.notEqual(getServiceDisplayBadgeClass(computeOverallSystemStatus(hReadOnly.status, rOperational.status)), 'badge-emerald');
+  // - A reachable degraded service card (amber) is never styled as unreachable (rose)
+  assert.notEqual(getServiceDisplayBadgeClass(hMaintenance.displayStatus), 'badge-rose');
+  assert.notEqual(getServiceDisplayBadgeClass(rWarning.displayStatus), 'badge-rose');
+  assert.notEqual(getServiceDisplayBadgeClass(hReadOnly.displayStatus), 'badge-rose');
 
   console.log('✓ Health & readiness endpoint handling verified across all production scenarios');
 }

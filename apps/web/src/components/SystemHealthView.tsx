@@ -18,10 +18,14 @@ import {
   parseHealthProbeResult,
   computeOverallSystemStatus,
   mapParsedProbeToServiceStatus,
+  getServiceDisplayBadgeClass,
+  resolveServiceDisplaySeverity,
 } from '../utils/uiIntegrityContracts';
+import type { ServiceDisplayStatus } from '../utils/uiIntegrityContracts';
 
 interface HealthData {
   status?: string;
+  displayStatus?: ServiceDisplayStatus;
   service?: string;
   version?: string;
   environment?: string;
@@ -33,6 +37,7 @@ interface HealthData {
 
 interface ReadinessData {
   status?: string;
+  displayStatus?: ServiceDisplayStatus;
   database?: string;
   storage?: string;
   error?: string;
@@ -109,8 +114,8 @@ export const SystemHealthView: React.FC = () => {
       setRefreshError(err?.message || 'Diagnostics check failed');
       setHealthLatencyMs(null);
       setReadinessLatencyMs(null);
-      setHealth({ status: 'unreachable', error: err?.message });
-      setReadiness({ status: 'unreachable', error: err?.message });
+      setHealth({ status: 'unreachable', displayStatus: 'unreachable', error: err?.message });
+      setReadiness({ status: 'unreachable', displayStatus: 'unreachable', error: err?.message });
     } finally {
       setLoading(false);
     }
@@ -174,13 +179,7 @@ export const SystemHealthView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <span
             data-testid="system-overall-status"
-            className={`badge ${
-              isSystemOperational
-                ? 'badge-emerald'
-                : isSystemDegraded
-                ? 'badge-amber'
-                : 'badge-rose'
-            }`}
+            className={`badge ${getServiceDisplayBadgeClass(overallStatus)}`}
             style={{
               fontSize: '0.825rem',
               padding: '0.35rem 0.65rem',
@@ -290,9 +289,8 @@ export const SystemHealthView: React.FC = () => {
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>API Service Core</h3>
               </div>
               <span
-                className={`badge ${
-                  isHealthOperational ? 'badge-emerald' : health?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
-                }`}
+                data-testid="health-service-status"
+                className={`badge ${getServiceDisplayBadgeClass(health?.displayStatus || health?.status, 'health')}`}
               >
                 {health?.status ? health.status.toUpperCase() : 'UNKNOWN'}
               </span>
@@ -356,9 +354,8 @@ export const SystemHealthView: React.FC = () => {
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Database & Storage</h3>
               </div>
               <span
-                className={`badge ${
-                  isReadinessOperational ? 'badge-emerald' : readiness?.status === 'degraded' ? 'badge-amber' : 'badge-rose'
-                }`}
+                data-testid="readiness-service-status"
+                className={`badge ${getServiceDisplayBadgeClass(readiness?.displayStatus || readiness?.status, 'readiness')}`}
               >
                 {readiness?.status ? readiness.status.toUpperCase() : 'PROBING'}
               </span>

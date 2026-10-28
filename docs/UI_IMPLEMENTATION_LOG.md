@@ -1260,7 +1260,7 @@ Phase R8 is the **final phase** of the UI redesign roadmap. While Phase R7 achie
 - **Frontend Production Build**: `npm run build` in `apps/web`: **PASSED** (0 TypeScript errors, 0 warnings, main bundle 422.21 kB in 5.72s).
 - **Full Backend Test Suite**: `.venv\Scripts\pytest tests/ -q`: **150 passed, 0 failures** in 6.57s.
 - **Python Linting**: `.venv\Scripts\ruff check .`: **All checks passed!**
-- **Browser Automation Limitation**: Automated Playwright browser runner failed due to upstream driver CDN 404 in offline/sandboxed runner. Local responsive layout contracts, accessibility attributes, keyboard event handlers, and pure domain rules were 100% verified via automated tests, component contracts, and production type checking. Visual browser verification remains explicitly marked pending until external browser binary downloads or a live browser environment are available.
+- **Browser Verification Limitation**: Automated Playwright browser runner failed due to upstream driver CDN 404 in offline/sandboxed runner. Automated code-level unit tests, build validation, and live browser visual verification are strictly separated concepts. Component code contracts, accessibility DOM attributes, keyboard event handlers, and pure state transitions were 100% verified via automated tests and type checking. Live browser visual inspection across viewports has not been performed and remains strictly pending real browser execution.
 
 ### 26.4 Phase R8 Final Verification Fixes (Readiness Parsing & SVG Transform)
 - **Readiness Status Parsing Correction**: Reconciled backend readiness responses (`status: "ready"`, `database: "connected"`, `storage: "accessible"`) with `parseHealthProbeResult`.
@@ -1298,8 +1298,33 @@ Phase R8 is the **final phase** of the UI redesign roadmap. While Phase R7 achie
     7. Unexpected status on one endpoint cannot produce an overall operational state.
 - **Verification Results**:
   - Coordinate contract tests: 19/19 passed.
-  - UI integrity tests: 6/6 suites passed (35 total assertions).
+  - UI integrity tests: 6/6 suites passed (historical run note: earlier log cited 35 assertions before expanding test cases; reconciled in Section 26.7).
   - Frontend production build: 0 TypeScript errors, 0 warnings (main bundle 423.53 kB in 6.55s).
   - Pytest: 150 passed.
   - Ruff: All checks passed.
+
+### 26.7 Phase R8 Final System Health Badge Severity & Documentation Accuracy Correction
+- **Card Badge Severity Alignment (`SystemHealthView.tsx` & `uiIntegrityContracts.ts`)**:
+  - `SystemHealthView.tsx` previously evaluated raw status strings directly against the literal `'degraded'`, causing reachable but non-operational service statuses such as `maintenance`, `warning`, and `read_only` to be displayed with the red/rose (`badge-rose`) unreachable badge styling.
+  - Exported pure helpers `getServiceDisplayBadgeClass` and `resolveServiceDisplaySeverity` from `apps/web/src/utils/uiIntegrityContracts.ts`.
+  - Updated the overall system badge and individual service-card badges (`API Service Core` and `Database & Storage`) to use `getServiceDisplayBadgeClass`, guaranteeing that:
+    - `operational` (`ok`, `healthy`, `ready`) renders green/emerald (`badge-emerald`).
+    - Reachable non-operational statuses (`degraded`, `maintenance`, `warning`, `read_only`) render amber (`badge-amber`).
+    - Transport/protocol failures (`unreachable`, network failure, HTML SPA fallback, malformed JSON) render red/rose (`badge-rose`).
+    - Raw backend status remains displayed in uppercase (`MAINTENANCE`, `WARNING`, `READ_ONLY`, `DEGRADED`, `OK`, `READY`).
+    - Individual card severity and overall system severity never contradict each other.
+- **Contract Regression Tests (`apps/web/tests/ui_integrity.test.ts`)**:
+  - Added Section 1.8 verifying the shared badge severity classification, raw data preservation on `mapped.data`, and overall system severity consistency contract.
+  - **Reconciled Assertion Counts**: The production test suite in `ui_integrity.test.ts` executes **244 verified assert statements** across 6 suites (Suite 1: 163 assertions, Suite 2: 19 assertions, Suite 3: 13 assertions, Suite 4: 21 assertions, Suite 5: 21 assertions, Suite 6: 7 assertions), plus 19 contract tests in `coordinate_contract.test.ts`.
+- **Documentation Accuracy & Browser Verification Distinction**:
+  - Automated code-level unit tests, build validation, and live browser visual verification are strictly separated concepts.
+  - Automated contract tests, component code inspection, accessibility attributes (`aria-labelledby`, `aria-describedby`, focus trap listeners), and production TypeScript builds are 100% verified.
+  - Live browser visual verification across actual viewports has not been performed in this offline environment and remains strictly pending live browser execution.
+- **Quality Gate Results (Latest Run)**:
+  - Coordinate contract tests: 19/19 passed.
+  - UI integrity tests: 244 assertions across 6 suites passed.
+  - Frontend production build (`npm run build`): 0 TypeScript errors, 0 warnings (main bundle 424.29 kB, gzip 113.54 kB in 7.93s).
+  - Pytest: 150 passed, 0 failures in 8.42s.
+  - Ruff: All checks passed.
+
 
