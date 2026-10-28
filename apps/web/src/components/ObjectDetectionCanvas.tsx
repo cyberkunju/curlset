@@ -604,7 +604,7 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             style={{
               display: 'block',
               maxWidth: '100%',
-              maxHeight: 'calc(100vh - 360px)',
+              maxHeight: 'calc(100vh - 270px)',
               pointerEvents: 'none',
             }}
           />
@@ -721,7 +721,20 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
             No objects detected. Drag on the image canvas above to label an object.
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '0.45rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+          <div
+            className="no-scrollbar"
+            style={{
+              display: 'flex',
+              gap: '0.45rem',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              maxHeight: '130px',
+              overflowY: 'auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              paddingBottom: '0.1rem',
+            }}
+          >
             {boxes.map((box, idx) => {
               const isSelected = selectedBoxIndex === idx;
               const classColor = getClassColor(box.label, classes);
@@ -734,14 +747,13 @@ export const ObjectDetectionCanvas: React.FC<ObjectDetectionCanvasProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.45rem',
-                    padding: '0.3rem 0.55rem',
+                    padding: '0.25rem 0.55rem',
                     borderRadius: 'var(--radius-sm)',
                     background: isSelected ? 'var(--bg-elevated)' : 'var(--bg-surface)',
                     border: `1.5px solid ${isSelected ? classColor : 'var(--border-hairline)'}`,
                     fontSize: '0.78rem',
-                    whiteSpace: 'nowrap',
                     cursor: isLegacyUncalibrated ? 'default' : 'pointer',
-                    flexShrink: 0,
+                    flex: '0 0 auto',
                   }}
                 >
                   <span

@@ -888,7 +888,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
             </div>
 
             {/* Queue Items List with Smooth Staggered Appearance */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem', position: 'relative' }}>
+            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0.4rem', position: 'relative' }}>
               {loadingQueue && (
                 <div
                   style={{
@@ -1128,10 +1128,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                 style={{
                   flex: 1,
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: dataset.task_type === 'object_detection' ? 'stretch' : 'center',
                   justifyContent: 'center',
-                  padding: '1.25rem',
-                  overflow: 'auto',
+                  padding: dataset.task_type === 'object_detection' ? '0.75rem' : '1.25rem',
+                  overflow: dataset.task_type === 'object_detection' ? 'hidden' : 'auto',
                   background: 'var(--bg-canvas)',
                 }}
               >
@@ -1504,7 +1504,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         {/* Right Column: Inspector, Label Selection & Actions */}
         {/* ========================================================================= */}
         {isRightPanelOpen && (
-          <div className="workbench-panel-right">
+          <div className="workbench-panel-right no-scrollbar">
             {/* Section 1: Annotation Guidelines */}
             <div>
               <div
