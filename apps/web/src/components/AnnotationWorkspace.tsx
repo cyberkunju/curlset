@@ -1996,35 +1996,63 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                     <History size={14} /> Revision History ({currentRecord.revisions.length})
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                    {showHistory ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </span>
+                  <motion.span
+                    animate={{ rotate: showHistory ? 180 : 0 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--text-muted)' }}
+                  >
+                    <ChevronDown size={14} />
+                  </motion.span>
                 </button>
 
-                {showHistory && (
-                  <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {currentRecord.revisions.map((rev) => (
-                      <div
-                        key={rev.id}
-                        style={{
-                          padding: '0.45rem 0.6rem',
-                          background: 'var(--bg-elevated)',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border-hairline)',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '0.2rem' }}>
-                          <span>Rev #{rev.revision_number} • {rev.payload?.label || 'Revision'}</span>
-                          <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>{rev.origin}</span>
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-                          {rev.change_reason || 'Initial creation'} • {new Date(rev.created_at).toLocaleTimeString()}
-                        </div>
+                <AnimatePresence initial={false}>
+                  {showHistory && (
+                    <motion.div
+                      key="revision-history-drawer"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{
+                        height: 'auto',
+                        opacity: 1,
+                        transition: {
+                          height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: 0.18, delay: 0.04, ease: 'easeOut' },
+                        },
+                      }}
+                      exit={{
+                        height: 0,
+                        opacity: 0,
+                        transition: {
+                          height: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: 0.14, ease: 'easeIn' },
+                        },
+                      }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {currentRecord.revisions.map((rev) => (
+                          <div
+                            key={rev.id}
+                            style={{
+                              padding: '0.45rem 0.6rem',
+                              background: 'var(--bg-elevated)',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-hairline)',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '0.2rem' }}>
+                              <span>Rev #{rev.revision_number} • {rev.payload?.label || 'Revision'}</span>
+                              <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>{rev.origin}</span>
+                            </div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                              {rev.change_reason || 'Initial creation'} • {new Date(rev.created_at).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
               </motion.div>

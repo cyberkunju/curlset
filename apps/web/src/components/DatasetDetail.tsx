@@ -353,11 +353,13 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           >
             <Tag size={15} strokeWidth={1.75} style={{ marginRight: '5px' }} />
             <span>Schema & Classes ({labels.length})</span>
-            {isGuidelinesOpen ? (
-              <ChevronUp size={14} style={{ marginLeft: '4px' }} />
-            ) : (
-              <ChevronDown size={14} style={{ marginLeft: '4px' }} />
-            )}
+            <motion.span
+              animate={{ rotate: isGuidelinesOpen ? 180 : 0 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '4px' }}
+            >
+              <ChevronDown size={14} />
+            </motion.span>
           </SpringButton>
 
           <SpringButton
@@ -371,49 +373,77 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         </div>
       </div>
 
-      {/* Collapsible Schema & Annotation Guidelines Drawer */}
-      {isGuidelinesOpen && (
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-hairline)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1.25rem',
-            marginBottom: '1.25rem',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.25rem',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
-              <Tag size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-              <span>Configured Classes ({labels.length})</span>
-            </div>
-            {labels.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No classes defined in schema.</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {labels.map((lbl: string, idx: number) => (
-                  <span key={idx} className="badge badge-blue" style={{ padding: '0.2rem 0.55rem', fontSize: '0.78rem' }}>
-                    {lbl}
-                  </span>
-                ))}
+      {/* Collapsible Schema & Annotation Guidelines Drawer with Smooth Space Readjustment */}
+      <AnimatePresence initial={false}>
+        {isGuidelinesOpen && (
+          <motion.div
+            key="schema-guidelines-drawer"
+            initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+            animate={{
+              height: 'auto',
+              opacity: 1,
+              marginBottom: '1.25rem',
+              transition: {
+                height: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.22, delay: 0.04, ease: 'easeOut' },
+                marginBottom: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
+              },
+            }}
+            exit={{
+              height: 0,
+              opacity: 0,
+              marginBottom: 0,
+              transition: {
+                height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.16, ease: 'easeIn' },
+                marginBottom: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+              },
+            }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-hairline)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.25rem',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.25rem',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
+                  <Tag size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
+                  <span>Configured Classes ({labels.length})</span>
+                </div>
+                {labels.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No classes defined in schema.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {labels.map((lbl: string, idx: number) => (
+                      <span key={idx} className="badge badge-blue" style={{ padding: '0.2rem 0.55rem', fontSize: '0.78rem' }}>
+                        {lbl}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
-              <FileText size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
-              <span>Annotation Guidelines</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
+                  <FileText size={15} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />
+                  <span>Annotation Guidelines</span>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {dataset.annotation_instructions || 'Standard verification guidelines apply. Label with boundary precision.'}
+                </p>
+              </div>
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>
-              {dataset.annotation_instructions || 'Standard verification guidelines apply. Label with boundary precision.'}
-            </p>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Real-Time Metrics & Review Progress Ribbon */}
       <div
