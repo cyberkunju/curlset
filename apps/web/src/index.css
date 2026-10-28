@@ -133,11 +133,24 @@
   height: 0 !important;
 }
 
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -152,7 +165,8 @@ body {
 /* App Layout Shell */
 .app-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: var(--bg-canvas);
   position: relative;
 }
@@ -164,9 +178,8 @@ body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
   height: 100vh;
+  overflow-y: auto;
   z-index: 20;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
@@ -404,7 +417,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  min-height: 100vh;
+  overflow-x: hidden;
+  height: 100vh;
+  max-height: 100vh;
   position: relative;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
