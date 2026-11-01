@@ -1,422 +1,414 @@
 # Product Requirements — AI Dataset Engineering Platform
 
-**Version:** 1.0  
+**Version:** 2.0 (Upgraded Multi-Modal & Multi-Agent Edition)  
 **Status:** Baseline requirements for implementation  
-**Primary audience:** Individual developers and students  
-**Product model:** Open source, local/self-hosted and future hosted service
-
+**Primary audience:** Individual developers, AI builders and students  
+**Product model:** Open source, local/self-hosted first, and future hosted service
 
 > **Implementation mapping:** Requirements are implemented in dependency order using [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) and the detailed task-level [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md). Acceptance criteria in this file remain authoritative for observable product behavior.
 
 ## 1. Purpose
 
-The platform turns raw files and source data into structured, reviewed, validated, documented and versioned datasets suitable for machine-learning training, fine-tuning, evaluation and research.
+The platform turns raw files, bounded web-researched content, and synthetically generated samples into structured, multi-modal bundled, reviewed, validated, documented, and versioned datasets suitable for machine-learning training, fine-tuning, evaluation, and research.
 
-It combines data ingestion, schema definition, AI-assisted annotation, human review, quality validation, provenance, dataset versioning and export. It must remain useful when no AI provider is configured.
+It combines multi-modal data ingestion, hybrid acquisition (uploads + web discovery + synthetic generation), versioned schema definition, multi-provider AI-assisted annotation (including zero-shot visual labeling and cross-model consensus scoring), human review, quality/deduplication validation, provenance tracking, immutable dataset versioning, automated Dataset Card generation, and training-ready export. It must remain 100% functional offline when no external AI provider is configured.
 
 ## 2. Problem statement
 
-Dataset preparation is fragmented across download scripts, spreadsheets, annotation applications, model APIs, validation notebooks and hand-written documentation. Users repeat work, lose track of sources, accept incorrect model labels, struggle with format conversion and cannot easily reproduce the exact dataset used in an experiment.
+Preparing training datasets—especially paired image-and-text datasets or labeled visual datasets—is fragmented across ad-hoc scraping scripts, spreadsheets, disconnected bounding-box tools, paid model APIs, validation notebooks, and hand-written READMEs. Developers struggle with manual photo labeling, lose track of where web or synthetic data originated, unknowingly train on duplicate or leaking splits, accept hallucinated single-model labels, fight format conversions (COCO, YOLO, ShareGPT/JSONL), and cannot reproduce the exact dataset snapshot used in a training run.
 
-The platform should provide one coherent lifecycle while preserving open formats and allowing users to inspect and correct every important result.
+The platform provides one cohesive, local-first lifecycle that bundles multi-modal assets cleanly, automates labeling and quality checks using open-source local models or external providers, and keeps humans in full control of ground truth.
 
 ## 3. Goals and non-goals
 
 ### Goals
 
-- Reduce repetitive manual work in dataset creation and annotation.
-- Make AI-assisted labels editable, reviewable and auditable.
-- Support paired/multimodal assets through stable record relationships.
-- Make dataset quality visible before export.
-- Make provenance and licensing uncertainty explicit.
-- Produce portable training-ready exports and documentation.
-- Support local use and a future hosted deployment.
-- Provide extensible provider, task and exporter interfaces.
+- Eliminate the manual bottleneck in dataset creation, photo/box labeling, and multi-modal captioning.
+- Native multi-modal bundling: link images, text, captions, spatial coordinates, and auxiliary media under a single stable `DatasetRecord`.
+- Make AI-assisted labels editable, reviewable, and auditable using confidence scores and multi-model consensus verification.
+- Prioritize zero-cost local open-source model runtimes (Ollama, vLLM, local vision/audio models) alongside optional external APIs.
+- Enable hybrid data acquisition through safe local imports, bounded web research, and diversity-checked synthetic data generation.
+- Make dataset quality, exact/perceptual duplicates (`sha256` and `phash`), and split leakage visible before export.
+- Make source provenance, synthetic lineage, and licensing uncertainty explicit.
+- Produce portable, training-ready exports (CSV, JSONL/ShareGPT/Parquet, COCO, YOLO) and automated, evidence-backed Dataset Cards (`README.md`).
+- Support turnkey local Docker Compose deployment and a future hosted deployment.
+- Provide clean, extensible interfaces for providers, agent workflows, tasks, and exporters.
 
 ### Non-goals for MVP
 
-- Train foundation models or provide a full GPU training cloud.
-- Guarantee that generated or collected data is legally usable.
-- Fully automate legal decisions, bias assessments or ground-truth verification.
-- Support every modality and export format at launch.
-- Provide a general autonomous agent with unrestricted browser, shell or code execution.
-- Require paid AI services for core data management and annotation.
-- Build a large-scale multi-tenant SaaS control plane before validating the single-user workflow.
+- Train foundation models directly or operate a commercial GPU training cloud.
+- Guarantee that web-researched or synthetically generated data is legally cleared without human review.
+- Fully automate legal compliance decisions, demographic bias guarantees, or unreviewed ground-truth certification.
+- Support every niche 3D/medical modality at initial launch before core image/text/detection slices are rock-solid.
+- Provide an unconstrained autonomous agent with arbitrary shell, browser, or untrusted code execution.
+- Require paid or rate-limited trial AI APIs for core dataset management, local inference, or manual annotation.
+- Build heavy enterprise multi-tenant billing infrastructure before validating the local developer workflow.
 
 ## 4. Users and user stories
 
 ### Individual developer/student
 
-- As a user, I can create a project and dataset so I can organize data for one ML task.
-- I can import a folder/archive/CSV/JSON and see which records were accepted or rejected.
-- I can define labels and required fields before annotation begins.
-- I can run a configured model to suggest labels and inspect the output.
-- I can correct a wrong label and retain the history of the change.
-- I can see which records need review and why.
-- I can detect duplicate files and invalid records before training.
-- I can publish a dataset version and recreate the same logical dataset later.
-- I can export a format compatible with my chosen training library.
-- I can generate documentation without manually assembling statistics.
-- I can run the application locally and use manual tools without an API key.
+- As a user, I can create a project and multi-modal dataset so I can organize data for an AI training or fine-tuning task.
+- I can import a folder, ZIP bundle, CSV, JSON, or JSONL file—pairing images and text automatically—and see exactly which items were accepted, deduplicated, or rejected.
+- I can define class labels, spatial schemas, and annotation instructions before labeling begins.
+- I can run a local open-source model or configured cloud provider to auto-label images, draw initial bounding boxes, or generate paired captions, and see where two models agree or disagree.
+- I can quickly review, tweak, or redraw wrong labels/boxes using keyboard shortcuts and retain the full revision history.
+- I can run bounded web research or synthetic generation jobs to fill missing class gaps while keeping synthetic and web items clearly tagged.
+- I can detect exact duplicate files, visual near-duplicates, invalid bounding boxes, and train/test split leakage before training.
+- I can publish an immutable dataset version and recreate the exact same training package months later.
+- I can export directly to YOLO, COCO, CSV, or HuggingFace/ShareGPT JSONL formats.
+- I can auto-generate a professional Dataset Card (`README.md`) and quality report from verified version statistics without writing boilerplate docs by hand.
+- I can run the entire platform locally with $0 cloud spend and use manual tools or local open-source models offline.
 
 ### ML researcher/engineer
 
-- I can trace an annotation to its model, prompt/template, source and processing run.
-- I can compare dataset versions and see changed records.
-- I can inspect class balance and split leakage warnings.
-- I can use different providers or a local model without changing dataset schema.
-- I can use a programmatic API/CLI in a later phase.
+- I can trace every annotation and synthetic sample to its exact model, prompt template version, seed record, source URL, and processing run.
+- I can configure a Primary Annotator model and a Critic model to compute cross-model consensus scores and prioritize ambiguous samples for human review.
+- I can compare two dataset versions (`v1` vs `v2`) and inspect exact record, split, and label diffs.
+- I can inspect class balance histograms, synthetic-to-real ratios, and perceptual near-duplicate clusters across `train`/`val`/`test` splits.
+- I can swap between local inference servers and cloud providers without altering my dataset schema.
 
 ### Maintainer/contributor
 
-- I can add a provider, task type or exporter through a documented interface.
-- I can run tests without paid credentials.
-- I can start a local development environment from documented commands.
-- I can determine phase status and next tasks from repository docs.
+- I can add a new model provider adapter, task schema, research connector, or exporter through a typed, documented contract.
+- I can run the entire automated test suite offline using the deterministic fake provider without paid credentials.
+- I can boot the full local stack from documented commands and inspect phase status in repository docs.
 
 ## 5. Supported modalities and task scope
 
 ### MVP data types
 
-- Images: JPEG, PNG, WebP where supported by the installed image stack; validate actual file content, not only extension.
-- Text: UTF-8 text and structured text records.
-- Tabular: CSV.
-- Structured records: JSON and JSONL.
-- Archives: ZIP under strict compressed/decompressed size, file-count and path limits.
-- Other files may be retained only if the user explicitly imports them as attachments and the application can safely identify/store them; do not claim they are annotatable.
+- **Images:** JPEG, PNG, WebP (validated by magic-byte content signatures, with automatic dimension extraction and `sha256` + perceptual `phash` calculation).
+- **Text:** UTF-8 text files and structured text fields.
+- **Multi-Modal Pairs/Bundles:** Linked Image + Text assets, dense captions, and spatial annotations bound to a single logical `DatasetRecord`.
+- **Tabular & Structured Records:** CSV, JSON, JSONL, and Parquet.
+- **Archives:** Multi-modal ZIP bundles under strict compressed/decompressed byte limits, file-count caps, and path-traversal protections.
+- **Auxiliary Attachments:** Audio, video, and PDF/document references supported at the `Asset`/`RecordAsset` storage schema level for phased task activation; never advertise a modality as fully annotatable until its editor, validator, and exporter pass acceptance tests.
 
 ### MVP tasks
 
-1. Image classification.
-2. Text classification.
-3. Object detection as the next complete task milestone.
+1. **Image classification** (single-label and multi-label).
+2. **Text classification** (sentiment, intent, category tagging).
+3. **Paired Image-Text captioning / instruction tuning** (bundling visual assets with descriptive text or VQA pairs).
+4. **Object detection** (spatial bounding boxes with zero-shot vision auto-labeling support and COCO/YOLO exports).
 
-### Later tasks
+### Later expansion tasks (Phase 13+)
 
-- Captions and image-text pairs.
-- OCR/document layout and document question answering.
-- Audio transcription, speaker labels and sound-event classification.
-- Video frame annotation, tracking and temporal labels.
-- Segmentation, keypoints and 3D/point-cloud workflows.
-- Instruction-response datasets and preference data.
+- Polygon/instance segmentation masks.
+- Document layout / OCR region-to-text extraction.
+- Audio transcription (via local Whisper adapters), speaker diarization, and sound-event classification.
+- Video keyframe extraction, temporal clip labeling, and action descriptions.
+- Preference / RLHF ranking pairs.
 
-Do not expose a task as supported until its schema, UI, validation, export and tests exist.
+Do not expose any task as active in the UI until its schema, editor, validator, exporter, and round-trip tests pass.
 
 ## 6. Functional requirements
 
-Priority definitions: **P0** required for initial useful release; **P1** next expansion; **P2** later.
+Priority definitions: **P0** required for core release; **P1** required for full multi-modal/detection/acquisition MVP; **P2** post-MVP expansion.
 
 ### FR-001 — Project management (P0)
 
-Users can create, list, rename and archive projects. Project names and descriptions are validated. Dataset operations are scoped to a project. In hosted mode, every request verifies ownership/authorization on the server.
+Users can create, list, rename, configure privacy settings (`local_only` vs `allow_external`), and archive projects. Dataset operations are strictly scoped to a parent project. Server-side ownership and authorization checks are enforced on every request.
 
 Acceptance:
-- A project can be created and retrieved after application restart.
-- Invalid names and malformed input return a useful validation error.
-- A user cannot access another project by guessing its ID.
+- A project and its privacy configuration persist across application restarts.
+- Blank or malformed names return structured validation errors.
+- Cross-project resource access by ID guessing is deterministically rejected.
 
-### FR-002 — Dataset setup (P0)
+### FR-002 — Dataset setup & multi-modal schema configuration (P0)
 
-Users can create a dataset with name, description, task type, schema version and annotation instructions. The UI explains what each task means and which export formats it supports.
-
-Acceptance:
-- A dataset cannot be created with an unknown task type.
-- Schema changes create a new schema version and do not silently reinterpret published versions.
-- Task configuration is available to validation and annotation components.
-
-### FR-003 — Safe ingestion (P0)
-
-Import images, text, CSV, JSON, JSONL and ZIP archives. Preview inputs and report accepted, rejected and skipped records. Validate size, parser limits, content type and archive paths.
+Users can create a dataset with name, description, primary task type, supported modalities, schema version, split targets (`train`/`val`/`test`), and versioned annotation instructions. The UI clearly displays supported input modalities and export formats for each task.
 
 Acceptance:
-- Each accepted record receives a stable ID.
-- Duplicate hashes are detected and reported without silently deleting data.
-- Invalid rows/files include an item-specific reason.
-- Archive path traversal, excessive decompression and unsupported content are rejected safely.
-- Failed imports clean up temporary files and do not leave partially published datasets.
+- Creating a dataset with an undeclared task type fails validation.
+- Updating label ontologies or schema fields increments `schema_version` without mutating historical annotation revisions or published versions.
+- Task schemas and annotation rubrics are accessible to both the human UI workbench and the AI Provider Gateway.
 
-### FR-004 — Asset management (P0)
+### FR-003 — Safe multi-modal ingestion & deduplication (P0)
 
-Store original and derived assets separately. Track MIME type, byte size, hash, modality, dimensions/duration when available and provenance. The database stores references, not media blobs.
+Import standalone or paired images, text, CSV, JSON, JSONL, Parquet, and multi-modal ZIP archives. Automatically pair matching media/text files into bundled `DatasetRecord` entities, compute cryptographic (`sha256`) and perceptual (`phash`) hashes, preview inputs, and report accepted, deduplicated, skipped, and rejected items.
 
 Acceptance:
-- Uploaded content can be retrieved through an authorized path.
-- Storage keys are generated server-side.
-- Hashes are computed from bytes.
-- A derived crop or transformed image references its parent and transformation metadata.
+- Every accepted logical sample receives a stable `DatasetRecord` ID and links its component files via `RecordAsset` roles (`primary_image`, `paired_text`, etc.).
+- Exact byte duplicates (`sha256`) and visual near-duplicates (`phash`) are detected and reported without silently deleting user records.
+- Invalid rows or corrupted media files report item-specific error codes and messages.
+- Archive path traversal (`..`, absolute paths, symlinks), zip bombs, and spoofed MIME types are rejected safely.
+- Failed or cancelled imports clean up all temporary staging files and never leave half-imported records marked ready.
 
-### FR-005 — Annotation schema (P0)
+### FR-004 — Content-addressed asset management (P0)
 
-Users can define label sets, required fields, types, allowed values and basic annotation instructions. Schema definitions are versioned and validated.
-
-Acceptance:
-- Unknown labels and missing required fields are rejected by validation.
-- Schema changes do not mutate old annotation revisions.
-- Invalid schema definitions produce actionable errors.
-
-### FR-006 — AI-assisted annotation (P0)
-
-Users can configure a provider/model and run annotation on selected records. The UI shows status and allows cancellation where feasible. Provider output is normalized and schema-validated.
+Store original and derived assets (`region_crop`, `thumbnail`, `keyframe`) in local filesystem or S3-compatible object storage outside relational database rows. Track MIME type, byte size, `sha256`, `phash`, modality, pixel dimensions (`width`, `height`), duration, and parent-asset lineage.
 
 Acceptance:
-- No provider configured: manual workflows remain usable.
-- Invalid provider output is stored as a failed/invalid result or reviewable diagnostic, never as a valid approved annotation.
-- Runs track progress and per-item errors.
-- Retrying a run does not create duplicate logical annotations.
-- No inference is triggered without explicit user action and configured credentials.
+- Assets are streamed only through authorized API endpoints or signed URLs.
+- Storage keys are opaque and generated server-side—never derived from client-supplied paths.
+- Derived assets explicitly reference their parent `asset_id` and transformation parameters.
 
-### FR-007 — Human review (P0)
+### FR-005 — Versioned annotation schemas & ontologies (P0)
 
-Users can approve, reject, edit or request correction for proposals. Each change is revisioned and linked to its actor/origin.
+Users can define class label sets (with stable `class_id` strings), required fields, spatial geometry constraints, text length bounds, and annotation rubrics.
 
 Acceptance:
-- Model-generated proposals default to pending review unless an explicit project policy says otherwise.
-- Editing creates a new revision and preserves the previous payload.
-- Review actions are auditable.
-- The UI makes pending, approved, rejected and invalid states visually distinct and accessible.
+- Unknown class labels, out-of-bounds coordinates, and missing required fields are rejected at the domain validation boundary.
+- Schema updates never overwrite prior `AnnotationRevision` snapshots.
+- Malformed schema definitions return actionable field-level diagnostics.
 
-### FR-008 — Text classification editor (P0)
+### FR-006 — Multi-provider AI-assisted annotation & consensus scoring (P0)
 
-Users can read text records, select labels, edit structured metadata and review model proposals.
-
-Acceptance:
-- Keyboard and mouse interactions work.
-- Empty and very long text are handled safely.
-- Invalid labels cannot be approved.
-- Saving and navigating away communicate unsaved changes.
-
-### FR-009 — Image classification editor (P0)
-
-Users can view the primary image, inspect metadata, select a label and review model proposals.
+Users can select a configured local open-source model or external provider to propose classifications, captions, or spatial bounding boxes on selected records, and optionally enable a secondary **Critic/Verifier model** to compute a cross-model `consensus_score` (`0.0`–`1.0`).
 
 Acceptance:
-- Image loading failure is shown clearly.
-- Large images are displayed within bounded UI dimensions.
-- Review status and save state are visible.
-- The editor supports basic keyboard navigation.
+- With zero providers configured, all manual ingestion, annotation, validation, versioning, and export workflows remain 100% functional.
+- All model outputs are schema-validated; malformed outputs are logged as invalid run diagnostics and never saved as approved annotations.
+- Valid proposals store model `confidence`, optional `consensus_score`, and default to `pending_review` (with low-consensus items badged `disagreement_flagged`).
+- Batch runs track per-item `RunItem` progress, support mid-run cancellation, and use deterministic idempotency keys so retries never duplicate annotations.
+- Zero external network calls occur without explicit user initiation, configured credentials, and project privacy permission.
 
-### FR-010 — Dataset validation and quality (P0)
+### FR-007 — Human-in-the-loop review & append-only revisions (P0)
 
-Provide schema validation, missing asset detection, invalid annotation detection, exact duplicate detection, class counts and unreviewed counts. Present errors, warnings and informational metrics separately.
-
-Acceptance:
-- Validation results are reproducible for the same version and rule version.
-- A hard error prevents the version from being marked ready unless an explicit override policy is supported and recorded.
-- Reports show how many records were checked and which rule produced each issue.
-- Automated validation does not claim legal clearance or guarantee model performance.
-
-### FR-011 — Provenance (P0)
-
-Track source information, import runs, transformations, model calls, annotation revisions and validation results.
+Users can filter the review queue (by status, confidence, or consensus disagreement) and approve, reject, edit, or flag proposals for correction. Every change writes an append-only `AnnotationRevision` and an auditable `ReviewEvent`.
 
 Acceptance:
-- Every model-origin annotation points to a ProcessingRun.
-- Each run records provider/model, prompt/template version where available, parameters, status and timestamps.
-- Unknown source rights are represented explicitly.
-- Provenance records cannot be silently rewritten as if an event never occurred.
+- AI proposals remain visually and relationally distinct from human-approved annotations.
+- Editing a model proposal preserves revision `1` (`origin = model`) and creates revision `2` (`origin = human`).
+- Review state transitions are enforced centrally; illegal transitions are rejected.
+- Pending, disagreement-flagged, approved, rejected, and invalid states have distinct, accessible UI badges and keyboard shortcuts.
 
-### FR-012 — Dataset versioning (P0)
+### FR-008 — Text & paired caption editor (P0)
 
-Users can publish immutable snapshots referencing exact record and annotation revisions, schema and validation summary.
-
-Acceptance:
-- Published versions are immutable.
-- A correction produces a new revision and a new version when published.
-- A version manifest can enumerate its records and annotation revisions.
-- Export jobs read the snapshot, not mutable current data.
-
-### FR-013 — CSV and JSONL export (P0)
-
-Export generic records and annotations with documented schemas and a manifest.
+Users can inspect text records or paired image-text bundles, assign classification labels, write or refine instruction-caption pairs, and review AI proposals.
 
 Acceptance:
-- Export includes dataset/version IDs, schema/exporter version, record count, content hashes where feasible and quality warnings.
-- Round-trip tests preserve IDs and annotation values.
-- Export failure does not mark the artifact as complete.
+- Full keyboard navigation and shortcut labeling (`1`–`9`, `Enter` to approve) work without mouse dependency.
+- Empty, whitespace-only, or oversized text inputs are safely caught by validation.
+- Unsaved edits trigger a confirmation guard before record navigation.
 
-### FR-014 — Dataset documentation (P0)
+### FR-009 — Image & multi-modal bundle editor (P0)
 
-Generate README/dataset card, schema/data dictionary, basic statistics, methodology fields, source/rights summary, annotation guidance and known limitations.
-
-Acceptance:
-- Generated docs are derived from a frozen version and identify that version.
-- Unknown metadata remains unknown; the generator does not invent facts.
-- The user can review documentation before publishing.
-
-### FR-015 — Local deployment (P0)
-
-Provide a reproducible Docker Compose setup with API, web app, worker, database, queue and local media storage.
+Users can view the primary image alongside linked text/metadata assets, inspect image dimensions and hash status, select class labels, and review AI proposals.
 
 Acceptance:
-- A new developer can start the app using the documented instructions.
-- Health checks and migrations are documented.
-- Manual annotation, validation and export work without AI credentials.
-- Secrets are supplied through environment configuration and excluded from Git.
+- Corrupted or missing image assets render a clear diagnostic placeholder.
+- High-resolution images scale cleanly with zoom/pan controls inside bounded viewport containers.
+- Review status, confidence/consensus badges, and save state are continuously visible.
 
-### FR-016 — Provider gateway (P0)
+### FR-010 — Dataset quality, deduplication & split-leakage engine (P0)
 
-Define typed provider interface and at least one real adapter plus a deterministic fake provider for tests. Keep provider-specific behavior out of domain logic.
-
-Acceptance:
-- Unsupported capabilities fail before making a remote call.
-- Errors are normalized.
-- Credentials never appear in browser bundles or ordinary logs.
-- Provider tests can run without paid API access.
-
-### FR-017 — Object detection (P1)
-
-Support bounding boxes, class labels, geometry validation and COCO/YOLO export.
+Provide deterministic validation covering schema compliance, missing/corrupt assets, invalid spatial geometry, exact (`sha256`) and perceptual (`phash`) duplicates, cross-modal completeness, basic PII pattern warnings, class distribution balance, and cross-split (`train`/`val`/`test`) leakage detection.
 
 Acceptance:
-- Coordinates use a documented convention internally.
-- Invalid, negative, zero-area and out-of-bounds boxes are rejected or flagged.
-- Export conversion is tested with known fixtures.
-- Import/export round trips preserve classes and geometry within documented precision.
+- Validation runs are 100% deterministic for a given dataset state and rule version, and automatically mark themselves `stale` if records change.
+- Findings are strictly separated into **Hard Blockers** (block version publication), **Warnings**, and **Informational Metrics**.
+- Exact or perceptual duplicate assets spanning across `train` and `val`/`test` splits are flagged as split leakage.
+- Every reported issue links directly to the affected `record_id`s for remediation.
+- Quality reports never claim automated legal clearance or guaranteed model performance.
 
-### FR-018 — Research/source discovery (P1)
+### FR-011 — Unbroken provenance & lineage tracking (P0)
 
-Search or ingest public dataset metadata and source references through permitted APIs and sources. Capture evidence and rights status.
-
-Acceptance:
-- Every result has a source reference and retrieval timestamp.
-- The platform distinguishes discovered metadata from downloaded assets.
-- Unknown rights require review.
-- No restriction bypass or unauthorized scraping.
-
-### FR-019 — Synthetic data (P1)
-
-Allow configured generation workflows for synthetic records and paired modalities, with provenance and validation.
+Track end-to-end record and annotation lineage: `SourceRecord` origin (`uploaded`, `web_retrieved`, `synthetic`, `augmented`), license review state, ingestion runs, asset transformations, primary and critic model runs, prompt template versions, and human review events.
 
 Acceptance:
-- Synthetic status is explicit at asset and record level.
-- Generation parameters and provider/model are recorded.
-- Outputs pass the same schema and quality checks as imported data.
-- Synthetic records cannot be mistaken for real-world collected samples in reports.
+- Every model-generated or consensus-verified revision links to an immutable `ProcessingRun` capturing provider ID, model ID, parameters, and prompt template version.
+- Every record links to a `SourceRecord` with an explicit license status (`unknown`, `review_required`, `approved_for_intended_use`, `restricted`, `rejected`).
+- Provenance logs are append-only and cannot be silently erased.
 
-### FR-020 — Additional modalities (P2)
+### FR-012 — Immutable dataset versioning & splits (P0)
 
-Audio, video and document workflows require modality-specific import, playback/viewer, annotation schema, review UI, validation and export. Do not represent a modality as supported just because its file can be uploaded.
+Users can assign stratified `train`/`val`/`test` splits and publish immutable `DatasetVersion` snapshots that cryptographically pin exact `DatasetRecord` IDs, `Asset` SHA-256 hashes, split assignments, `AnnotationRevision` IDs, schema version, and quality report references.
 
-### FR-021 — Active learning and baseline evaluation (P2)
+Acceptance:
+- Published versions are strictly read-only; subsequent edits in the workspace never alter a published version.
+- Publishing after workspace edits creates a new version (`v2`) referencing its parent version (`v1`) and supports version-to-version diff inspection.
+- Export jobs read exclusively from frozen `DatasetVersion` manifests.
 
-Select uncertain or high-value samples for review and optionally evaluate a baseline model. Evaluation splits must be leakage-aware and reproducible.
+### FR-013 — Multi-modal CSV and JSONL/bundle export (P0)
 
-### FR-022 — Hosted collaboration (P2)
+Export frozen dataset versions into portable CSV and structured JSONL (including ShareGPT / HuggingFace multi-modal paired archive bundles) with deterministic asset paths and an `export_manifest.json`.
 
-Add multi-user roles, secure tenancy, quotas, audit trails, backups and retention policies before public hosted launch.
+Acceptance:
+- Export packages include dataset/version IDs, manifest SHA-256 hashes, exporter version, split record counts, per-file checksums, and any active quality/license warnings.
+- Automated round-trip tests reload exported CSV/JSONL packages and verify 100% preservation of record IDs, splits, media hashes, and annotations.
+- Failed or cancelled exports clean up partial artifacts and are never marked complete.
+
+### FR-014 — Automated evidence-based Dataset Cards & documentation (P0)
+
+Automatically compile a comprehensive `README.md` (**Dataset Card / Datasheet**), `schema.json` data dictionary, annotation rubric snapshot, provenance/origin breakdown (Real vs. Synthetic vs. Web), split/class distribution tables, and known limitations from frozen version evidence.
+
+Acceptance:
+- Every statistic in the generated Dataset Card is computed directly from the frozen `DatasetVersion` snapshot—zero hallucinated numbers.
+- Unresolved source licenses or missing metadata fields are explicitly rendered as `unknown` or `review_required`.
+- Users can preview and include the generated documentation bundle inside every export archive.
+
+### FR-015 — Turnkey local deployment (P0)
+
+Provide a one-command Docker Compose setup orchestrating the Web UI, FastAPI backend, Background Worker, PostgreSQL, Redis, and local filesystem/MinIO object storage (with optional local Ollama/vision model bridging).
+
+Acceptance:
+- A developer on a clean machine can boot the stack from documented commands without any paid cloud API keys.
+- Container health checks, startup migrations, and backup/restore commands are documented and verified.
+- Secrets are loaded strictly via environment variables excluded from Git.
+
+### FR-016 — Provider-neutral model gateway with local open-source priority (P0)
+
+Isolate all model integrations behind a typed capability gateway supporting a deterministic `FakeProvider` (for tests), **Local Open-Source Model Adapters** (Ollama, vLLM, local vision/audio workers), and optional external cloud adapters.
+
+Acceptance:
+- Capability mismatches fail fast before dispatching network calls.
+- Provider errors are normalized into actionable categories (`rate_limit`, `timeout`, `schema_violation`, `auth_error`, `connection_error`).
+- API keys never appear in frontend bundles, error responses, or logs.
+- When `privacy_mode = local_only` is enabled, external cloud adapters are blocked at the gateway boundary.
+
+### FR-017 — Object detection, spatial canvas & COCO/YOLO export (P1)
+
+Provide an interactive bounding-box annotation canvas, zero-shot vision auto-labeling support, spatial geometry validation, and deterministic **COCO JSON** and **YOLO** exporters.
+
+Acceptance:
+- Internal coordinates follow a documented canonical pixel convention (`x, y, width, height` top-left origin validated against image `width` and `height`) with tested conversion to normalized `[0.0, 1.0]` YOLO center coordinates and COCO formats.
+- Negative coordinates, zero-area boxes, out-of-bounds boxes, and undeclared `class_id` values are rejected by validation.
+- Users can draw, move, resize, and delete boxes or review/refine AI-proposed boxes with append-only revision tracking.
+- COCO and YOLO exports include deterministic class-index mappings (`classes.txt` / `data.yaml`) and pass round-trip coordinate math tests.
+
+### FR-018 — Bounded web research & source rights review (P1)
+
+Allow users to run bounded **Researcher Agent** jobs that query permitted catalogs/APIs or fetch specified URLs to gather candidate text and images, capturing full source provenance and license review states.
+
+Acceptance:
+- Every discovered candidate records its query, source URL, retrieval timestamp, and content hash in `SourceRecord`.
+- Discovery staging is kept separate from approved dataset records; web-retrieved items default to `license_status = review_required` unless a verified open license is confirmed.
+- Server-side URL fetching enforces strict SSRF guards (blocking loopback, private network, and cloud metadata IPs), rate limits, and byte caps.
+- Export policies warn or filter out records with unresolved or restricted source rights.
+
+### FR-019 — Synthetic data generation & anti-collapse filtering (P1)
+
+Allow users to run bounded **Synthesizer Agent** jobs that generate new text records, instruction-caption pairs, or image variations from seed samples or class targets.
+
+Acceptance:
+- Every generated asset and record is permanently tagged with `origin = "synthetic"` and linked to its generator `ProcessingRun`, model ID, seed record IDs, and prompt template version.
+- Synthetic candidates undergo schema validation plus **Anti-Collapse Diversity Checks** (filtering out exact hash duplicates, high n-gram overlap, or perceptual `phash` clones) and land in `pending_review`.
+- Quality reports and generated Dataset Cards (`README.md`) transparently report exact Real vs. Synthetic record proportions.
+
+### FR-020 — Additional media modalities: Audio, Document/OCR & Video (P2)
+
+Expand the `RecordAsset` multi-modal bundle workflow to support Audio transcription/classification (with waveform UI and local Whisper adapter), Document/PDF region OCR, and Video keyframe/temporal clip annotation. Each modality must pass full ingestion, editing, validation, versioning, and export gates before activation.
+
+### FR-021 — Active learning prioritization & baseline evaluation (P2)
+
+Rank unreviewed records in the review queue by lowest model confidence and lowest multi-model `consensus_score` (highest Critic disagreement), and support running reproducible baseline evaluations against frozen `DatasetVersion` splits with strict split-leakage guards.
+
+### FR-022 — Hosted multi-tenant collaboration (P2)
+
+Enforce workspace RBAC (`owner`, `reviewer`, `annotator`, `viewer`), strict cross-tenant database/storage/worker isolation, encrypted secret storage, per-tenant quotas, and audit logging before any public hosted deployment.
 
 ## 7. Quality requirements
 
 ### NFR-001 — Correctness
 
-All persisted data must satisfy domain constraints. Invalid state transitions and invalid annotation payloads are rejected at the service boundary.
+All persisted entities must satisfy relational foreign keys and versioned JSON schemas. Illegal review state transitions, out-of-bounds bounding boxes, and undeclared labels are rejected at the service boundary.
 
 ### NFR-002 — Reliability
 
-Long-running tasks are asynchronous, resumable and idempotent. A worker crash does not lose completed item results. Failures are visible and actionable.
+Long-running jobs (imports, web research, synthetic generation, batch auto-labeling, exports) execute asynchronously via durable `ProcessingRun` and atomic `RunItem` checkpoints. Worker restarts resume cleanly without duplicating completed items.
 
 ### NFR-003 — Security
 
-Validate authorization on every project-scoped operation. Defend against path traversal, malicious archives, SSRF, XSS, SQL injection, secret leakage and insecure object access. Apply upload and job limits.
+Enforce server-side project ownership on every route. Defend against archive path traversal, zip bombs, SSRF in web research connectors, XSS/HTML injection in scraped text, indirect prompt injection from untrusted data, SQL injection, and secret leakage.
 
-### NFR-004 — Privacy
+### NFR-004 — Local-first privacy
 
-Local mode must not silently transmit data externally. Provider calls are explicit, configured and documented. Logs avoid unnecessary content and secrets.
+Local mode (`privacy_mode = local_only`) must never transmit assets, prompts, or telemetry to external servers. External provider calls require explicit configuration and visible per-run user authorization.
 
 ### NFR-005 — Performance
 
-Use pagination and bounded batch processing. Do not load an entire large dataset or archive into memory without explicit limits. Establish benchmarks after representative fixtures exist; avoid invented performance guarantees.
+Enforce cursor/offset pagination on all collection endpoints and stream large file uploads/exports in bounded memory chunks. Use database indexes on `dataset_id`, `status`, `sha256`, `phash`, and `consensus_score` for responsive filtering.
 
 ### NFR-006 — Portability
 
-Users can export records and media with documented schemas. Core functionality is not dependent on a single provider or hosted platform.
+Users can export complete multi-modal datasets, media files, schemas, and Dataset Cards in standard open formats (`CSV`, `JSONL`, `COCO`, `YOLO`) with zero vendor lock-in.
 
 ### NFR-007 — Accessibility and usability
 
-Keyboard-accessible controls, visible focus, readable contrast, clear validation messages and useful empty/loading/error states.
+Provide keyboard-first annotation shortcuts, visible focus rings, WCAG-compliant contrast, undo/revision restore, and clear empty, loading, progress, and error states.
 
 ### NFR-008 — Maintainability
 
-Typed contracts, focused modules, migrations, reproducible development environment, deterministic tests and documentation for extension points.
+Maintain strict modular boundaries (`dataset_core`, `provider_gateway`, `workflow_agents`, `dataset_io`, `validation`, `documentation`), automated database migrations, and deterministic offline tests.
 
 ### NFR-009 — Reproducibility
 
-Published version manifests pin exact annotation revisions and schema. Export metadata records relevant software versions and content hashes.
+Published `DatasetVersion` manifests cryptographically pin exact record, split, asset hash, and annotation revision IDs. Exporting the same version repeatedly produces semantically identical training packages.
 
-### NFR-010 — Cost transparency
+### NFR-010 — Cost & compute transparency
 
-Show provider/model and available usage/cost estimates before large runs. Enforce configured limits and support cancellation.
+Display item counts, estimated token/compute usage, and target provider/model before starting batch AI runs. Enforce user-configured count/budget ceilings and instant job cancellation.
 
 ## 8. Security, privacy and data rights requirements
 
-- Uploaded files and retrieved content are untrusted.
-- Enforce maximum file size, archive entry count, decompressed size, parsing time and supported file types.
-- Never execute uploaded content or generated code.
-- Never fetch arbitrary user-supplied URLs from the server without SSRF protections.
-- Store credentials server-side or in local environment configuration; redact them from logs.
-- Apply least privilege to storage and database credentials.
-- Distinguish source discovery, source retrieval and rights approval.
-- A public URL is not evidence of permission for training or redistribution.
-- Store license/terms evidence and attribution requirements when available.
-- If rights are unknown, require review or exclude the asset from approved exports according to project policy.
-- Provide deletion/retention behavior appropriate to local and hosted deployment.
-- Keep private sample data and real API keys out of tests and Git.
+- All uploaded files, extracted archive entries, web-researched pages, and model outputs are treated as untrusted input.
+- Enforce strict ceilings on upload byte size, archive entry count, decompressed byte size, image dimensions, and parser timeouts.
+- Never execute uploaded files, scraped scripts, or model-generated code.
+- Enforce SSRF protections on all server-side URL fetches (denying private, loopback, link-local, and cloud metadata IP ranges).
+- Sanitize all external/scraped text before rendering in the UI and isolate data payloads from LLM system instructions.
+- Keep API keys strictly server-side and redact them from logs, crash dumps, and API responses.
+- Maintain strict separation between source discovery, asset ingestion, and license approval.
+- Never treat public web reachability as implicit permission for ML training or dataset redistribution.
+- Persist source URLs, retrieval timestamps, generator model lineage, and license states (`unknown`, `review_required`, `approved_for_intended_use`, `restricted`, `rejected`) in `SourceRecord`.
+- Flag or exclude unresolved/restricted records during version publication and export according to project policy.
+- Keep copyrighted media, personal data, and live API keys out of Git and automated test fixtures.
 
 ## 9. Error behavior
 
-Errors should include a stable category/code, concise human-readable explanation, safe context and a suggested action where useful. Never return stack traces, credentials or raw provider headers to the UI.
+All API and job errors must return a structured envelope containing a stable `error_code`, concise human-readable `message`, safe contextual details (`record_id`, `field`, `rule_id`), and a suggested remediation action. Never expose raw stack traces, database internals, or secret headers to the client.
 
-Distinguish:
-- invalid input,
-- unsupported format/capability,
-- permission denied,
-- quota exceeded,
-- transient provider failure,
-- permanent provider failure,
-- validation failure,
-- storage failure,
-- cancellation,
-- internal error.
+Required error categories:
+- `INVALID_INPUT`
+- `UNSUPPORTED_FORMAT_OR_CAPABILITY`
+- `PERMISSION_DENIED`
+- `PRIVACY_POLICY_BLOCKED` (e.g., external call attempted while `local_only` is active)
+- `QUOTA_OR_BUDGET_EXCEEDED`
+- `SSRF_OR_SOURCE_BLOCKED`
+- `TRANSIENT_PROVIDER_FAILURE`
+- `PERMANENT_PROVIDER_FAILURE`
+- `SCHEMA_OR_GEOMETRY_VALIDATION_FAILURE`
+- `STORAGE_INTEGRITY_FAILURE`
+- `JOB_CANCELLED`
+- `INTERNAL_ERROR`
 
-A partial batch failure must identify successful, failed and unprocessed items.
+Partial batch failures must preserve all completed `RunItem` outputs and clearly list succeeded, failed, and remaining items for targeted retry.
 
 ## 10. Testing requirements
 
-- Unit tests for schemas, state transitions, normalization, geometry and quality rules.
-- API tests for CRUD, permissions, import and version lifecycle.
-- Contract tests for provider adapters using fakes/fixtures.
-- Resilience tests for timeout, rate limit, malformed output, retry and cancellation.
-- Security tests for malicious archives, traversal and cross-project access.
-- Round-trip tests for each exporter.
-- End-to-end test for import -> annotate -> review -> validate -> publish -> export.
-- Clean Docker Compose smoke test.
-- No CI requirement for paid API keys or external model availability.
+- **Unit tests:** Domain schemas, centralized state machine transitions, multi-modal `RecordAsset` bundling, YOLO/COCO coordinate math, `sha256`/`phash` duplicate logic, and quality validation rules.
+- **API & integration tests:** Project/dataset CRUD, ownership authorization, multipart/ZIP import, annotation revision history, version immutability, and version diffing.
+- **Provider & consensus contract tests:** `FakeProvider` and local adapter contracts, Critic consensus scoring, malformed JSON rejection, timeout/rate-limit retries, cancellation, and `local_only` network blocking.
+- **Security tests:** ZIP path traversal (`../`), zip-bomb limits, corrupt/spoofed image headers, SSRF private-IP blocking in web research, and cross-project access rejection.
+- **Round-trip export tests:** Export and re-parse verification for CSV, multi-modal JSONL, COCO JSON, and YOLO archives, plus statistical accuracy verification for generated Dataset Cards (`README.md`).
+- **End-to-end offline smoke test:** Full lifecycle (`Create Project/Dataset` $\rightarrow$ `Import Multi-Modal Fixture` $\rightarrow$ `AI Auto-Label + Consensus` $\rightarrow$ `Human Review & Box Edit` $\rightarrow$ `Quality & Split Check` $\rightarrow$ `Publish Version` $\rightarrow$ `Export & Verify Round-Trip`) running 100% offline without paid API keys.
 
 ## 11. MVP release acceptance
 
-The MVP is releasable only when all of the following are true:
+The MVP is releasable only when all of the following are verified by automated tests:
 
-1. A user can create a project and image/text classification dataset.
-2. User can import supported data and understand rejected inputs.
-3. User can label manually with no AI provider configured.
-4. A configured provider can propose annotations through the gateway.
-5. AI proposals and human-approved annotations are distinct.
-6. Annotation revisions and provenance are preserved.
-7. Quality validation and duplicate checks produce a report.
-8. An immutable dataset version can be published.
-9. CSV/JSONL export and documentation are generated from that version.
-10. Round-trip and end-to-end tests pass.
-11. Local deployment instructions work from a clean environment.
-12. No known critical security defect or secret is present in the repository.
-13. Documentation states unsupported features and limitations honestly.
+1. A user can create a project and configure datasets for Image Classification, Text Classification, Paired Image-Text Captioning, and Object Detection.
+2. A user can ingest single and multi-modal bundled files/ZIPs, detect exact (`sha256`) and perceptual (`phash`) duplicates, and inspect item-level rejection diagnostics.
+3. A user can manually classify, caption, and draw/edit bounding boxes offline with zero AI providers configured.
+4. A user can run bounded Web Research and Synthetic Generation jobs with full provenance, SSRF safety, and anti-collapse filtering.
+5. A configured local open-source model or external provider can propose classifications, captions, and bounding boxes through the gateway, with optional Critic consensus scoring.
+6. AI proposals, consensus scores, and human-approved annotations remain strictly distinct and append-only revisioned.
+7. Quality validation catches schema errors, invalid box geometry, exact/near duplicates, and train/val/test split leakage.
+8. An immutable `DatasetVersion` can be published and remains completely unchanged when working records are later edited.
+9. CSV, JSONL, COCO, and YOLO training packages—along with an accurate, evidence-based **Dataset Card (`README.md`)**—are exported deterministically from the frozen version.
+10. All unit, security, contract, round-trip, and E2E smoke tests pass offline.
+11. One-command local Docker Compose deployment works cleanly from a fresh clone.
+12. Zero secrets, private data, or critical security defects exist in the repository.
+13. Generated documentation states dataset provenance, synthetic ratios, and known limitations truthfully.
 
 ## 12. Definition of done for any feature
 
-A feature is DONE only when:
-- Its user-visible behavior matches a requirement.
-- Inputs and state transitions are validated.
-- Loading, empty, error and success behavior are implemented.
-- Relevant tests are added and run.
-- Authorization, privacy and cost implications are considered.
-- Documentation and execution status are updated.
-- It has no dead UI controls or false completion claims.
+A feature is `DONE` only when:
+- Its user-visible behavior satisfies the corresponding requirement and acceptance criteria above.
+- All boundary inputs, spatial coordinates, and state transitions are validated server-side.
+- Loading, empty, live-progress, error, and success UI states are fully implemented.
+- Unit, integration, security, and round-trip tests are written, executed, and passing.
+- Local-first privacy, provenance, and compute/cost limits are enforced.
+- Documentation and `docs/EXECUTION_PLAN.md` are updated with command evidence.
+- It contains zero dead UI buttons, mock-only production screens, or unverified claims.

@@ -152,11 +152,13 @@ export const Header: React.FC<HeaderProps> = ({
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-strong)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--brand-border)';
+            e.currentTarget.style.boxShadow = '0 0 0 1px var(--brand-border)';
+            e.currentTarget.style.color = 'var(--text-primary)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = 'var(--border-hairline)';
+            e.currentTarget.style.boxShadow = 'none';
             e.currentTarget.style.color = 'var(--text-muted)';
           }}
         >

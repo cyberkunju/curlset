@@ -363,7 +363,7 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           </SpringButton>
 
           <SpringButton
-            variant="primary"
+            variant="brand"
             onClick={() => setIsWorkspaceOpen(true)}
             style={{ fontSize: '0.875rem' }}
           >

@@ -17,7 +17,35 @@ import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
 import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+
+// Prepared spring physics configurations from docs/UI_MOTION_AND_LOADING_SPEC.md
+const CARD_SPRING = {
+  type: 'spring' as const,
+  stiffness: 440,
+  damping: 28,
+  mass: 0.7,
+};
+
+const STAGGER_CONTAINER_VARIANTS = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.035,
+    },
+  },
+};
+
+const CARD_VARIANTS = {
+  hidden: { opacity: 0, y: 8, scale: 0.99 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: CARD_SPRING,
+  },
+};
 
 declare global {
   interface Window {
@@ -47,6 +75,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'name'>('date_desc');
   const [localSearch, setLocalSearch] = useState('');
+  const shouldReduceMotion = useReducedMotion();
 
   // Skeleton is only active while data is actually being fetched from the database
   const [isInitialMounting, setIsInitialMounting] = useState(() => {
@@ -156,7 +185,17 @@ export const ProjectList: React.FC<ProjectListProps> = ({
           marginBottom: '1.5rem',
         }}
       >
-        <div
+        <motion.div
+          whileHover={
+            shouldReduceMotion
+              ? undefined
+              : {
+                  y: -1.5,
+                  borderColor: 'var(--brand-border)',
+                  boxShadow: 'var(--shadow-md), 0 0 12px var(--brand-tint)',
+                  transition: { type: 'spring', stiffness: 450, damping: 28 },
+                }
+          }
           style={{
             padding: '0.75rem 1rem',
             backgroundColor: 'var(--bg-surface)',
@@ -166,14 +205,15 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
+            transition: 'border-color 0.15s ease',
           }}
         >
           <div
             style={{
               padding: '0.45rem',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg-elevated)',
-              color: 'var(--text-primary)',
+              backgroundColor: 'var(--brand-tint)',
+              color: 'var(--brand-primary)',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -192,9 +232,19 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={
+            shouldReduceMotion
+              ? undefined
+              : {
+                  y: -1.5,
+                  borderColor: 'rgba(16, 185, 129, 0.3)',
+                  boxShadow: 'var(--shadow-md), 0 0 12px rgba(16, 185, 129, 0.12)',
+                  transition: { type: 'spring', stiffness: 450, damping: 28 },
+                }
+          }
           style={{
             padding: '0.75rem 1rem',
             backgroundColor: 'var(--bg-surface)',
@@ -204,6 +254,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
+            transition: 'border-color 0.15s ease',
           }}
         >
           <div
@@ -230,9 +281,19 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={
+            shouldReduceMotion
+              ? undefined
+              : {
+                  y: -1.5,
+                  borderColor: 'rgba(245, 158, 11, 0.3)',
+                  boxShadow: 'var(--shadow-md), 0 0 12px rgba(245, 158, 11, 0.12)',
+                  transition: { type: 'spring', stiffness: 450, damping: 28 },
+                }
+          }
           style={{
             padding: '0.75rem 1rem',
             backgroundColor: 'var(--bg-surface)',
@@ -242,6 +303,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
+            transition: 'border-color 0.15s ease',
           }}
         >
           <div
@@ -268,7 +330,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Filter and Control Bar */}
@@ -509,11 +571,34 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             >
               {viewMode === 'grid' ? (
-                <div className="cards-grid">
+                <motion.div
+                  className="cards-grid"
+                  variants={shouldReduceMotion ? undefined : STAGGER_CONTAINER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                >
                   {items.map((proj) => (
-                    <div
+                    <motion.div
                       key={proj.id}
-                      className="card"
+                      variants={shouldReduceMotion ? undefined : CARD_VARIANTS}
+                      whileHover={
+                        shouldReduceMotion
+                          ? undefined
+                          : {
+                              y: -2.5,
+                              borderColor: 'var(--brand-border)',
+                              boxShadow: 'var(--shadow-md), 0 0 14px var(--brand-tint)',
+                              transition: CARD_SPRING,
+                            }
+                      }
+                      whileTap={
+                        shouldReduceMotion
+                          ? undefined
+                          : {
+                              scale: 0.985,
+                              transition: { type: 'spring', stiffness: 540, damping: 22 },
+                            }
+                      }
                       onClick={() => onSelectProject(proj.id)}
                       tabIndex={0}
                       role="button"
@@ -527,21 +612,50 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        minHeight: '145px',
+                        minHeight: '148px',
                         cursor: 'pointer',
                         backgroundColor: 'var(--bg-surface)',
                         color: 'var(--text-primary)',
                         border: '1px solid var(--border-hairline)',
                         borderRadius: 'var(--radius-md)',
                         boxShadow: 'var(--shadow-sm)',
-                        transition: 'border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
+                        padding: '1.25rem',
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease',
                       }}
                     >
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem', gap: '0.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
-                            <FolderKanban size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
-                            <h3 className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', gap: '0.65rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                            <div
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'var(--brand-tint)',
+                                border: '1px solid var(--brand-border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--brand-primary)',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <FolderKanban size={15} strokeWidth={1.85} />
+                            </div>
+                            <h3
+                              className="card-title"
+                              style={{
+                                margin: 0,
+                                fontSize: '0.96rem',
+                                fontWeight: 650,
+                                letterSpacing: 'var(--letter-spacing-heading)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                color: 'var(--text-primary)',
+                              }}
+                            >
                               {proj.name}
                             </h3>
                           </div>
@@ -558,37 +672,57 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            fontSize: '0.84rem',
+                            fontSize: '0.82rem',
                             lineHeight: 1.45,
                             color: 'var(--text-secondary)',
+                            margin: '0 0 0.5rem 0',
                           }}
                         >
                           {proj.description || 'No project description provided.'}
                         </p>
                       </div>
 
-                      <div className="card-footer" style={{ marginTop: '0.85rem', paddingTop: '0.65rem' }}>
+                      <div
+                        className="card-footer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginTop: '0.85rem',
+                          paddingTop: '0.65rem',
+                          borderTop: '1px solid var(--border-hairline)',
+                        }}
+                      >
                         <span
                           style={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '0.74rem',
+                            fontSize: '0.72rem',
                             color: 'var(--text-muted)',
                             backgroundColor: 'var(--bg-elevated)',
-                            padding: '0.1rem 0.35rem',
+                            padding: '0.12rem 0.45rem',
                             borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--border-hairline)',
                           }}
                         >
-                          {proj.id.slice(0, 8)}...
+                          {proj.id.slice(0, 10)}...
                         </span>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          <span>{new Date(proj.created_at).toLocaleDateString()}</span>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-muted)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          <span>{new Date(proj.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                           <ChevronRight size={13} strokeWidth={1.75} />
                         </span>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               ) : (
                 <div className="data-table-container">
                   <table className="data-table">

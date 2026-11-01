@@ -154,6 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               variant={item.isActive ? 'primary' : 'ghost'}
               onClick={() => handleNavClick(item.id)}
               aria-label={item.label}
+              className={`sidebar-nav-btn ${item.isActive ? 'active' : ''}`}
               title={isCollapsed ? item.label : undefined}
               style={{
                 width: '100%',
@@ -167,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 textAlign: 'left',
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <span className="nav-icon" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 {item.icon}
               </span>
               {!isCollapsed && (

@@ -1,197 +1,208 @@
 # Worked Examples and Test Fixtures
 
-This document explains what the platform should do through concrete sample workflows. All names, IDs, labels and metadata below are illustrative. Any sample image used by tests must be generated locally or be clearly licensed for redistribution.
+This document defines expected platform behavior through concrete, end-to-end sample workflows. All names, IDs, labels, hashes, and metadata below are illustrative. Any sample media used by automated tests must be synthetically generated during test setup or carry an explicit permissive open-source license.
 
+> **Execution reference:** Use [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) for sequencing and [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md) for implementation tasks and verification gates. Examples here illustrate expected system behavior; they complement—and do not replace—automated contract and acceptance tests.
 
-> **Execution reference:** Use [`EXECUTION_PLAN.md`](./EXECUTION_PLAN.md) for sequencing and [`PHASE_BY_PHASE_PLAN.md`](./PHASE_BY_PHASE_PLAN.md) for implementation tasks and verification gates. Examples here illustrate expected behavior; they do not replace tests or acceptance criteria.
-
-## 1. Example A — Product damage classification
+## 1. Example A — Product damage classification (with perceptual deduplication & consensus)
 
 ### User goal
 
-A student is building a computer-vision prototype that classifies product photographs into two categories: normal and damaged. The user has a folder of product images and wants a training-ready dataset.
+A student is building a computer-vision model that classifies product photographs into two categories: `normal` and `damaged`. The user has a raw folder of product photos—and wants to supplement it with a few web-researched samples—to produce a verified, deduplicated, training-ready dataset.
 
 ### Step 1: Create the project and dataset
 
-Project: Product Inspection Demo  
-Dataset: Product Condition Images  
-Task: image_classification  
+Project: `Product Inspection Demo`  
+Dataset: `Product Condition Images`  
+Task: `image_classification`  
 Labels:
-- normal
-- damaged
+- `normal`
+- `damaged`
 
-Annotation guidance:
-- Use damaged only when visible physical damage is present.
-- If the image is too blurry or the product is obscured, do not guess; mark it for correction/review.
-- A model suggestion is not a verified label.
-- Record the evidence/reason for ambiguous cases where practical.
+Annotation guidance (stored as versioned rubric `guideline_rev_1`):
+- Use `damaged` only when visible physical defects (cracks, dents, missing parts) are present.
+- If the image is severely blurred or the product is obstructed, do not guess; mark it `needs_correction` for manual triage.
+- A model proposal or multi-model agreement score is never treated as verified ground truth until approved under project review rules.
+- Record brief reviewer rationale for ambiguous edge cases.
 
-The platform creates a project ID and dataset ID, a schema version, and an annotation guideline revision.
+The platform generates immutable IDs (`proj_...`, `ds_...`), initializes `schema_version = 1`, and locks the initial annotation rubric revision.
 
-### Step 2: Import images
+### Step 2: Import images and run deduplication
 
-The user selects a folder containing:
-- normal_001.jpg
-- normal_002.jpg
-- damaged_001.jpg
-- damaged_002.jpg
-- damaged_002_copy.jpg
-- broken_file.jpg
+The user uploads a folder containing:
+- `normal_001.jpg`
+- `normal_002.jpg`
+- `damaged_001.jpg`
+- `damaged_002.jpg`
+- `damaged_002_copy.jpg` (identical byte copy)
+- `damaged_002_recompressed.jpg` (slightly re-encoded JPEG of `damaged_002.jpg`)
+- `broken_file.jpg` (corrupted header)
 
-The importer checks each file's bytes and actual media type, applies configured limits, computes SHA-256 and generates opaque asset IDs. It does not trust the original filename as a storage path.
+The ingestion pipeline inspects magic bytes, enforces size/quota limits, computes both cryptographic (`sha256`) and perceptual (`phash`) digests, extracts image dimensions (`width`, `height`), and writes valid media to content-addressed storage keys. It never trusts the user-supplied filename as a storage path.
 
 Illustrative import result:
-- 4 unique readable images accepted.
-- 1 exact duplicate detected and reported.
-- 1 unreadable file rejected with a specific diagnostic.
-- No accepted record is silently deleted because it is a duplicate; duplicate handling is visible and policy-driven.
+- 4 unique primary images accepted without warnings.
+- 1 exact byte duplicate (`damaged_002_copy.jpg`, identical `sha256`) flagged and handled per import deduplication policy.
+- 1 perceptual near-duplicate (`damaged_002_recompressed.jpg`, `phash` Hamming distance $\le 4$) accepted with a `near_duplicate_warning` linking to `damaged_002.jpg`.
+- 1 unreadable file (`broken_file.jpg`) rejected with diagnostic code `INVALID_IMAGE_BYTES`.
+- No accepted record is silently discarded; exact and near-duplicate resolution is logged in the `ProcessingRun` report.
 
-The import report records counts, item-level results, hashes and a ProcessingRun ID. This example assumes the duplicate really has identical bytes; visual similarity alone is not an exact duplicate.
+### Step 3: Generate multi-provider model proposals & consensus scores
 
-### Step 3: Generate model proposals
+The user selects a local open-source vision model (e.g., via Ollama/vLLM) as the **Primary Annotator** and an optional second model as the **Critic/Verifier** to compute cross-model agreement. The gateway verifies provider health, vision capability, privacy policy (`local_only`), and JSON schema adherence before dispatching work items.
 
-The user configures an image-capable model and explicitly starts annotation. The platform checks that the provider is configured, the model supports image input and the task output schema is valid.
-
-Example normalized proposal:
+Example normalized proposal with consensus metadata:
 
     {
       "id": "ann_demo_0001",
       "record_id": "rec_demo_0001",
       "task": "image_classification",
       "schema_version": 1,
+      "revision_id": "rev_0001",
       "data": {
         "label": "damaged"
       },
       "origin": "model",
+      "confidence": 0.94,
+      "consensus_score": 0.92,
       "status": "pending_review",
       "processing_run_id": "run_demo_0001",
       "model": {
-        "provider": "example-provider",
-        "model_id": "example-vision-model",
+        "primary_provider": "local-ollama",
+        "primary_model_id": "example-local-vlm-7b",
+        "critic_provider": "local-ollama",
+        "critic_model_id": "example-critic-vlm-8b",
         "prompt_template_version": "damage-classification-v1"
       }
     }
 
-All provider/model names in this example are placeholders, not claims of actual support. The original raw response may be retained as a restricted/redacted run artifact according to privacy settings. It is not automatically treated as ground truth.
+All provider/model identifiers are illustrative placeholders. If the Primary Annotator and Critic disagree (e.g., `consensus_score < 0.60`), the record is automatically badged as `disagreement_flagged` so it floats to the top of the human review queue.
 
 ### Step 4: Review and correct
 
-The review queue shows the image, proposed label, model/source information, review status and available actions.
+The review workbench displays the image, proposed label, confidence and consensus badges, provenance metadata, and single-keystroke review controls.
 
-If the proposal is wrong, the user changes damaged to normal and provides an optional reason. The system:
-1. Preserves the model's original annotation revision.
-2. Creates a new human-origin revision.
-3. Records a review event.
-4. Updates the current annotation pointer transactionally.
-5. Marks the final annotation approved only after the user's explicit action.
+When the user spots an incorrect proposal and changes `damaged` to `normal`:
+1. The system preserves `rev_0001` (the original model proposal) in the append-only `AnnotationRevision` table.
+2. Creates `rev_0002` with `origin = "human"` and the updated payload `{"label": "normal"}`.
+3. Appends an immutable `ReviewEvent` recording the actor, timestamp, and optional correction note.
+4. Transactionally updates the parent `Annotation` pointer to `rev_0002` and transitions `status` to `approved`.
 
-The quality dashboard counts model proposals, approved labels, rejected labels and pending review separately.
+The quality dashboard tracks model proposals, consensus disagreements, human-corrected annotations, and approved records as separate metrics.
 
-### Step 5: Validate
+### Step 5: Validate and assign stratified splits
 
-The validator checks:
-- Required label exists.
-- Label belongs to the allowed label set.
-- Primary image asset exists and can be read.
-- Record ID and asset references are valid.
-- Exact duplicate policy is applied consistently.
-- Review status is included in report metrics.
-- Provenance exists for model-origin annotations.
+The validation engine runs across the dataset:
+- Verifies required labels exist and belong to the active schema enum (`normal`, `damaged`).
+- Confirms every `primary_image` asset exists in storage and matches its recorded `sha256`.
+- Checks exact (`sha256`) and perceptual (`phash`) duplicate groups to ensure two near-identical images are never split across `train` and `val`/`test` (**Split Leakage Prevention**).
+- Audits review statuses and `SourceRecord` license flags.
 
-A report may say:
-- 4 unique records checked.
-- 3 approved.
-- 1 pending review.
-- 0 schema errors.
-- 1 duplicate warning.
-- 1 import rejection.
+Illustrative validation report summary:
+- 5 readable records checked.
+- 4 `approved`, 1 `pending_review`.
+- 0 schema or broken-asset errors (**0 Hard Blockers**).
+- 1 perceptual near-duplicate group warning (grouped into the same `train` split to prevent leakage).
+- 1 import rejection logged in run history.
 
-The counts are illustrative. A real report derives all numbers from the actual dataset version and records.
+### Step 6: Publish an immutable version
 
-### Step 6: Publish a version
+Once hard blockers are resolved, the user publishes `v1.0.0`. The `DatasetVersion` manifest cryptographically pins the exact `DatasetRecord` IDs, `Asset` SHA-256 digests, split assignments (`train`/`val`/`test`), `AnnotationRevision` IDs (`rev_0002`, etc.), schema version, and quality report ID.
 
-The user resolves publish-blocking errors and explicitly publishes version 1. The version manifest records the exact record IDs, annotation revision IDs, schema version, source references and validation report reference.
+Subsequent edits or newly added synthetic images never mutate `v1.0.0`. They create new revisions in the mutable workspace, which can later be frozen as `v1.1.0` with `parent_version_id = "v1.0.0"`.
 
-Later correction of a label does not mutate version 1. It creates a new annotation revision; publishing again creates version 2 with a link to its parent version.
+### Step 7: Export training package & automated Dataset Card
 
-### Step 7: Export
+Exporting `v1.0.0` produces a deterministic archive containing:
+- Media directory organized by split or manifest paths.
+- `records.jsonl` / `records.csv` mapping stable record IDs, relative asset paths, splits, and verified labels.
+- `README.md` (Automated **Dataset Card / Datasheet** generated strictly from `v1.0.0` database statistics: class balance table, resolution histogram, human-vs-AI annotation ratio, and known limitations).
+- `schema.json` (Data dictionary and label ontology).
+- `provenance_manifest.json` (Lineage and license states).
+- `quality_report.json` and `export_manifest.json` (with file SHA-256 checksums).
 
-An image-classification export may contain:
-- A documented folder or manifest of images.
-- A JSONL/CSV record file with stable record ID and label.
-- Dataset card/README.
-- Schema/data dictionary.
-- Source/provenance manifest.
-- Quality report.
-- Export manifest with version ID, counts, exporter version and checksums where feasible.
-
-The exact folder structure should be defined by the selected exporter. Do not assume a generic JSONL export is interchangeable with every training framework's image loader.
-
-## 2. Example B — Text classification
+## 2. Example B — Text classification & synthetic data augmentation
 
 ### User goal
 
-A student wants to classify product reviews as positive, neutral or negative.
+A student wants to train a sentiment classifier (`positive`, `neutral`, `negative`) for electronics reviews, starting from 50 real reviews and expanding the dataset with synthetic edge-case reviews generated by a local LLM.
 
 Schema:
-- Field: text, required string.
-- Field: label, required enum: positive, neutral, negative.
-- Optional field: language.
-- Optional field: source reference.
+- `text`: required non-empty string (min 3 characters, max 10,000 characters).
+- `label`: required enum (`positive`, `neutral`, `negative`).
+- `metadata.language`: optional ISO language code.
+- `origin`: tracked relational attribute (`uploaded`, `web_retrieved`, `synthetic`).
 
-Example input record:
+Example seed record (`origin = "uploaded"`):
 
     {
       "external_id": "review-1001",
-      "text": "The product arrived quickly and works well.",
+      "origin": "uploaded",
+      "text": "The laptop cooling pad arrived quickly and keeps temperatures down during heavy builds.",
       "metadata": {
         "language": "en"
       }
     }
 
-Model proposal:
+Example synthetic record generated by the **Synthesizer Agent** (`origin = "synthetic"`):
+
+    {
+      "external_id": "syn-review-2045",
+      "origin": "synthetic",
+      "text": "Packaging was completely crushed on arrival, though the charger inside somehow still functions.",
+      "metadata": {
+        "language": "en",
+        "synthesis_run_id": "run_synth_0004",
+        "seed_record_ids": ["rec_demo_0012"]
+      }
+    }
+
+Model classification proposal:
 
     {
       "task": "text_classification",
       "data": {
-        "label": "positive"
+        "label": "neutral"
       },
       "origin": "model",
+      "confidence": 0.78,
+      "consensus_score": 0.65,
       "status": "pending_review"
     }
 
-If the model returns "happy" instead of one of the allowed labels, the normalizer must not silently map it to positive unless an explicit, tested mapping rule exists. Otherwise mark the result invalid and show the validation error.
+Strict normalization & safety rules:
+- **No silent label guessing:** If a model outputs `"mixed"` or `"happy"` instead of an allowed enum value (`positive`, `neutral`, `negative`), the normalizer must reject the output as `invalid` (or apply an explicitly configured, versioned label-mapping table)—never silently guess.
+- **Synthetic collapse check:** The quality engine checks token n-gram overlap and embedding similarity on `synthetic` records so repetitive LLM phrasing is flagged before approval.
+- **PII & hygiene check:** Empty/whitespace-only strings fail validation. If email addresses, phone numbers, or API keys are detected, the validator emits a `pii_warning` and any redaction creates a traceable new revision rather than overwriting source bytes silently.
 
-If a record is empty or only whitespace, validation should flag it. If a record contains personal information, any detection/redaction feature must be disclosed and its transformations must be traceable; do not silently rewrite the original source.
-
-The final export should retain stable IDs and the approved label. It should document the label definitions and any known class imbalance.
-
-## 3. Example C — Object detection
+## 3. Example C — Zero-shot object detection & spatial coordinate conversion
 
 ### User goal
 
-A user wants to label damaged areas in product photographs with bounding boxes and export YOLO format.
+A developer wants to label damaged regions (`surface_crack`, `dent`, `missing_screw`) across 500 hardware photos without drawing every bounding box from scratch. They use a zero-shot vision detector (e.g., local GroundingDINO / Florence-2 / YOLO adapter) to propose initial boxes, refine them in the UI canvas, and export to both **YOLO** and **COCO** formats.
 
-Internal coordinate convention:
-- x and y are the top-left coordinate in original-image pixel space.
-- width and height are positive pixel dimensions.
-- coordinates are validated against original image width and height.
-- class identity is a stable schema class ID, not a UI list index.
+Internal canonical coordinate convention:
+- `x` and `y` represent the top-left corner in original image pixel coordinates (`0 <= x < image_width`, `0 <= y < image_height`).
+- `width` and `height` are strictly positive pixel dimensions (`width > 0`, `height > 0`).
+- `x + width <= image_width` and `y + height <= image_height`.
+- `class_id` is a stable string identifier from the dataset schema (`surface_crack`), never a fragile UI array index.
 
-Example internal annotation:
+Example internal annotation (`640 x 480` image):
 
     {
       "task": "object_detection",
       "data": {
         "objects": [
           {
-            "class_id": "damage",
+            "object_id": "obj_01",
+            "class_id": "surface_crack",
             "bbox": {
               "x": 100,
               "y": 80,
               "width": 120,
               "height": 90
-            }
+            },
+            "confidence": 0.89
           }
         ]
       },
@@ -199,105 +210,173 @@ Example internal annotation:
       "status": "approved"
     }
 
-For a 640 by 480 image, the example box ends at x=220 and y=170, which is inside the image. If x or y is negative, width/height is zero or negative, or the box exceeds image bounds, validation rejects or flags it according to the task policy.
+For this `640 x 480` image, the box spans horizontally from `100` to `220` and vertically from `80` to `170` (valid). Any negative coordinate, zero/negative dimension, or out-of-bounds box is rejected by the spatial validator. Overlapping duplicate proposals from the model (e.g., IoU $> 0.85$ for the same class) are flagged or merged during normalization.
 
-A YOLO exporter converts the pixel box into normalized center coordinates and width/height:
-- center_x = (x + width / 2) / image_width
-- center_y = (y + height / 2) / image_height
-- normalized_width = width / image_width
-- normalized_height = height / image_height
+### Deterministic YOLO export conversion
 
-Using the example:
-- center_x = 160 / 640 = 0.25
-- center_y = 125 / 480 ≈ 0.2604167
-- normalized_width = 120 / 640 = 0.1875
-- normalized_height = 90 / 480 = 0.1875
+The YOLO exporter transforms canonical pixel coordinates into normalized center coordinates `[0.0, 1.0]`:
+- $\text{center\_x} = \frac{x + \text{width} / 2}{\text{image\_width}}$
+- $\text{center\_y} = \frac{y + \text{height} / 2}{\text{image\_height}}$
+- $\text{norm\_width} = \frac{\text{width}}{\text{image\_width}}$
+- $\text{norm\_height} = \frac{\text{height}}{\text{image\_height}}$
 
-The exporter must map the stable schema class ID to the numeric class index in a generated class-order file. That mapping must be included in the export manifest so labels can be interpreted later. Use a deterministic, documented class ordering.
+Using the `640 x 480` example above:
+- $\text{center\_x} = \frac{100 + 120 / 2}{640} = \frac{160}{640} = 0.25$
+- $\text{center\_y} = \frac{80 + 90 / 2}{480} = \frac{125}{480} \approx 0.260417$
+- $\text{norm\_width} = \frac{120}{640} = 0.1875$
+- $\text{norm\_height} = \frac{90}{480} = 0.1875$
 
-A COCO exporter uses its own image, category and annotation identifiers and bounding-box convention. Do not simply rename a YOLO file to JSON; convert and validate the structures.
+The exporter generates a deterministic `classes.txt` / `data.yaml` mapping stable `class_id` strings to zero-based integer indices (sorted alphabetically or by explicit schema order) and records that exact mapping in `export_manifest.json`.
 
-## 4. Example D — Multimodal linked sample (future capability)
+### Deterministic COCO JSON export conversion
 
-A single product-inspection sample might contain:
-- Original photograph.
-- Crop of the damaged region.
-- Human-approved bounding box.
-- Caption describing visible damage.
-- OCR text from the product label.
-- Optional audio inspection note.
-- Structured condition report.
+The COCO exporter outputs a validated structure containing `images`, `categories`, and `annotations` arrays using top-left pixel coordinates `[x, y, width, height]`, explicit pixel `area` ($120 \times 90 = 10800$), and `iscrowd: 0`. Both exporters are verified via round-trip parser tests.
 
-These are not independent unrelated records if they describe the same inspection event. A stable record ID links them; each asset has its own ID and modality; each annotation has its own task and schema. Cross-modal consistency checks can flag a caption that claims "no damage" when the approved label says "damaged", but this is a review signal rather than automatic proof that one field is correct.
+## 4. Example D — Multi-modal bundled dataset sample (Image + Text + Spatial + Auxiliary Media)
 
-## 5. Example E — Provenance chain
+### User goal
 
-For a model-generated caption, the lineage should be inspectable:
+A developer is preparing a multi-modal Vision-Language Model (VLM) fine-tuning dataset where every training sample bundles an image, spatial defect bounding boxes, a dense descriptive caption, structured OCR text, and optional auxiliary media (such as an audio inspection note).
 
-    source asset
-      -> preprocessing run (resize/crop, if any)
-      -> model annotation run
-      -> normalized caption proposal
-      -> human edit/review revision
-      -> published dataset version
-      -> export artifact
+Rather than scattering these across disconnected single-modality tables, a single `DatasetRecord` (`rec_multimodal_0042`) bundles all linked assets and multi-task annotations:
 
-The lineage record should answer:
-- Which asset bytes were used?
-- Which transformation and parameters were applied?
-- Which provider/model and prompt-template version produced the proposal?
-- What raw/normalized output is available under retention policy?
-- Who approved or changed the annotation, and when?
-- Which dataset version included the approved revision?
-- Which export artifact was produced from that version?
+    {
+      "id": "rec_multimodal_0042",
+      "dataset_id": "ds_vlm_inspection_bundle",
+      "schema_version": 1,
+      "split": "train",
+      "origin": "uploaded",
+      "assets": [
+        {
+          "asset_id": "asset_img_0042",
+          "role": "primary_image",
+          "modality": "image",
+          "mime_type": "image/png",
+          "width": 1280,
+          "height": 720,
+          "sha256": "a1b2c3..."
+        },
+        {
+          "asset_id": "asset_crop_0042",
+          "role": "region_crop",
+          "modality": "image",
+          "mime_type": "image/png",
+          "parent_asset_id": "asset_img_0042",
+          "sha256": "d4e5f6..."
+        },
+        {
+          "asset_id": "asset_txt_0042",
+          "role": "ocr_transcript",
+          "modality": "text",
+          "mime_type": "text/plain",
+          "sha256": "789abc..."
+        },
+        {
+          "asset_id": "asset_aud_0042",
+          "role": "inspector_voice_note",
+          "modality": "audio",
+          "mime_type": "audio/wav",
+          "duration_ms": 4200,
+          "sha256": "def012..."
+        }
+      ],
+      "annotations": [
+        {
+          "id": "ann_box_0042",
+          "task": "object_detection",
+          "status": "approved",
+          "data": {
+            "objects": [
+              {"class_id": "corrosion", "bbox": {"x": 310, "y": 200, "width": 180, "height": 140}}
+            ]
+          }
+        },
+        {
+          "id": "ann_cap_0042",
+          "task": "image_text_captioning",
+          "status": "approved",
+          "data": {
+            "instruction": "Describe the physical condition and any localized defects in the valve assembly.",
+            "response": "Heavy surface corrosion is visible along the lower flange between pixel coordinates (310, 200) and (490, 340)."
+          }
+        }
+      ]
+    }
 
-If any detail is unknown, represent it as unknown rather than fabricating a value.
+**Cross-modal consistency checks:** The quality engine inspects bundled annotations together. For example, if `ann_box_0042` contains an approved `corrosion` bounding box, but `ann_cap_0042` claims `"No defects or corrosion present"`, the Critic/Validation engine raises a `cross_modal_contradiction` warning for human review.
 
-## 6. Example F — Source rights review
+## 5. Example E — Full provenance and audit chain
 
-A research agent finds a web page that displays an image. The platform stores the page URL, retrieval time and source metadata. Unless the page provides clear, relevant rights evidence, the rights status is unknown or review-required.
+For any record (whether uploaded, web-researched, or synthetically generated), the platform maintains an unbroken, queryable lineage graph:
 
-A source state is not just "public/private". Use explicit concepts such as:
-- unknown
-- review_required
-- approved_for_intended_use
-- restricted
-- rejected
+    SourceRecord (Web URL / Upload / Seed Prompt + License State)
+      -> Asset Ingestion (SHA-256, pHash, MIME inspection)
+      -> Preprocessing Run (e.g., region crop or audio transcription, if any)
+      -> Primary Model Annotation Run (Provider, Model ID, Prompt Version, Confidence)
+      -> Critic Verification Run (Consensus Score / Disagreement Flag)
+      -> Human Review Revision (Append-Only Revision ID, Reviewer ID, Timestamp, Diff)
+      -> Frozen DatasetVersion Manifest (Cryptographic Digest + Split Assignment)
+      -> ExportArtifact (COCO / YOLO / JSONL / Parquet Archive + Generated Dataset Card)
 
-The state should include scope and evidence. Approval for internal research does not necessarily imply permission to redistribute the image or include it in a public dataset. Export policy must consider intended use and attribution requirements.
+The provenance record deterministically answers:
+1. Where did the raw media or text originate, and what is its license review status?
+2. Which exact file bytes (`sha256`) were inspected?
+3. Which model(s), parameters, and prompt template versions proposed or critiqued the label?
+4. Who modified or approved the final annotation revision, and when?
+5. Which immutable `DatasetVersion` and exported training bundle contain that exact revision?
 
-## 7. Synthetic fixtures recommended for tests
+Any unrecorded external metadata is explicitly stored as `unknown`—never fabricated.
 
-Keep a tiny test fixture generated from shapes/text in the test suite or created under a permissive license:
-- 2 valid image classification records with different labels.
-- 1 invalid record with an unknown label.
-- 1 image with a deliberately duplicated byte hash.
-- 1 invalid/unreadable media fixture.
-- 3 text records across at least two labels.
-- 1 empty/whitespace-only text record.
-- 1 object detection image with a known box.
-- 1 invalid box with negative coordinates.
-- 1 provider response matching schema.
-- 1 malformed provider response.
-- 1 record with unknown source rights.
+## 6. Example F — Web research & source rights review
 
-Tests should assert the expected outcome and error category, not rely on arbitrary UI text or unstable generated IDs.
+When a user triggers a **Bounded Web Research Run** (e.g., retrieving public-domain or Creative Commons hardware defect photos and descriptions), the Researcher worker captures:
+- Source page URL and direct asset URL.
+- Retrieval timestamp (`retrieved_at`).
+- Detected license metadata (e.g., `CC-BY-4.0`, `CC0-1.0`, or `unknown`).
+- Required attribution string, if applicable.
 
-## 8. End-to-end acceptance scenario
+Source rights follow an explicit state machine:
+- `unknown` (Default when no machine-readable license is verifiable)
+- `review_required` (Retrieved from external web source; awaits human verification)
+- `approved_for_intended_use` (Verified against project scope, e.g., `academic_research` vs. `commercial_training`)
+- `restricted` (Cannot be exported in public redistributable bundles)
+- `rejected` (Quarantined and excluded from all versions)
 
-A clean-install smoke test should:
-1. Start the app with documented local configuration.
-2. Create a project and image-classification dataset.
-3. Import a small synthetic fixture.
-4. Manually label one record.
-5. Run the fake provider on another record.
-6. Verify the model output is pending review.
-7. Correct/approve the annotation.
-8. Run validation and inspect the report.
-9. Publish an immutable version.
-10. Export JSONL and CSV.
-11. Reload the exported records and compare IDs/labels.
-12. Verify the version manifest and documentation identify the exact version.
-13. Restart the application and confirm persisted state remains available.
+**Export Gate Policy:** By default, publishing or exporting a dataset version with records in `unknown`, `review_required`, or `restricted` states either blocks public-redistribution exports or emits a prominent compliance warning in the export manifest and generated Dataset Card (`README.md`).
 
-This test must not require internet access, paid credentials or a real model API. Real-provider smoke tests may be optional and must be separately configured.
+## 7. Synthetic fixtures required for automated test suites
+
+Maintain a lightweight, self-contained fixture generator in `examples/` and `tests/fixtures/` (generated programmatically using Pillow/NumPy/JSON so no large binary blobs or copyrighted files pollute Git):
+
+1. **Valid Image Classification Pair:** 2 synthetic RGB images (`64x64` PNG/JPEG) with distinct colors/patterns and valid labels (`normal`, `damaged`).
+2. **Invalid Schema Label Fixture:** 1 record carrying an undeclared label (`"unknown_category"`).
+3. **Exact Duplicate Byte Fixture:** 2 files with identical byte streams and matching `sha256`.
+4. **Perceptual Near-Duplicate Fixture:** 1 image and a slightly brightness-shifted/recompressed variant with matching/near `phash` (Hamming distance $\le 2$).
+5. **Corrupt Media Fixture:** 1 `.jpg` file containing truncated/invalid non-image bytes.
+6. **Text & Synthetic Classification Fixtures:** 3 valid text records across `positive`, `neutral`, and `negative` labels (including 1 tagged `origin = "synthetic"`), plus 1 invalid whitespace-only record.
+7. **Multi-Modal Paired Bundle Fixture:** 1 record bundling a synthetic image asset, a paired text asset, an instruction-caption annotation, and a spatial bounding box.
+8. **Valid Object Detection Fixture:** 1 `640x480` synthetic image with a known canonical box (`x=100, y=80, width=120, height=90`) for verifying exact YOLO (`0.25, 0.260417, 0.1875, 0.1875`) and COCO coordinate math.
+9. **Invalid Spatial Geometry Fixtures:** 1 box with negative coordinates (`x=-10`), 1 box with zero width (`width=0`), and 1 box exceeding image width (`x=600, width=100` on a `640px` image).
+10. **Provider Gateway Fixtures:** 1 valid structured model response, 1 Critic disagreement response (`consensus_score = 0.35`), and 1 malformed/hallucinated provider payload.
+11. **Source Rights Fixture:** 1 web-retrieved record with `license_status = "review_required"`.
+
+All tests must assert deterministic domain error codes and structured JSON states rather than brittle UI strings.
+
+## 8. End-to-end acceptance scenario (Offline Smoke Test)
+
+A clean-install automated E2E smoke test must execute the following lifecycle from start to finish:
+
+1. Boot the stack locally using documented configuration (`local_only` privacy mode enabled, fake/local deterministic provider active).
+2. Create a project and a multi-modal dataset supporting `image_classification`, `object_detection`, and `image_text_captioning`.
+3. Ingest the synthetic test fixture bundle (verifying that exact duplicates, near-duplicates, and corrupt files are accurately reported).
+4. Execute a bounded synthetic generation / auto-annotation run using the deterministic local test provider.
+5. Verify that generated labels and bounding boxes land in `pending_review` state with recorded `confidence` and `consensus_score` values.
+6. Edit one bounding box and one classification label as a human reviewer; assert that revision `1` (model) is preserved and revision `2` (human) becomes active and `approved`.
+7. Run the quality and split-assignment engine; verify zero split leakage between `train` and `val` and inspect the generated quality report.
+8. Publish immutable version `v1.0.0`.
+9. Mutate a working record in the dataset after publication and verify that `v1.0.0` remains completely unchanged.
+10. Export `v1.0.0` to **JSONL**, **CSV**, **YOLO**, and **COCO** formats, plus the automated **Dataset Card (`README.md`)**.
+11. Parse the exported files back in (round-trip verification) and assert that record IDs, labels, normalized YOLO coordinates, COCO bounding boxes, and Dataset Card statistics match `v1.0.0` exactly.
+12. Restart the API and worker services and verify that all state, revisions, versions, and storage keys persist intact.
+
+This smoke test must pass 100% offline with zero external network calls and zero paid API keys.

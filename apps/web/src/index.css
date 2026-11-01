@@ -33,6 +33,23 @@
   --border-focus: var(--accent-interactive);
   --border-glow: 0 0 0 1px var(--accent-interactive);
 
+  /* Brand Identity Tokens (Derived from Curlset Logo Palette) */
+  --brand-primary: #2563EB;        /* Signature Sapphire / Royal Tech Blue */
+  --brand-hover: #1D4ED8;          /* Deeper sapphire for interactions */
+  --brand-active: #1E40AF;
+  --brand-light: #60A5FA;          /* Sky highlight */
+  --brand-periwinkle: #93BFFE;     /* Logo soft electric accent */
+  --brand-navy: #0E1B3A;           /* Obsidian brand depth */
+  --brand-tint: rgba(37, 99, 235, 0.07);       /* Subtle brand background wash */
+  --brand-tint-hover: rgba(37, 99, 235, 0.12); /* Interactive hover wash */
+  --brand-border: rgba(37, 99, 235, 0.22);     /* Refined brand accent boundary */
+  --brand-border-strong: rgba(37, 99, 235, 0.45);
+  --brand-gradient: linear-gradient(135deg, #1E40AF 0%, #2563EB 55%, #3B82F6 100%);
+  --brand-gradient-subtle: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 191, 254, 0.05) 100%);
+  --brand-glow: 0 0 16px rgba(37, 99, 235, 0.18);
+  --brand-shadow-sm: 0 2px 4px rgba(37, 99, 235, 0.15);
+  --brand-shadow-md: 0 4px 12px rgba(37, 99, 235, 0.22);
+
   /* Legacy token mapping */
   --bg-base: var(--bg-canvas);
   --bg-card: var(--bg-surface);
@@ -91,6 +108,23 @@
   --primary-hover: #E4E4E7;
   --primary-gradient: var(--accent-primary);
   --bg-glass: rgba(17, 17, 20, 0.98);
+
+  /* Dark Theme Brand Identity Tokens */
+  --brand-primary: #3B82F6;        /* Bright sapphire for dark canvas */
+  --brand-hover: #60A5FA;
+  --brand-active: #2563EB;
+  --brand-light: #93BFFE;
+  --brand-periwinkle: #BFDBFE;
+  --brand-navy: #0B1120;
+  --brand-tint: rgba(59, 130, 246, 0.12);
+  --brand-tint-hover: rgba(59, 130, 246, 0.18);
+  --brand-border: rgba(59, 130, 246, 0.28);
+  --brand-border-strong: rgba(59, 130, 246, 0.55);
+  --brand-gradient: linear-gradient(135deg, #2563EB 0%, #3B82F6 60%, #60A5FA 100%);
+  --brand-gradient-subtle: linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, rgba(147, 191, 254, 0.06) 100%);
+  --brand-glow: 0 0 20px rgba(59, 130, 246, 0.28);
+  --brand-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --brand-shadow-md: 0 4px 16px rgba(59, 130, 246, 0.28);
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
@@ -214,20 +248,22 @@ body {
 .brand-icon {
   width: 36px;
   height: 36px;
-  background: #090D16;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: radial-gradient(circle at 35% 35%, #162447, #0B1120);
+  border: 1px solid rgba(147, 191, 254, 0.28);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(14, 27, 58, 0.2), 0 0 10px rgba(37, 99, 235, 0.15);
   flex-shrink: 0;
   overflow: hidden;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  transition: transform 0.25s var(--ease-apple-out), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .brand-icon:hover {
-  transform: scale(1.05);
+  transform: scale(1.08) translateY(-1px);
+  border-color: rgba(147, 191, 254, 0.6);
+  box-shadow: 0 4px 14px rgba(14, 27, 58, 0.3), 0 0 18px rgba(37, 99, 235, 0.3);
 }
 
 .brand-icon img {
@@ -235,11 +271,13 @@ body {
   height: 24px;
   object-fit: contain;
   display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .dark .brand-icon {
-  background: #0D121F;
-  border-color: rgba(255, 255, 255, 0.14);
+  background: radial-gradient(circle at 35% 35%, #1A284D, #090E1A);
+  border-color: rgba(147, 191, 254, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(59, 130, 246, 0.22);
 }
 
 .brand-title {
@@ -255,6 +293,69 @@ body {
   color: var(--text-muted);
   font-weight: 500;
   line-height: 1.15;
+}
+
+/* Brand Identity & Animation Helpers */
+.brand-gradient-text {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, #3B82F6 45%, var(--brand-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.brand-pulse-dot {
+  position: relative;
+  display: inline-block;
+}
+
+.brand-pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.6;
+  animation: pulse-subtle 2.2s infinite ease-in-out;
+}
+
+@keyframes pulse-subtle {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.sidebar-nav-btn {
+  transition: all 0.2s var(--ease-apple-out) !important;
+  position: relative;
+}
+
+.sidebar-nav-btn.active {
+  background-color: var(--brand-tint) !important;
+  color: var(--text-primary) !important;
+  border-left: 3px solid var(--brand-primary) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  font-weight: 600 !important;
+}
+
+.sidebar-nav-btn.active .nav-icon {
+  color: var(--brand-primary) !important;
+}
+
+.sidebar-nav-btn:hover:not(.active) {
+  background-color: var(--bg-subtle-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .sidebar-nav {
@@ -624,6 +725,64 @@ body.workbench-active .content-body,
   font-size: 0.95rem;
 }
 
+.btn-brand {
+  background: var(--brand-gradient);
+  color: #FFFFFF;
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.btn-brand:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--brand-shadow-md);
+  filter: brightness(1.06);
+}
+
+/* Badges & Modality Tags */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  transition: all 0.15s ease;
+}
+
+.badge-blue,
+.badge-brand {
+  background-color: var(--brand-tint);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-border);
+}
+
+.badge-emerald {
+  background-color: rgba(16, 185, 129, 0.08);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-amber {
+  background-color: rgba(245, 158, 11, 0.08);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-rose {
+  background-color: rgba(239, 68, 68, 0.08);
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.badge-neutral {
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hairline);
+}
+
 /* Inputs and Dropdowns */
 .input,
 select,
@@ -695,7 +854,7 @@ select option {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   padding: 1.35rem;
-  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.2s var(--ease-apple-out), transform 0.2s var(--ease-apple-out), box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
   box-shadow: var(--shadow-sm);
@@ -708,9 +867,9 @@ select option {
 }
 
 .card:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  border-color: var(--brand-border);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), 0 0 12px var(--brand-tint);
 }
 
 .card-title {

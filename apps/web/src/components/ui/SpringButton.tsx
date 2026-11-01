@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, HTMLMotionProps, useReducedMotion } from 'framer-motion';
 
 export interface SpringButtonProps extends HTMLMotionProps<'button'> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'brand';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
   shortcut?: string;
@@ -41,7 +41,7 @@ export const SpringButton: React.FC<SpringButtonProps> = ({
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.45 : 1,
     fontFamily: 'inherit',
-    transition: 'background-color 0.15s ease, border-color 0.15s ease',
+    transition: 'background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
   };
 
   const variantStyles: Record<string, React.CSSProperties> = {
@@ -49,6 +49,12 @@ export const SpringButton: React.FC<SpringButtonProps> = ({
       backgroundColor: 'var(--accent-primary)',
       color: 'var(--accent-primary-fg)',
       borderColor: 'transparent',
+    },
+    brand: {
+      backgroundColor: 'var(--brand-primary)',
+      color: '#FFFFFF',
+      borderColor: 'transparent',
+      boxShadow: 'var(--brand-shadow-sm)',
     },
     secondary: {
       backgroundColor: 'var(--bg-surface)',

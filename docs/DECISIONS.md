@@ -182,5 +182,13 @@ This log records material decisions. New decisions should include context, the c
 
 **Consequences:** Enables flexible multi-key workflows, unified recognition UI, dynamic model switching in AI annotation batches, and strict compliance with secret redaction and privacy principles.
 
+## ADR-017 — Authoritative Brand Color System Specification
 
+**Status:** Accepted  
+**Decision:** Standardize on the 6-tone official Curlset brand color spectrum (`#0E121E` Brand Ink, `#1F305B` Deep Indigo, `#476BC9` Primary Blue, `#8BA5F6` Periwinkle, `#B6CBFC` Soft Sky, `#D8E1FC` Lavender Ice) for all platform branding, typography hierarchy, interactive states, surface elevations, and data visualizations. Detailed specifications, WCAG contrast matrices, and semantic CSS variable architecture are recorded in [`BRAND_COLOR_SYSTEM.md`](./BRAND_COLOR_SYSTEM.md).
 
+**Context:** The platform requires an authentic, cohesive visual identity reflecting the official brand logo while maintaining strict WCAG Level AA/AAA contrast ratios across both light and dark desktop modes.
+
+**Alternatives:** Arbitrary ad-hoc utility blues; monochrome-only surfaces; unstandardized hex codes across components.
+
+**Consequences:** All future UI iterations, chart distributions, and component states reference this single source of truth for color definitions, contrast guarantees, and interaction states.

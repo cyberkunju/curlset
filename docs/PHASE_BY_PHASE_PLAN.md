@@ -1,392 +1,405 @@
 # Detailed Phase-by-Phase Implementation Plan
 
-**Status:** Planning only. No phase is complete until implementation and verification evidence exist.
-**Authority:** Read AGENTS.md, docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXAMPLES.md and docs/DECISIONS.md first.
-**Companion roadmap:** docs/EXECUTION_PLAN.md.
+**Status:** Planning only. No phase is complete until implementation and verification evidence exist.  
+**Authority:** Read `AGENTS.md`, `docs/DESIGN.md`, `docs/REQUIREMENTS.md`, `docs/EXAMPLES.md` and `docs/DECISIONS.md` first.  
+**Companion roadmap:** `docs/EXECUTION_PLAN.md`.
 
-This plan converts the 16-phase roadmap into implementable work packages. Phase 0 must inspect the actual repository and preserve healthy existing code. The agent may split work into smaller commits but must not skip acceptance gates.
+This plan converts the 16-phase roadmap into implementable, verifiable work packages. Phase 0 must inspect the actual repository and preserve healthy existing code. The coding agent may split work into smaller atomic commits but must never skip acceptance gates.
 
 ## Operating rules for every phase
 
-1. Re-check repository state, dependencies and existing implementation; preserve user changes.
-2. Implement complete vertical slices, not dead buttons, mock-only screens or placeholder success responses.
-3. Add appropriate unit, API/integration, migration, security and UI/e2e tests.
-4. Run available formatter, lint, type-check, test and build commands. Record exact commands and outcomes.
-5. Review changes for secrets, unsafe paths, data-loss risks, provenance/license gaps and documentation drift.
-6. Update docs/EXECUTION_PLAN.md with evidence. Mark a phase DONE only when its exit gate passes.
-7. If blocked by credentials or infrastructure, implement safe independent work and document the exact blocker. Never fabricate results.
+1. Re-check repository state, dependencies, and existing implementation before writing code; preserve all user changes.
+2. Implement complete vertical slices—never ship dead UI buttons, mock-only screens, or hardcoded placeholder success responses.
+3. Add comprehensive unit, API/integration, database migration, security, round-trip, and UI/E2E tests for every capability introduced.
+4. Run available formatter, linter, type-check, test, and build commands. Record the exact commands executed and their outputs.
+5. Audit all changes for leaked secrets, path-traversal vulnerabilities, SSRF risks, data-loss vectors, provenance/license gaps, and documentation drift.
+6. Update `docs/EXECUTION_PLAN.md` with verification evidence. Mark a phase `DONE` only when its exit gate passes completely.
+7. If blocked by external credentials or missing hardware, implement safe offline/local independent work and document the exact blocker. Never fabricate test results.
 
-Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE, DEFERRED. DEFERRED is not DONE. A running server or generated scaffold is not acceptance evidence.
+Status values: `NOT STARTED`, `IN PROGRESS`, `BLOCKED`, `DONE`, `DEFERRED`. `DEFERRED` is not `DONE`. A running dev server or generated file scaffold is never acceptance evidence.
 
 ---
 
 ## Phase 0 — Repository reconnaissance and reproducible baseline
 
-**Dependencies:** None. **Outcome:** The agent understands the real repository and can run checks reliably.
+**Dependencies:** None. **Outcome:** The agent understands the real repository and can run all verification checks reliably.
 
 ### Tasks
-- Read all governing docs; inspect tree, git status, branch, commits, manifests, lockfiles, tests, CI, Docker files, environment examples and ignored files.
-- Record existing behavior, missing functionality, current architecture and known baseline failures. Do not rebuild healthy components merely to match a suggested path.
-- Identify runtime versions and package managers from the repo; preserve established conventions.
-- Establish or repair safe ignore rules, placeholder environment configuration and contributor setup instructions.
-- Document install, format, lint, type-check, test, integration-test and build commands; clearly state which checks do not yet exist.
-- Check tracked files for credentials, private keys, personal datasets and build artifacts.
-- Record consequential decisions in docs/DECISIONS.md and align this plan with the actual repository.
+- Read all governing architecture and product docs; inspect the directory tree, `git status`, active branch, commit history, package manifests, lockfiles, tests, CI workflows, Dockerfiles, `.env` examples, and `.gitignore` rules.
+- Record existing behavior, missing modules, current architectural boundaries, and any known baseline failures. Do not rebuild healthy components merely to match a suggested folder layout.
+- Identify exact runtime versions and package managers from the repository; preserve established codebase conventions.
+- Establish or repair safe `.gitignore` rules, secret-free `.env.example` configurations (defaulting to offline/local-first operation), and contributor setup instructions.
+- Document exact install, format, lint, type-check, unit-test, integration-test, and build commands; explicitly list any verification checks that need to be created.
+- Audit all tracked files for accidentally committed API keys, private credentials, personal datasets, or binary build artifacts.
+- Record consequential architectural choices in `docs/DECISIONS.md` and align this execution checklist with the actual codebase.
 
 ### Deliverables
-Repository inventory, reproducible setup/check commands, safe configuration baseline and implementation checklist grounded in the actual code.
+Repository inventory, reproducible setup/verification commands, safe local-first configuration baseline, and an implementation checklist grounded in actual code.
 
 ### Tests / verification
-Run existing checks to capture baseline results. Perform a clean-start setup where possible. Check tracked files and ignore rules for secrets and generated output.
+Run existing test/lint suites to capture baseline metrics. Perform a clean-start environment check where possible. Scan tracked files and ignore rules for secrets and generated binary outputs.
 
 ### Exit gate
-A contributor can start the repo and run its documented checks; baseline failures are distinguished from new regressions; existing work is preserved.
+A contributor or coding agent can boot the repository and run its documented verification commands; baseline failures are cleanly distinguished from new regressions; existing user work is preserved intact.
 
 ---
 
 ## Phase 1 — Domain model, schemas and persistence foundation
 
-**Dependencies:** Phase 0. **Outcome:** Stable, validated dataset concepts.
+**Dependencies:** Phase 0. **Outcome:** Stable, validated multi-modal dataset contracts and relational persistence.
 
 ### Tasks
-- Define typed contracts and persistence models for Project, Dataset, DatasetRecord, Asset, RecordAsset, Annotation, AnnotationRevision, SourceRecord, ProcessingRun, RunItem, DatasetVersion, VersionItem, ExportArtifact and ReviewEvent.
-- Define stable IDs, UTC timestamps, task identifiers, schema versions and archive/deletion semantics.
-- Define annotation origins (human, model, imported, rule-generated) and states (proposed, pending review, approved, rejected, needs correction, invalid); enforce transitions centrally.
-- Separate user-facing validation errors from internal errors; validate at trust boundaries.
-- Add database migrations and repository/service boundaries. Keep media bytes outside relational rows.
-- Add health/readiness endpoints and validated configuration. Startup must not require AI credentials.
-- Add synthetic seed fixtures with no personal or unlicensed data.
-- Document migration, backup, restore and development-reset policies. Make destructive reset operations explicit.
+- Define typed contracts and relational persistence models for `Project`, `Dataset`, `DatasetRecord` (supporting multi-modal bundling, `origin` tracking, and `train`/`val`/`test` split fields), `Asset` (with `sha256`, perceptual `phash`, dimensions/duration), `RecordAsset` (with explicit multi-modal roles like `primary_image`, `paired_text`, `dense_caption`, `crop`, `audio_track`, `video_clip`), `Annotation` (with `confidence` and `consensus_score`), `AnnotationRevision`, `SourceRecord`, `ProcessingRun`, `RunItem`, `DatasetVersion`, `VersionItem`, `ExportArtifact`, and `ReviewEvent`.
+- Define collision-resistant stable IDs, content-addressed storage key patterns, UTC timestamp conventions, task identifiers (`image_classification`, `text_classification`, `image_text_captioning`, `object_detection`), schema versions, and safe archive/deletion semantics.
+- Define record origins (`uploaded`, `web_retrieved`, `synthetic`, `augmented`), annotation origins (`human`, `model`, `consensus`, `import`, `rule`), and review states (`proposed`, `pending_review`, `approved`, `rejected`, `needs_correction`, `invalid`); enforce legal state transitions through a centralized state machine.
+- Separate user-facing domain validation errors from internal system faults; validate all payloads at module and API trust boundaries.
+- Implement database migrations and clean repository/service boundaries. Keep raw media bytes strictly in object/file storage outside relational rows.
+- Add `/health` and `/ready` endpoints plus a validated configuration loader (including strict `privacy_mode = local_only` enforcement). Application startup must never require external AI credentials.
+- Create programmatic synthetic seed fixtures (small generated RGB images, paired text records, sample bounding boxes) with zero personal or unlicensed data.
+- Document database migration, backup, restore, and development-reset policies, keeping destructive reset operations behind explicit flags.
 
 ### Tests / verification
-Clean migration from zero, migration status, persistence round trips, invalid schema/state rejection, stable ID and UTC timestamp tests, startup without providers.
+Clean migration from an empty database, migration rollback/status checks, multi-modal `DatasetRecord` + `RecordAsset` persistence round trips, illegal state transition and malformed schema rejection, stable ID and UTC timestamp tests, and offline startup verification without AI provider keys.
 
 ### Exit gate
-Dataset and record persistence works; invalid domain states are rejected; clean migrations and tests pass.
+Multi-modal dataset, record, asset, and annotation persistence works end-to-end; invalid domain states and malformed payloads are deterministically rejected; clean migrations and unit tests pass.
 
 ---
 
 ## Phase 2 — Application shell, projects and datasets
 
-**Dependencies:** Phase 1. **Outcome:** Persisted projects and datasets are manageable through a usable interface.
+**Dependencies:** Phase 1. **Outcome:** Persisted projects and multi-modal datasets are manageable through an accessible, responsive UI.
 
 ### Tasks
-- Build responsive app shell, navigation, routing and shared loading/error/empty states.
-- Implement project create/list/detail/rename/archive.
-- Implement dataset create/list/detail/edit with task type, description, annotation instructions and schema version.
-- Show counts/status only from real backend data, not production mock records.
-- Define consistent API error responses and useful UI messages.
-- Scope dataset operations to projects and enforce server-side authorization, including in single-user local mode.
-- Provide keyboard navigation, visible focus, adequate contrast and narrow-screen layouts.
+- Build the responsive application shell, sidebar/header navigation, routing, workspace privacy/queue status indicators, and shared loading/error/empty states.
+- Implement Project create, list, detail, rename, settings, and archive flows.
+- Implement Dataset create, list, detail, and edit flows supporting task type selection (`image_classification`, `text_classification`, `image_text_captioning`, `object_detection`), supported modalities, label ontology definitions, annotation rubric instructions, split targets, and schema version display.
+- Render all record counts, split summaries, and status badges strictly from real backend database queries—never from hardcoded mock arrays.
+- Define structured API error envelopes and clear, actionable UI error banners.
+- Scope all dataset operations to their parent project and enforce server-side ownership/authorization checks even in single-user local mode.
+- Ensure full keyboard navigation, visible focus states, WCAG-compliant contrast, and responsive layouts across desktop and narrow screens.
 
 ### Tests / verification
-API CRUD and validation tests, UI workflow tests, restart persistence and cross-project ID access rejection.
+API CRUD and input validation integration tests, UI component and navigation workflow tests, database persistence across server restarts, and cross-project unauthorized ID access rejection tests.
 
 ### Exit gate
-Users can manage persisted projects and datasets; authorization and core flows are tested.
+Users can create, configure, and manage persisted projects, multi-modal datasets, label ontologies, and annotation rubrics through the UI; authorization and core flows pass automated tests.
 
 ---
 
 ## Phase 3 — Import pipeline, safe storage and record normalization
 
-**Dependencies:** Phases 1–2. **Outcome:** User data becomes stable records/assets with diagnostics.
+**Dependencies:** Phases 1–2. **Outcome:** Raw user files and multi-modal bundles become normalized records and content-addressed assets with exact/perceptual hash diagnostics.
 
 ### Tasks
-- Implement bounded upload and supported local import paths.
-- Support UTF-8 text, JPEG/PNG/WebP images where libraries support them, CSV, JSON, JSONL and constrained ZIP archives.
-- Validate content signatures as well as extensions/MIME; cap file size, item count, row length, nesting and decompressed size.
-- Prevent ZIP traversal, symlink escape, decompression bombs, unsafe temporary paths and filename collisions.
-- Generate opaque storage keys; preserve filenames only as metadata. Compute SHA-256, byte size, MIME, modality and image dimensions when available.
-- Normalize each accepted item into a stable record and asset relationship. Preserve original assets and track derived assets separately.
-- Record import runs and per-item accepted/rejected/skipped outcomes with actionable errors.
-- Define duplicate handling: report exact hashes; never silently delete or merge records. Make retries safe and idempotent.
-- Add preview/results UI, progress, cancellation where feasible and cleanup on failure.
+- Implement bounded multipart uploads and safe local directory/archive import pipelines.
+- Support UTF-8 text, JPEG/PNG/WebP images, CSV, JSON, JSONL, Parquet, and constrained multi-modal ZIP archives.
+- Validate magic-byte content signatures alongside file extensions and MIME headers; enforce strict ceilings on file byte size, archive item count, row length, JSON nesting depth, and total decompressed byte size.
+- Prevent ZIP path traversal (`..`, absolute paths), symlink escapes, decompression bombs, unsafe temporary staging paths, and filename collisions.
+- Generate opaque server-side content-addressed storage keys; retain original filenames solely as untrusted display metadata. Compute cryptographic `SHA-256` for all files and perceptual hash (`pHash`) plus pixel `width`/`height` for all images.
+- Support automatic multi-modal bundling during ingestion (e.g., linking `item_001.jpg` + `item_001.txt` or structured CSV/JSONL image+caption fields into a single logical `DatasetRecord` via `RecordAsset` roles `primary_image` and `paired_text`). Preserve original assets immutably and track any derived thumbnails/crops separately.
+- Record every import job as a durable `ProcessingRun` with per-item `RunItem` outcomes (`accepted`, `rejected`, `skipped`, `deduplicated`) and actionable diagnostic codes.
+- Define explicit duplicate handling: report exact `sha256` duplicates and `phash` perceptual near-duplicates clearly without silently deleting or corrupting existing records. Ensure import retries are idempotent.
+- Build the Import Wizard UI with file/bundle preview, live progress tracking, job cancellation, per-item error inspector, and guaranteed temporary file cleanup on both success and failure.
 
 ### Tests / verification
-Valid fixtures per format; malformed structured files, invalid UTF-8, corrupt/spoofed images, oversized files, duplicate hashes, archive traversal and decompression limits. Verify failed imports do not leave partial success states or temporary files.
+Valid single-modal and paired image-text fixtures across all supported formats; malformed CSV/JSONL rows, invalid UTF-8 sequences, truncated/spoofed image headers, oversized files, exact `sha256` duplicates, `phash` near-duplicates, ZIP path-traversal attempts, and zip-bomb payloads. Verify failed imports leave zero orphan staging files or false completion states.
 
 ### Exit gate
-Valid inputs produce stable records/assets; invalid inputs fail safely with item-level diagnostics and authorized storage references.
+Valid uploads and archives produce normalized, bundled `DatasetRecord` entities and content-addressed `Asset` objects; malicious or corrupt inputs fail safely with item-level diagnostics; temporary staging directories are deterministically cleaned up.
 
 ---
 
 ## Phase 4 — Annotation schemas and manual labeling
 
-**Dependencies:** Phase 3. **Outcome:** Useful manual workflows without AI providers.
+**Dependencies:** Phase 3. **Outcome:** Fast, keyboard-driven manual classification and image-text captioning workflows operating 100% offline without AI providers.
 
 ### Tasks
-- Implement versioned task schemas, label sets, required fields, allowed values and annotation instructions.
-- Build text classification and image classification workspaces.
-- Implement annotation CRUD, append-only revision history and auditable review actions.
-- Centralize review state transitions and reject illegal transitions.
-- Add queues/filters for unannotated, pending review, approved, rejected, needs correction and invalid records.
-- Add keyboard-first navigation, save feedback, unsaved-change warnings and request-failure recovery.
-- Keep raw imports immutable. Schema changes must not silently reinterpret prior revisions or published versions.
+- Implement the versioned task schema registry, label ontology validators, required-field checks, and versioned annotation instruction rubrics.
+- Build dedicated manual workspaces for **Text Classification**, **Image Classification**, and **Paired Image-Text Captioning / Instruction Tuning** (side-by-side multi-modal bundle inspector).
+- Implement annotation CRUD endpoints, append-only `AnnotationRevision` creation on every save, and explicit `ReviewEvent` audit logging (`approve`, `reject`, `request_correction`).
+- Centralize all review state transitions (`proposed` $\rightarrow$ `pending_review` $\rightarrow$ `approved` / `rejected` / `needs_correction`) and reject illegal transitions at the domain layer.
+- Build fast workspace filters and queues for `unannotated`, `pending_review`, `approved`, `rejected`, `needs_correction`, `invalid`, split type, and record origin.
+- Implement keyboard-first ergonomics (single-keystroke class assignment `1`–`9`, `J`/`K` or arrow record stepping, `Enter`/`Space` approval, undo/revision restore), save-state indicators, unsaved-change navigation guards, and network-error recovery.
+- Keep raw ingested assets strictly immutable. Updating a dataset schema version must never silently mutate historical `AnnotationRevision` records or published versions.
 
 ### Tests / verification
-Valid/invalid label tests, required-field tests, revision preservation, state transition tests, editor UI tests and manual workflow without provider configuration.
+Valid/invalid class label tests, missing required field tests, append-only revision preservation tests, illegal state-transition rejection tests, keyboard-driven UI editor tests, and full manual labeling workflow verification with zero AI provider credentials configured.
 
 ### Exit gate
-Users can import text/images, label manually, revise and review annotations while retaining history.
+Users can import text, images, and image-text bundles, label and caption them manually via keyboard or mouse, revise labels, and approve/reject annotations while preserving a complete, auditable revision history offline.
 
 ---
 
 ## Phase 5 — Provider gateway and AI-assisted annotation
 
-**Dependencies:** Phase 4. **Outcome:** Safe provider-neutral model proposals.
+**Dependencies:** Phase 4. **Outcome:** Safe, provider-neutral AI auto-labeling and multi-model consensus verification prioritizing zero-cost local open-source models alongside optional cloud APIs.
 
 ### Tasks
-- Define backend provider interface, capability declarations, normalized errors and usage metadata.
-- Implement a deterministic fake provider for tests. Add at least one real adapter only after verifying current API support and configuration.
-- Keep keys server-side; validate configuration and redact secrets from logs/errors.
-- Require explicit user action to start inference. Explain which provider/model receives which selected data and disclose external transfer.
-- Validate output against the task schema. Invalid output remains a diagnostic/invalid proposal, never approved.
-- Store provider/model, prompt/template version, run configuration, timestamps, per-item outcomes and usage where available.
-- Add bounded concurrency, timeouts, bounded retries/backoff, cancellation, idempotency and per-run limits.
-- Add progress, failure details and retry-failed-items. Manual workflows remain available without provider credentials.
+- Define the backend `ProviderGateway` interface, explicit capability declarations (`text_classification`, `image_classification`, `image_text_captioning`, `object_detection`, `synthetic_generation`, `consensus_critique`), normalized error taxonomy, and token/compute usage metadata.
+- Implement a deterministic `FakeProvider` for offline test suites, plus a first-class **Local Open-Source Model Adapter** (e.g., Ollama / local vLLM / local vision worker) so users can run free local inference without paid API limits, alongside optional external cloud adapters.
+- Isolate any external API keys strictly server-side, redact secrets from all logs and error payloads, and enforce `privacy_mode = local_only` transport blocks when local mode is enabled.
+- Require explicit user initiation to launch any AI inference run. Clearly display which provider/model will process the selected records and whether data remains local or leaves the machine.
+- Validate all model outputs against the active task JSON schema. Malformed or out-of-schema outputs are recorded as failed/invalid diagnostics—never silently mapped or auto-approved.
+- Implement **Multi-Model Consensus / Critic Verification**: allow an optional secondary Critic model/agent to independently evaluate or re-label proposals, computing a `consensus_score` (`0.0`–`1.0`) and flagging low-agreement records (`disagreement_flagged`) for priority human review.
+- Persist provider ID, model ID/digest, prompt template version, run parameters, timestamps, per-item `RunItem` statuses, `confidence` scores, `consensus_score` values, and compute usage.
+- Enforce bounded worker concurrency, request timeouts, exponential backoff with jitter, mid-run cancellation, deterministic idempotency keys, and per-run budget/item ceilings.
+- Build the AI Run Launcher and progress UI with failed-item retry controls while keeping all manual workflows 100% functional without provider setup.
 
 ### Tests / verification
-Fake-provider contract tests; missing credentials, invalid output, timeout, rate limit, cancellation, partial failure and retry tests; secret-redaction tests. Verify startup and dataset viewing do not trigger external requests. Model proposals default to pending review.
+`FakeProvider` and local-adapter contract tests; missing credentials, `local_only` network block, malformed LLM JSON output, Critic disagreement scoring, timeout, rate-limit backoff, mid-run cancellation, partial batch failure, idempotent retry, and secret-redaction tests. Verify app startup and dataset browsing trigger zero inference calls, and all valid AI proposals land in `pending_review`.
 
 ### Exit gate
-Explicitly initiated runs create validated, reviewable proposals and per-item outcomes without hidden transfer; manual workflows still work offline.
+Explicitly launched AI runs produce schema-validated, reviewable proposals with confidence and consensus scores and granular per-item telemetry; low-agreement proposals are flagged for triage; manual workflows remain completely usable offline.
 
 ---
 
 ## Phase 6 — Quality validation and diagnostics
 
-**Dependencies:** Phases 3–5. **Outcome:** Reproducible data-quality findings before publication.
+**Dependencies:** Phases 3–5. **Outcome:** Deterministic, reproducible dataset quality, deduplication, and split-leakage diagnostics before version publication.
 
 ### Tasks
-- Build a deterministic, versioned validation engine with stable rule IDs, severity, affected record IDs and remediation.
-- Check required fields, labels, malformed values, unreadable assets, duplicates, empty/oversized text, schema mismatch and unresolved review states.
-- Add task-aware image checks, class distributions and split-leakage warnings where supported by metadata.
-- Distinguish blocking errors from warnings; document configurable rules and their limits.
-- Persist validation runs against the dataset/schema revision; mark stale results when inputs change.
-- Build summary/filter/navigation UI for affected records.
-- Never claim automated checks prove legal clearance, absence of bias or training suitability.
+- Build a deterministic, versioned validation engine emitting stable rule IDs, severity levels (`hard_blocker`, `warning`, `info`), affected `record_id` lists, and concrete remediation steps.
+- Validate required fields, allowed label enums, malformed payloads, missing/unreadable storage assets, empty or extreme-length texts, residual HTML/scraper noise, basic PII warning patterns, schema mismatches, and unreviewed annotation states.
+- Perform exact duplicate detection (`sha256`) and perceptual visual near-duplicate clustering (`phash` Hamming distance thresholds).
+- Implement deterministic `train`/`val`/`test` split management and **Split Leakage Detection** (raising a `hard_blocker` or high-severity warning if exact or perceptual duplicate assets span across `train` and `val`/`test` splits).
+- Add cross-modal consistency checks (e.g., flagging missing paired captions or contradictions between classification tags and text descriptions) and class imbalance/distribution summaries.
+- Persist validation runs against the exact dataset state and mark quality reports as `stale` whenever underlying records or annotations change.
+- Build the Interactive Quality Dashboard UI allowing users to filter by issue rule, inspect duplicate clusters side-by-side, and jump directly to affected records to fix them.
+- Never claim automated checks guarantee legal clearance, complete absence of bias, or production safety.
 
 ### Tests / verification
-Fixtures for each rule and boundary, deterministic ordering, stale-result behavior and performance on synthetic datasets.
+Dedicated unit and integration fixtures for every validation rule, exact `sha256` and `phash` near-duplicate detection, cross-split leakage detection, deterministic issue ordering, stale-report invalidation upon record edit, and performance benchmarks on synthetic datasets.
 
 ### Exit gate
-Known seeded issues are found and actionable; blockers/warnings are distinct and results are reproducible.
+Seeded data errors, perceptual duplicates, and split leaks are deterministically caught and linked to actionable record remediation; hard blockers prevent unsafe version publication.
 
 ---
 
 ## Phase 7 — Provenance, immutable versions and documentation
 
-**Dependencies:** Phases 1–6. **Outcome:** Traceable, immutable dataset snapshots.
+**Dependencies:** Phases 1–6. **Outcome:** Cryptographically pinned, immutable dataset versions with complete lineage and auto-generated Dataset Cards (`README.md`).
 
 ### Tasks
-- Link source, import run, original/derived asset, annotation revision, model run, review event and dataset record.
-- Freeze exact record IDs, annotation revisions, schema revision and asset hashes when publishing a version.
-- Define canonical manifest serialization and hashing with stable ordering and normalization.
-- Prevent in-place changes to published versions; corrections require a new version.
-- Add version list/detail, counts, validation summary and record-level diffs.
-- Generate dataset documentation from actual version metadata: purpose, task, schema, source, collection/annotation process, splits, counts, limitations, risks and licensing status.
-- Represent unknown source/license details as unknown; do not infer permission.
-- Add integrity checks for assets and manifests.
+- Link `SourceRecord` provenance (`uploaded`, `web_retrieved`, `synthetic`, `augmented`), ingestion run, original/derived `Asset` hashes, `AnnotationRevision` history, model/consensus `ProcessingRun` metadata, and `ReviewEvent` logs into an unbroken lineage chain per record.
+- Freeze exact `DatasetRecord` IDs, split assignments, `AnnotationRevision` IDs, schema version, and `Asset` SHA-256 digests when publishing a `DatasetVersion`.
+- Define canonical JSON manifest serialization (deterministic key and array sorting) and compute an immutable SHA-256 manifest hash.
+- Enforce strict read-only immutability on published versions at both API and service layers; any subsequent label edit, record addition, or split change occurs in the mutable workspace and requires publishing a new version (`v2` linking to parent `v1`).
+- Build Version History and Diff views showing exact record additions/removals, split counts, quality summary, and modified annotation revisions between versions.
+- Implement the **Automated Dataset Card & Documentation Compiler** (`packages/documentation`): generate a comprehensive `README.md` (Datasheet), `schema.json` data dictionary, annotation instructions snapshot, provenance/origin breakdown (Real vs. Synthetic vs. Web), class/split distribution tables, quality audit summary, and known limitations directly from frozen version evidence.
+- Represent unknown source or license fields explicitly as `unknown`—never fabricate or infer training rights.
+- Add storage and manifest cryptographic verification checks.
 
 ### Tests / verification
-Snapshot immutability after live edits, stable hashes for identical snapshots, accurate version diffs, documentation statistics matching version contents and persistent provenance links.
+Snapshot immutability verification after live workspace edits, identical manifest SHA-256 digests for identical snapshots, accurate version-to-version diff calculations, statistical verification that generated Dataset Card (`README.md`) numbers match the frozen database snapshot 100%, and unbroken provenance queries.
 
 ### Exit gate
-Published versions are immutable, reproducible, traceable and documented from actual contents.
+Published dataset versions are cryptographically pinned, immutable, diffable, and accompanied by truthful, evidence-generated Dataset Cards and provenance manifests.
 
 ---
 
 ## Phase 8 — Training-ready exports and reproducibility
 
-**Dependencies:** Phase 7. **Outcome:** Portable, version-bound exports.
+**Dependencies:** Phase 7. **Outcome:** Portable, deterministic, version-bound multi-modal export packages.
 
 ### Tasks
-- Implement CSV and JSONL exporters first, with deliberate field inclusion and escaping.
-- Define media packaging/references, deterministic paths, encoding, null handling and safe filenames.
-- Export an explicit immutable version, not a live query. Include manifest, schema, version/exporter identifiers, hashes and quality warnings.
-- Add export preview and only expose supported options.
-- Store export artifact status, checksum, size and location; stream large exports with bounded memory.
-- Make failed exports retryable without corrupt/duplicate artifacts.
-- Document Python consumption examples without claiming compatibility with every ML library.
+- Implement deterministic **CSV** and **JSONL** (including ShareGPT / HuggingFace multi-modal paired record formats) exporters with strict field escaping and schema validation.
+- Package linked media assets deterministically by split (`train/`, `val/`, `test/` or manifest paths) with safe normalized filenames, UTF-8 encoding, explicit null handling, and SHA-256 checksums.
+- Bind every export job strictly to a frozen `DatasetVersion` manifest—never to mutable live queries. Bundle `export_manifest.json`, `README.md` (Dataset Card), `schema.json`, `provenance_manifest.json`, and `quality_report.json` inside the exported archive.
+- Build the Export Portal UI with format configuration, pre-export quality/license warning summary, background progress tracking, and checksum verification.
+- Persist `ExportArtifact` metadata (storage key, SHA-256 checksum, byte size, exporter version, status) and stream archive generation with bounded memory usage.
+- Ensure failed or cancelled export runs clean up partial archive files and can be retried idempotently.
+- Include copy-pasteable Python/PyTorch/HuggingFace dataset loading snippets inside the generated Dataset Card without overclaiming universal framework compatibility.
 
 ### Tests / verification
-Golden files covering Unicode, commas, newlines, quotes, nulls and empty values; deterministic repeat exports; correct version binding; checksum verification; failure cleanup; quality blocker behavior.
+Golden export fixtures testing Unicode, embedded commas, newlines, quotes, nulls, and multi-modal asset paths; byte-equivalent/semantically identical repeat exports of the same version; round-trip parser tests reloading exported CSV/JSONL archives; checksum verification; failure cleanup; and hard-blocker export gating.
 
 ### Exit gate
-Users can export valid, documented CSV/JSONL artifacts from immutable versions and reproduce the same logical output.
+Users can export valid, self-documented CSV and multi-modal JSONL training bundles from any frozen `DatasetVersion` and pass automated round-trip verification.
 
 ---
 
 ## Phase 9 — Object detection and COCO/YOLO
 
-**Dependencies:** Phases 4, 6–8. **Outcome:** End-to-end object detection, not just a schema.
+**Dependencies:** Phases 4, 6–8. **Outcome:** End-to-end spatial bounding-box annotation, zero-shot AI box proposals, geometry validation, and verified COCO/YOLO exports.
 
 ### Tasks
-- Add a versioned object-detection schema, class registry and bounding-box representation.
-- Choose one internal coordinate convention and document conversion, rounding and origin.
-- Build annotation canvas controls to add/select/move/resize/delete boxes, assign classes, zoom/pan and provide accessible alternatives.
-- Validate positive dimensions, bounds, class IDs, degenerate boxes and transformations for resized/derived images.
-- Implement COCO JSON and YOLO directory/text exports with deterministic category mapping and manifests.
-- Add import only when mappings are complete and tested.
-- Add examples and conversion documentation.
+- Register the versioned `object_detection` schema, stable `class_id` ontology registry, and canonical internal bounding-box representation (top-left pixel coordinates `x, y, width, height` validated against exact image `width` and `height`, plus normalized `[0.0, 1.0]` conversion utilities).
+- Document exact coordinate conventions, origin `(0, 0)` top-left rules, floating-point rounding tolerances, and aspect-ratio handling.
+- Build the interactive **Object Detection Canvas UI**: drag-to-draw boxes, select/move/resize handles, delete boxes, assign/change `class_id` via keyboard shortcuts, zoom/pan, toggle layer visibility, and compare AI-proposed boxes against human revisions.
+- Extend the Provider Gateway to support **Zero-Shot Vision Auto-Labeling** (enabling local open-source vision detectors such as GroundingDINO / Florence-2 / YOLO / VLM adapters to propose initial bounding boxes from class names/prompts, plus IoU-based Critic consensus scoring).
+- Implement strict spatial validation rules: positive non-zero width/height, image boundary containment (`x + width <= img_w`, `y + height <= img_h`), valid `class_id` references, degenerate narrow-box warnings, and duplicate overlapping box (IoU) warnings.
+- Implement deterministic **COCO JSON** and **YOLO** directory/text exporters (`.txt` normalized `class_idx center_x center_y width height` files + deterministic `classes.txt` / `data.yaml` mapping) bundled with export manifests and Dataset Cards.
+- Support importing existing COCO/YOLO annotations with full coordinate validation and class mapping.
 
 ### Tests / verification
-Coordinate round trips and boundary tests; invalid/zero-area/out-of-bounds boxes; unknown classes; golden COCO/YOLO exports; editor save/revision tests; snapshot geometry immutability.
+Mathematical coordinate conversion round trips (`640x480` pixel space $\leftrightarrow$ normalized YOLO center coordinates $\leftrightarrow$ COCO format); rejection of negative coordinates, zero-area boxes, out-of-bounds boxes, and undeclared classes; golden COCO and YOLO export verification; canvas save and append-only revision tests; and version geometry immutability tests.
 
 ### Exit gate
-Object detection works through annotation, validation, review, versioning and tested COCO/YOLO export.
+Object detection works seamlessly across manual canvas drawing, AI box proposals, spatial validation, human review, immutable versioning, and round-trip verified COCO and YOLO exports.
 
 ---
 
 ## Phase 10 — Local deployment and developer experience
 
-**Dependencies:** Phases 0–9. **Outcome:** Reproducible local MVP.
+**Dependencies:** Phases 0–9. **Outcome:** Turnkey, reproducible local-first MVP deployment.
 
 ### Tasks
-- Provide Docker Compose or the repository's established equivalent for required services.
-- Add health checks, startup dependency handling, persistent volumes, migration policy and graceful shutdown.
-- Document setup, update, backup, restore and troubleshooting; provide placeholder-only environment examples.
-- Make local mode work without provider credentials; bind services safely and explain network exposure.
-- Test backup/restore for metadata and media, including integrity checks.
-- Add CI for format, lint, type-check, tests, build and migrations without paid credentials.
-- Document safe reset semantics separately from normal startup.
+- Finalize `docker-compose.yml` (or the repository's established container orchestration) for Web UI, FastAPI backend, Background Worker, PostgreSQL, Redis, and local filesystem/MinIO object storage (with seamless optional bridging to local Ollama/vision model runtimes).
+- Configure container health checks, dependency startup ordering (`depends_on` health conditions), persistent named volumes, automated startup migrations, and graceful worker shutdown.
+- Document one-command setup, upgrade, backup, restore, and troubleshooting workflows; provide a comprehensive, secret-free `.env.example`.
+- Verify that the complete local platform operates offline without external cloud API keys; bind local ports safely and document network exposure settings.
+- Implement and test metadata (PostgreSQL dump) and media (object storage) backup and restore scripts, including post-restore SHA-256 asset integrity verification.
+- Configure deterministic CI pipelines running formatting, linting, static type-checking, unit/integration/round-trip tests, database migrations, and production builds without requiring paid API credentials.
+- Separate destructive development-reset commands clearly from standard startup commands.
 
 ### Tests / verification
-Clean startup, restart persistence, backup/restore into a clean instance, asset integrity, secret-safe logs and documented port exposure.
+Clean container boot from zero, restart persistence verification, full backup and restore drill into a fresh instance, SHA-256 asset integrity audit, secret-free log inspection, and end-to-end offline smoke test execution.
 
 ### Exit gate
-A new contributor can run, test, back up and restore the local MVP from documented steps.
+A developer or student can clone the repository, start the full stack locally with a single command and zero paid API keys, run the complete multi-modal workflow, and verify backup/restore integrity.
 
 ---
 
 ## Phase 11 — Source discovery, provenance and rights review
 
-**Dependencies:** Phases 3, 7 and 10. **Outcome:** Traceable source collection and explicit rights review.
+**Dependencies:** Phases 3, 7 and 10. **Outcome:** Bounded Researcher Agent web/catalog discovery with SSRF protections and explicit source-rights tracking.
 
 ### Tasks
-- Define source adapters with source URL/identifier, retrieval time/method, attribution, license evidence, terms notes and content hash.
-- Separate discovery from downloading/import; search results do not imply permission.
-- Require explicit initiation before collection or external transfer; honor source restrictions and rate limits.
-- Add rights states: unknown, review required, permitted with evidence, restricted and rejected. Record evidence and user decisions.
-- Do not bypass logins, paywalls, anti-bot controls or access restrictions; do not crawl private content.
-- Treat retrieved content as untrusted and sanitize before rendering.
-- Allow export policies to exclude unresolved/restricted records without silently deleting source data.
+- Define `ResearchSourceAdapter` contracts capturing query parameters, source page URL, direct asset URL, retrieval timestamp, retrieval method, author/publisher attribution, detected license evidence, terms notes, and content SHA-256 hash.
+- Maintain a strict architectural separation between discovering candidate web references and importing assets into a dataset; public web visibility never implies training or redistribution permission.
+- Require explicit user initiation before running any external web/catalog search or URL fetch; enforce strict rate limits, domain rules, and byte budgets.
+- Enforce SSRF (Server-Side Request Forgery) network guards blocking loopback, private, link-local, and cloud-metadata IP ranges (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.169.254`) and unsafe redirect chains.
+- Enforce explicit `SourceRecord` rights states: `unknown`, `review_required`, `approved_for_intended_use`, `restricted`, and `rejected`. Record license evidence and human reviewer decisions.
+- Never bypass authentication walls, paywalls, `robots.txt` restrictions, or anti-bot controls.
+- Treat all retrieved web text, HTML metadata, and filenames as untrusted data: sanitize before UI rendering and isolate from LLM system prompts to block indirect prompt injection.
+- Configure export policies to exclude or prominently flag `unknown`, `review_required`, or `restricted` records without silently deleting source metadata.
 
 ### Tests / verification
-Connector contract fixtures, rate-limit/error/cancellation behavior, rights-based export policy and persistence of evidence/hashes. Unknown rights must never become permitted automatically.
+Research connector contract fixtures, SSRF private-IP rejection tests, untrusted HTML/prompt-injection sanitization tests, rate-limit and cancellation behavior, rights-based export gate tests, and provenance persistence checks. Confirm `unknown` or web-scraped items never become `approved_for_intended_use` automatically.
 
 ### Exit gate
-Provenance and rights review are explicit; discovery is not conflated with permission; restricted data is not silently exported.
+Bounded web/catalog research captures candidate text and media with full provenance and explicit rights states; SSRF guards block internal network access; unresolved or restricted sources are never silently exported as cleared data.
 
 ---
 
 ## Phase 12 — Synthetic data generation
 
-**Dependencies:** Phases 5–7 and 11. **Outcome:** Traceable candidate synthetic data.
+**Dependencies:** Phases 5–7 and 11. **Outcome:** Traceable, diversity-checked synthetic data generation via the Synthesizer Agent.
 
 ### Tasks
-- Check provider capabilities for each generation modality; never assume support.
-- Version prompts/templates and record parameters, requested count, constraints and usage limits.
-- Require explicit initiation, visible transfer notice and configured budget/count limits.
-- Mark synthetic records/assets and link them to generation runs/configuration.
-- Validate outputs, detect exact duplicates and route candidates through review by default.
-- Support bounded retry, partial failures and cancellation.
-- Allow synthetic data inclusion/exclusion in versions and exports; disclose it in generated docs.
+- Verify explicit provider generation capabilities (`synthetic_text`, `synthetic_image_text`, `image_variation`) before dispatching jobs; never assume a model supports generation.
+- Version prompt templates and persist generation parameters (seed records, target class distribution, temperature, random seed, requested item count, and budget ceilings) in `ProcessingRun`.
+- Require explicit user initiation, visible external-transfer disclosure (when using non-local models), and strict item/cost limits.
+- Tag every generated record and asset with `origin = "synthetic"` and link its `SourceRecord` directly to the generator `ProcessingRun`, model ID, prompt version, and seed record IDs.
+- Pass all synthetic candidates through standard schema validation plus **Anti-Collapse Diversity Checks** (rejecting exact hash duplicates, high token n-gram overlap, or perceptual `phash` clones) and route valid candidates to `pending_review` by default.
+- Support bounded retries, partial batch recovery, and instant user cancellation.
+- Allow users to filter, include, or exclude `synthetic` records when publishing a `DatasetVersion` or exporting, and automatically report exact Real-vs-Synthetic ratios in generated Dataset Cards (`README.md`).
 
 ### Tests / verification
-Deterministic fake provider, malformed outputs, partial batch failure, limits, cancellation and lineage through version/export. Verify synthetic candidates are not silently approved.
+Deterministic `FakeProvider` synthesis tests, malformed output rejection, duplicate/low-diversity rejection tests, partial batch failure, budget/count ceiling enforcement, job cancellation, and synthetic provenance tracking through version publication and Dataset Card export. Verify synthetic records are never silently marked `approved` or `uploaded`.
 
 ### Exit gate
-Synthetic data is explicitly generated, bounded, reviewable, traceable and clearly identified in outputs.
+Synthetic text and multi-modal records are generated within strict bounds, filtered for diversity, routed through review, and transparently distinguished from real data in versions and documentation.
 
 ---
 
 ## Phase 13 — Additional modalities and task plugins
 
-**Dependencies:** Phases 4–8 and 10. **Outcome:** New modalities reuse core guarantees.
+**Dependencies:** Phases 4–8 and 10. **Outcome:** Seamless expansion of the `RecordAsset` multi-modal bundle architecture to audio, document/OCR, and video workflows.
 
 ### Tasks
-- Define task/provider capability contracts before adding modality support.
-- Add one complete modality at a time, prioritizing by value: captions/image-text pairs; audio transcription/sound events; document/OCR; video frames/temporal labels.
-- For each modality implement ingestion/parser limits, asset metadata, schema, annotation UI/API, validation, review, provenance, immutable versions, documentation and at least one tested export.
-- Track derived-media lineage, timestamps, spans, units and coordinate transforms.
-- Add modality-specific privacy, size, codec and parser constraints.
-- Do not advertise a task as supported until the complete vertical slice and tests pass.
+- Define strict task and provider capability contracts before enabling each additional modality.
+- Deliver complete vertical slices one modality at a time in priority order:
+  1. **Paired Image-Text / Dense Captioning / VQA Bundles** (if not already completed in Phases 4–8).
+  2. **Audio Transcription & Sound Event Classification** (safe WAV/MP3/FLAC ingestion, duration/sample-rate metadata, waveform playback UI, local Whisper-compatible transcription proposals, timestamped segment validation, and audio-text bundle export).
+  3. **Document / PDF & OCR Extraction** (bounded page parsing, region bounding boxes linked to transcribed text spans, and structured JSONL export).
+  4. **Video Keyframe & Temporal Clip Annotation** (safe codec/duration limits, deterministic frame extraction into linked child `Asset` images, timestamp validation, and frame/clip export).
+- For every enabled modality, implement full support across ingestion, metadata extraction, schema validation, editing UI, AI proposal adapter, quality rules, provenance, immutable versioning, Dataset Card metrics, and at least one round-trip tested exporter.
+- Do not advertise any modality as supported in the UI until its complete end-to-end slice and automated tests pass.
 
 ### Tests / verification
-Fixture-based parsers and schemas, timestamp/span/geometry bounds, export golden files, lineage tests and bounded-resource tests for malformed/large media.
+Programmatic fixture parsers and schema tests for each modality, audio/video timestamp and document coordinate bound checks, export golden files, parent-to-derived asset lineage tests, and resource-exhaustion guards for malformed media files.
 
 ### Exit gate
-Every advertised modality has a complete tested workflow and export; incomplete ones remain experimental or unsupported.
+Every enabled modality has a complete, tested ingestion-to-export workflow and round-trip verified training export; unfinished modalities remain cleanly hidden or marked experimental.
 
 ---
 
 ## Phase 14 — Active learning, evaluation and advanced quality loops
 
-**Dependencies:** Phases 5–9 and complete task-specific workflows. **Outcome:** Explainable review prioritization and reproducible evaluation.
+**Dependencies:** Phases 5–9 and complete task-specific workflows. **Outcome:** Explainable active-learning review prioritization and reproducible baseline evaluation against frozen dataset versions.
 
 ### Tasks
-- Add pluggable prioritization strategies, beginning with transparent heuristics such as unreviewed records and model disagreement.
-- Use uncertainty only when a provider supplies meaningful scores; never invent confidence.
-- Add distribution, imbalance, missingness, duplicates and possible split-leakage diagnostics.
-- Compare annotation revisions or model runs against human-reviewed evaluation sets.
-- Record metric definitions, dataset version, evaluation set, model/provider and configuration.
-- Surface small-sample limitations and avoid unsupported statistical-significance/fairness claims.
-- Keep recommendations explainable and overridable.
+- Implement pluggable review queue prioritization strategies, starting with transparent, explainable signals: unreviewed status, lowest primary model `confidence`, and lowest multi-model `consensus_score` (highest Critic disagreement).
+- Surface uncertainty metrics only when a provider returns calibrated scores or cross-model agreement; never fabricate confidence numbers.
+- Expand dataset diagnostics to highlight severe class imbalance, tail-class starvation, cross-modal contradictions, and potential split-leakage clusters.
+- Implement a reproducible evaluation harness that compares model predictions or new annotation runs against a frozen, human-approved `val`/`test` split in a published `DatasetVersion`.
+- Persist exact evaluation metric definitions (Accuracy, Macro-F1, confusion matrix, mAP@50, IoU), target `DatasetVersion` ID, evaluated split, model/provider configuration, and per-record high-error predictions (surfacing likely ground-truth label errors for human re-review).
+- Automatically flag small-sample-size warnings and avoid unsubstantiated statistical significance or demographic fairness claims.
+- Keep all active-learning queue rankings transparent and manually overridable by the user.
 
 ### Tests / verification
-Deterministic ranking, metrics checked against hand-computed fixtures, version/config reproducibility and missing-confidence/small-sample warnings.
+Deterministic priority queue ranking tests, evaluation metric calculations verified against hand-computed classification and IoU fixtures, version/split reproducibility tests, and small-sample/missing-confidence warning checks.
 
 ### Exit gate
-Prioritization and evaluation are reproducible, explainable and tied to exact versions; uncertainty and limitations are represented honestly.
+Review queue prioritization and baseline evaluation runs are deterministic, explainable, and cryptographically tied to exact `DatasetVersion` splits with honest limitation disclosures.
 
 ---
 
 ## Phase 15 — Hosted deployment, collaboration and operational hardening
 
-**Dependencies:** Phases 0–10. **Outcome:** Secure hosted mode without weakening local guarantees.
+**Dependencies:** Phases 0–10. **Outcome:** Secure multi-tenant hosted deployment capability without compromising local-first offline guarantees.
 
 ### Tasks
-- Threat-model multi-user tenancy; implement authentication, membership and server-side ownership checks before exposing hosted access.
-- Test tenant isolation across database queries, storage, exports, background jobs and provider credentials.
-- Add secret management, transport security, secure session/cookie policy, CSRF protection where relevant, rate limits and abuse controls.
-- Define retention, export, deletion, backup/restore and incident response policies. Destructive operations must be explicit and auditable.
-- Add observability that excludes secrets and sensitive dataset contents by default; monitor health, errors, queues and storage.
-- Add job limits, retry/dead-letter behavior, provider budgets and per-tenant quotas.
-- Document deployment, migration, rollback, restore drills, monitoring and supported upgrades.
-- Review dependencies, ingestion, authorization, SSRF in connectors, path traversal and data-exfiltration boundaries.
-- Keep hosted deployment optional; preserve local/self-hosted support.
+- Threat-model multi-user workspace tenancy; implement authentication, workspace RBAC (`owner`, `reviewer`, `annotator`, `viewer`), and strict server-side ownership checks across every endpoint before enabling hosted mode.
+- Verify strict tenant isolation across PostgreSQL queries, object storage keys/signed URLs, export downloads, background worker queues, and encrypted provider credentials.
+- Configure KMS/encrypted secret storage, TLS transport security, secure session/cookie policies, CSRF protection, per-route rate limiting, and upload abuse controls.
+- Define explicit data retention, workspace export, right-to-erasure deletion, automated backup/restore, and incident response procedures. All destructive operations must require explicit confirmation and write an immutable audit log entry.
+- Configure structured operational observability (metrics, traces, queue depth, storage alerts) that redacts secrets and excludes raw user dataset contents by default.
+- Enforce per-tenant quotas on storage bytes, concurrent background jobs, web research calls, and external provider token spend, including dead-letter queue handling.
+- Perform a full security audit covering dependency vulnerabilities, archive parser limits, authorization boundaries, SSRF guards in web connectors, path traversal, and data exfiltration vectors.
+- Keep hosted multi-tenant features cleanly modular so single-user `docker-compose` local mode remains lightweight and friction-free.
 
 ### Tests / verification
-Tenant-isolation tests across all layers, rate-limit/session/upload/provider-budget tests, backup/restore and migration recovery drills, security scan findings and remediation records.
+Automated cross-tenant isolation tests across API, DB, storage, workers, and exports; rate-limit, session-security, upload-ceiling, and provider-budget enforcement tests; live backup/restore and migration rollback drills; and security scan verification.
 
 ### Exit gate
-Hosted mode is not production-ready until isolation, security, recovery and monitoring are tested. Missing infrastructure is a blocker, never evidence of a live deployment.
+Hosted mode passes all cross-tenant isolation, security, quota, and disaster-recovery tests while local self-hosted mode continues to pass its offline smoke test suite.
 
 ---
 
 ## Cross-phase release gates
 
 ### Gate A — Useful local alpha (after Phase 4)
-Project/dataset persistence; safe imports; manual text/image classification and review; tests pass; local setup documented.
+Project and multi-modal dataset persistence; hardened ingestion with `sha256`/`phash` duplicate detection; manual text, image, and paired image-text labeling and review with append-only revision history; automated tests pass; local setup documented.
 
 ### Gate B — AI-assisted dataset workflow (after Phase 8)
-Explicit provider runs; human review; validation, provenance, immutable versions, generated docs and reproducible CSV/JSONL exports work together.
+Provider gateway (with local open-source + fake adapters) and multi-model consensus scoring; human review workbench; quality and split-leakage validation; full provenance; immutable `DatasetVersion` snapshots; auto-generated **Dataset Cards (`README.md`)**; and reproducible CSV/JSONL multi-modal exports working end-to-end.
 
 ### Gate C — Object-detection release (after Phase 9)
-Geometry, review, validation, versioning and COCO/YOLO exports pass end-to-end tests.
+Interactive spatial bounding-box canvas, zero-shot vision auto-labeling integration, spatial geometry validation, revision history, versioning, and round-trip verified **COCO** and **YOLO** exports pass end-to-end tests.
 
 ### Gate D — Local MVP (after Phase 10)
-Clean setup/startup, persistence, backup/restore and CI are verified.
+One-command clean local setup/startup, offline E2E smoke test, restart persistence, backup/restore verification, and deterministic CI pipeline pass.
 
-### Gate E — Extended platform (after applicable Phases 11–14)
-Each optional feature is complete before advertised; rights, synthetic lineage and evaluation limits are explicit.
+### Gate E — Extended multi-agent & multimodal platform (after applicable Phases 11–14)
+Bounded Web Research discovery, Synthetic Data Generation with anti-collapse checks, additional modalities (Audio/OCR/Video), and Active Learning prioritization are individually verified end-to-end with explicit provenance, license, and synthetic lineage tracking.
 
 ### Gate F — Hosted production readiness (after Phase 15)
-Tenant isolation, security, recovery and operations are demonstrated. Do not claim a hosted service is live until it is actually deployed and smoke-tested.
+Multi-tenant isolation, RBAC, quotas, secret encryption, recovery drills, and operational monitoring are proven by automated tests. Never claim a hosted service is production-ready until verified.
 
 ## Required completion report for every phase
 
-Report phase and status; user-visible behavior implemented; important files/modules changed; migrations and API contracts; exact test commands and actual pass/fail counts; manual checks; limitations/deferred items/blockers; exit-gate evidence; next phase and dependencies.
+At the conclusion of each phase, produce a structured completion report containing:
+1. **Phase ID & Status** (`DONE` / `BLOCKED` / `IN PROGRESS`).
+2. **User-Visible Capabilities Delivered** (concrete vertical slices completed).
+3. **Key Files & Modules Added/Modified**.
+4. **Database Migrations & API/Schema Contracts Updated**.
+5. **Exact Verification Commands Executed & Actual Pass/Fail Counts** (lint, type-check, unit, integration, round-trip, E2E).
+6. **Manual / End-to-End Smoke Verification Performed**.
+7. **Known Limitations, Deferred Items, or External Blockers**.
+8. **Exit-Gate Evidence Summary**.
+9. **Next Phase & Satisfied Dependencies**.
 
-**A checklist tick, commit, scaffold or successful build is not a substitute for verified product behavior.**
+**A checklist tick, git commit, generated scaffold, or compiling build is never a substitute for verified, tested product behavior.**

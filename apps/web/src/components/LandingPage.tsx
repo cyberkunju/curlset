@@ -38,17 +38,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.45rem',
-            padding: '0.25rem 0.75rem',
+            padding: '0.28rem 0.8rem',
             borderRadius: '9999px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border-hairline)',
+            backgroundColor: 'var(--brand-tint)',
+            border: '1px solid var(--brand-border)',
             fontSize: '0.78rem',
-            color: 'var(--text-secondary)',
+            color: 'var(--brand-primary)',
+            fontWeight: 500,
             marginBottom: '1rem',
             fontFamily: 'var(--font-mono)',
+            boxShadow: 'var(--brand-shadow-sm)',
           }}
         >
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--emerald)' }}></span>
+          <span className="brand-pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--brand-primary)' }}></span>
           Curlset — Multimodal Platform
         </div>
 
@@ -63,7 +65,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             margin: '0 auto 1rem auto',
           }}
         >
-          Turn Raw Multimodal Data into Training-Ready Datasets
+          Turn Raw Multimodal Data into <span className="brand-gradient-text">Training-Ready Datasets</span>
         </h1>
 
         <p
@@ -81,7 +83,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Primary & Secondary Action Group */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <SpringButton variant="primary" onClick={onOpenProjects} style={{ padding: '0.65rem 1.4rem', fontSize: '0.9rem' }}>
+          <SpringButton variant="brand" onClick={onOpenProjects} style={{ padding: '0.65rem 1.4rem', fontSize: '0.9rem' }}>
             <span>Launch Workspace</span>
             <ArrowRight size={16} strokeWidth={2} style={{ marginLeft: '4px' }} />
           </SpringButton>
@@ -182,11 +184,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Stage 1 */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <HardDrive size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 01</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 01</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Ingestion & Rights</h3>
               </div>
             </div>
@@ -198,11 +200,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Stage 2 */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <Crosshair size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 02</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 02</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Annotation & Review</h3>
               </div>
             </div>
@@ -214,11 +216,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Stage 3 */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <FileCheck2 size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 03</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 03</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Quality & Invariants</h3>
               </div>
             </div>
@@ -230,11 +232,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Stage 4 */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <GitCompare size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 04</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 04</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Versions & Visual Diff</h3>
               </div>
             </div>
@@ -246,11 +248,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Stage 5 */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <Package size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 05</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Stage 05</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Framework Exports</h3>
               </div>
             </div>
@@ -262,11 +264,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Governance & Privacy Notice */}
           <div className="card" style={{ cursor: 'default', padding: '1.15rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem' }}>
-              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>
+              <div style={{ padding: '0.45rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--brand-tint)', color: 'var(--brand-primary)' }}>
                 <ShieldCheck size={18} strokeWidth={1.75} />
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Storage</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-primary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Storage</span>
                 <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>Local & Portable Architecture</h3>
               </div>
             </div>

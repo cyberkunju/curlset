@@ -13,6 +13,7 @@ import {
   Layers,
   PenTool,
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { archiveProject, fetchDatasets, fetchProject } from '../api';
 import { Dataset, Project, TaskType } from '../types';
 import { CreateDatasetModal } from './CreateDatasetModal';
@@ -20,6 +21,27 @@ import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { TriStateView } from './ui/TriStateView';
 import { SpringButton } from './ui/SpringButton';
 import { CustomSelect } from './ui/CustomSelect';
+
+const CARD_SPRING = { type: 'spring', stiffness: 440, damping: 28, mass: 0.7 } as const;
+
+const STAGGER_CONTAINER_VARIANTS = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.035,
+    },
+  },
+};
+
+const CARD_VARIANTS = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: CARD_SPRING,
+  },
+};
 
 interface ProjectDetailProps {
   projectId: string;
@@ -34,6 +56,7 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
   onBack,
   searchQuery,
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const [project, setProject] = useState<Project | null>(null);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -396,10 +419,27 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
       >
         {(items) =>
           viewMode === 'grid' ? (
-            <div className="cards-grid">
+            <motion.div
+              className="cards-grid"
+              variants={prefersReducedMotion ? undefined : STAGGER_CONTAINER_VARIANTS}
+              initial={prefersReducedMotion ? false : 'hidden'}
+              animate="visible"
+            >
               {items.map((ds) => (
-                <div
+                <motion.div
                   key={ds.id}
+                  variants={prefersReducedMotion ? undefined : CARD_VARIANTS}
+                  whileHover={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          y: -2.5,
+                          borderColor: 'var(--brand-border)',
+                          boxShadow: 'var(--shadow-md)',
+                          transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
+                        }
+                  }
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.985 }}
                   className="card"
                   onClick={() => onSelectDataset(ds.id)}
                   tabIndex={0}
@@ -416,21 +456,61 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
                     justifyContent: 'space-between',
                     minHeight: '150px',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    borderRadius: 'var(--radius-lg, 12px)',
+                    border: '1px solid var(--border-hairline)',
+                    backgroundColor: 'var(--bg-surface)',
+                    padding: '1.15rem',
+                    transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
                   }}
                 >
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.45rem', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
-                        <Database size={16} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)', flexShrink: 0 }} />
-                        <h3 className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--brand-tint)',
+                            border: '1px solid var(--brand-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Database size={15} strokeWidth={1.8} style={{ color: 'var(--brand-primary)' }} />
+                        </div>
+                        <h3
+                          className="card-title"
+                          style={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: '0.98rem',
+                            fontWeight: 600,
+                            letterSpacing: 'var(--letter-spacing-heading)',
+                            color: 'var(--text-primary)',
+                            margin: 0,
+                          }}
+                        >
                           {ds.name}
                         </h3>
                       </div>
-                      <span className="badge badge-neutral" style={{ flexShrink: 0 }}>v{ds.schema_version}</span>
+                      <span
+                        className="badge badge-neutral"
+                        style={{
+                          flexShrink: 0,
+                          fontSize: '0.72rem',
+                          fontFamily: 'var(--font-mono)',
+                          padding: '0.15rem 0.45rem',
+                        }}
+                      >
+                        v{ds.schema_version}
+                      </span>
                     </div>
 
-                    <div style={{ marginBottom: '0.5rem' }}>
+                    <div style={{ marginBottom: '0.65rem' }}>
                       {getTaskBadge(ds.task_type)}
                     </div>
 
@@ -444,34 +524,45 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
                         fontSize: '0.82rem',
                         lineHeight: 1.45,
                         color: 'var(--text-secondary)',
+                        margin: 0,
                       }}
                     >
                       {ds.description || 'No description provided.'}
                     </p>
                   </div>
 
-                  <div className="card-footer" style={{ marginTop: '0.85rem', paddingTop: '0.65rem' }}>
+                  <div
+                    className="card-footer"
+                    style={{
+                      marginTop: '0.85rem',
+                      paddingTop: '0.65rem',
+                      borderTop: '1px solid var(--border-hairline)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
                     <span
                       style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.74rem',
                         color: 'var(--text-muted)',
                         backgroundColor: 'var(--bg-elevated)',
-                        padding: '0.1rem 0.35rem',
+                        padding: '0.15rem 0.4rem',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--border-hairline)',
                       }}
                     >
-                      {ds.id.slice(0, 8)}...
+                      {ds.id.slice(0, 10)}...
                     </span>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <span>{new Date(ds.created_at).toLocaleDateString()}</span>
                       <ChevronRight size={13} strokeWidth={1.75} />
                     </span>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <div className="data-table-container">
               <table className="data-table">
