@@ -1,18 +1,22 @@
 """
 WebVTT subtitle and temporal transcript exporter.
 Formats audio transcription annotations and speech segments into canonical WebVTT files.
+
+Fixes the millisecond-rounding overflow that produced invalid 4-digit timestamps
+(e.g. ``00:00:59.1000``) and never emits fabricated cue text for records that have no
+transcription payload.
 """
 from typing import Any
 
 
 def format_timestamp_vtt(seconds: float) -> str:
-    """Convert float seconds to WebVTT timestamp format: HH:MM:SS.mmm."""
+    """Convert float seconds to WebVTT timestamp format: HH:MM:SS.mmm (no ms overflow)."""
     if seconds < 0:
         seconds = 0.0
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = round((seconds - int(seconds)) * 1000)
+    total_ms = round(float(seconds) * 1000)
+    hours, remainder = divmod(total_ms, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    secs, millis = divmod(remainder, 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"
 
 
@@ -32,10 +36,13 @@ def export_to_webvtt_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
 
     for rec in records:
         record_id = rec.get("record_id", "unknown")
-        ann = rec.get("annotation") or {}
-        payload = ann.get("payload") or {}
-        full_text = payload.get("text", "").strip()
-        segments = payload.get("segments", [])
+        ann = rec.get("annotation")
+        payload = ann.get("payload") if isinstance(ann, dict) else None
+        if not isinstance(payload, dict):
+            payload = {}
+        full_text = payload.get("text")
+        full_text = full_text.strip() if isinstance(full_text, str) else ""
+        segments = payload.get("segments")
 
         rec_lines: list[str] = [
             "WEBVTT",
@@ -43,11 +50,14 @@ def export_to_webvtt_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
             "",
         ]
 
-        if segments and isinstance(segments, list):
+        if isinstance(segments, list) and segments:
             for idx, seg in enumerate(segments, 1):
+                if not isinstance(seg, dict):
+                    continue
                 start = float(seg.get("start_time", 0.0))
                 end = float(seg.get("end_time", start + 1.0))
-                seg_text = seg.get("text", "").strip()
+                seg_text = seg.get("text", "")
+                seg_text = seg_text.strip() if isinstance(seg_text, str) else ""
                 speaker = seg.get("speaker")
                 speaker_tag = f"<v {speaker}>" if speaker else ""
 
@@ -56,20 +66,12 @@ def export_to_webvtt_files(manifest_data: dict[str, Any]) -> dict[str, bytes]:
 
                 rec_lines.extend([str(idx), cue_header, cue_body, ""])
                 combined_lines.extend([f"{record_id}-{idx}", cue_header, cue_body, ""])
-        else:
-            # Single cue covering full text if segments are absent
-            rec_lines.extend([
-                "1",
-                "00:00:00.000 --> 00:00:10.000",
-                full_text or "[Empty Transcription]",
-                "",
-            ])
-            combined_lines.extend([
-                record_id,
-                "00:00:00.000 --> 00:00:10.000",
-                full_text or "[Empty Transcription]",
-                "",
-            ])
+        elif full_text:
+            # Single cue covering the full transcription when explicit segments are absent.
+            cue_header = "00:00:00.000 --> 00:00:10.000"
+            rec_lines.extend(["1", cue_header, full_text, ""])
+            combined_lines.extend([record_id, cue_header, full_text, ""])
+        # No transcription payload -> header/NOTE only; never fabricate cue text.
 
         output_files[f"subtitles/{record_id}.vtt"] = "\n".join(rec_lines).encode("utf-8")
 

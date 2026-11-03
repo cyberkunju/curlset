@@ -1,8 +1,42 @@
 """
 COCO Exporter for converting versioned object detection records into standard COCO JSON format.
+
+The primary image for a record is resolved by explicit asset role/modality rather than by
+manifest array position: canonical manifests sort ``record["assets"]`` by ``asset_id``, so
+``assets[0]`` can be a thumbnail/crop/paired-text asset and silently corrupt every bbox.
 """
 import json
 from typing import Any
+
+_IMAGE_ROLES = frozenset({"primary_image", "image"})
+
+
+def select_primary_image_asset(assets: list[Any] | None) -> dict[str, Any]:
+    """Resolve the record's primary image asset deterministically (role/modality first)."""
+    items = [a for a in (assets or []) if isinstance(a, dict)]
+    if not items:
+        return {}
+
+    def _sort_key(asset: dict[str, Any]) -> str:
+        return str(asset.get("asset_id") or "")
+
+    primary = [
+        a
+        for a in items
+        if str(a.get("role") or "").strip() == "primary_image"
+        and (a.get("modality") in (None, "", "image"))
+    ]
+    if primary:
+        return min(primary, key=_sort_key)
+
+    images = [
+        a
+        for a in items
+        if a.get("modality") == "image" or str(a.get("role") or "").strip() in _IMAGE_ROLES
+    ]
+    if images:
+        return min(images, key=_sort_key)
+    return min(items, key=_sort_key)
 
 
 def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
@@ -16,11 +50,13 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
     categories_set: set[str] = set()
     for r in records:
         ann = r.get("annotation")
-        if ann and ann.get("payload") and "boxes" in ann["payload"]:
-            for box in ann["payload"]["boxes"]:
-                lbl = box.get("label")
-                if lbl:
-                    categories_set.add(lbl)
+        payload = ann.get("payload") if isinstance(ann, dict) else None
+        if isinstance(payload, dict) and isinstance(payload.get("boxes"), list):
+            for box in payload["boxes"]:
+                if isinstance(box, dict):
+                    lbl = box.get("label")
+                    if lbl:
+                        categories_set.add(lbl)
 
     sorted_categories = sorted(categories_set)
     category_to_id = {cat: idx + 1 for idx, cat in enumerate(sorted_categories)}
@@ -37,15 +73,16 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
 
     for img_idx, r in enumerate(records, start=1):
         record_id = r.get("record_id", "")
-        assets = r.get("assets") or []
-        first_asset = assets[0] if assets else {}
-        filename = first_asset.get("original_filename") or f"{record_id}.jpg"
-        dims = first_asset.get("dimensions") or {}
+        image_asset = select_primary_image_asset(r.get("assets") or [])
+        filename = image_asset.get("original_filename") or f"{record_id}.jpg"
+        dims = image_asset.get("dimensions") or {}
         ann = r.get("annotation")
-        payload = ann.get("payload") if ann else {}
+        payload = ann.get("payload") if isinstance(ann, dict) else None
         img_dims = payload.get("image_dimensions") if isinstance(payload, dict) else {}
-        img_width = dims.get("width") or (img_dims.get("width") if img_dims else 640)
-        img_height = dims.get("height") or (img_dims.get("height") if img_dims else 480)
+        if not isinstance(img_dims, dict):
+            img_dims = {}
+        img_width = dims.get("width") or img_dims.get("width") or 640
+        img_height = dims.get("height") or img_dims.get("height") or 480
 
         coco_images.append({
             "id": img_idx,
@@ -56,9 +93,11 @@ def export_to_coco(manifest_data: dict[str, Any]) -> bytes:
             "split": r.get("split", "train"),
         })
 
-        if ann and payload and "boxes" in payload:
+        if isinstance(payload, dict) and isinstance(payload.get("boxes"), list):
             coord_sys = payload.get("coordinate_system")
             for box in payload["boxes"]:
+                if not isinstance(box, dict):
+                    continue
                 lbl = box.get("label")
                 cat_id = category_to_id.get(lbl, 1)
 
