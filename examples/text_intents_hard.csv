@@ -1,0 +1,301 @@
+text,label,split
+Keyboard save does nothing since yesterday (for two weeks now).,technical_support,train
+"We cannot ship, the editor blocks the last step (since Monday).",technical_support,train
+Who owns this account? (from the API client).,general_inquiry,train
+How long do you keep deleted records? (on the beta workspace).,general_inquiry,train
+The page just spins and nothing arrives (on a slow connection).,technical_support,train
+Who signed off on this renewal? (on the beta workspace).,billing,train
+Can I bring my own model? (with SSO enabled).,general_inquiry,train
+Can a viewer export data? (before the release).,general_inquiry,train
+Who do I ask about an invoice from last year? (on the beta workspace).,general_inquiry,train
+Please make exports keyboard navigable (again after a refresh).,feature_request,train
+Is this allowed under our policy?,general_inquiry,train
+"Same amount again this month, third time now (for two weeks now).",billing,train
+Where do I even start with a new dataset? (third time today).,general_inquiry,train
+Compliance wants an immutable trail of decisions.,feature_request,train
+Where do I even start with a new dataset? (at month end).,general_inquiry,train
+"Same amount again this month, third time now (with SSO enabled).",billing,train
+Sync loops forever between laptop and desktop (from the API client).,technical_support,train
+The number changed without anyone telling us (after the last update).,billing,train
+"We cannot ship, the import wizard blocks the last step (on the beta workspace).",technical_support,train
+Where is the guide for new annotators? (on Safari).,general_inquiry,train
+Who do I ask about an invoice from last year? (since Monday).,general_inquiry,train
+We pay for five seats and only three of them work (third time today).,billing,train
+The number changed without anyone telling us (while reviewing).,billing,train
+"Same amount again this month, third time now (after a password reset).",billing,train
+Wish this worked on my phone (on Safari).,feature_request,train
+"One event, two webhook calls, duplicated work (for two weeks now).",technical_support,train
+Export finishes but the archive is empty (on the enterprise tier).,technical_support,train
+The statement does not match the plan we agreed (for the whole team).,billing,train
+Can it remember the view I used last time? (from the API client).,feature_request,train
+Bulk approve needs a confirmation step (on the enterprise tier).,feature_request,train
+"We cannot ship, the import wizard blocks the last step (after a password reset).",technical_support,train
+Please make the queue keyboard navigable (from the API client).,feature_request,train
+Nobody on the team can get past the login screen (again after a refresh).,technical_support,train
+Do you support single sign-on? (at month end).,general_inquiry,train
+"Please move us to monthly, the annual was not worth it (with SSO enabled).",billing,train
+It returns an empty archive every single time (after a password reset).,technical_support,train
+"You took it twice after the trial and support keeps closing the ticket (desktop, second attempt).",billing,train
+Is there a limit on stored media? (after the last update).,general_inquiry,train
+What happens if we downgrade? (in the EU region).,general_inquiry,train
+What is the difference between a project and a dataset? (on a large dataset).,general_inquiry,train
+Can it flag duplicates at import time? (for two weeks now).,feature_request,train
+I would use saved filters on every project (again after a refresh).,feature_request,train
+"Who owns this account? (desktop, second attempt).",general_inquiry,train
+Export finishes but the archive is empty (at month end).,technical_support,train
+Can it remember the view I used last time? (on Safari).,feature_request,train
+"Our reviewers keep asking for keyboard-first triage (desktop, second attempt).",feature_request,train
+Nobody on the team can get past the login screen (in the EU region).,technical_support,train
+Uploading a 2GB archive spins forever (during the trial).,technical_support,train
+Password reset completes but the old session still works (on a slow connection).,technical_support,train
+Bulk approve needs a confirmation step (since Monday).,feature_request,train
+Who owns this account? (with SSO enabled).,general_inquiry,train
+What tier are we on? (on Safari).,general_inquiry,train
+You took it twice twice this month and support keeps closing the ticket (since Monday).,billing,train
+Who owns this account? (during the trial).,general_inquiry,train
+After the update the editor freezes on open (at month end).,technical_support,train
+We need a way to flag duplicates at import (before the release).,feature_request,train
+Can a viewer export data? (on mobile).,general_inquiry,train
+What is the difference between a project and a dataset? (on the enterprise tier).,general_inquiry,train
+Keyboard save does nothing since yesterday (third time today).,technical_support,train
+Is this allowed under our policy? (third time today).,general_inquiry,train
+Thirty records in and I want to stop clicking (before the release).,feature_request,train
+Where do I even start with a new dataset? (from the API client).,general_inquiry,train
+Password reset completes but the old session still works (on a large dataset).,technical_support,train
+"We cannot ship, the editor blocks the last step (on Safari).",technical_support,train
+I would use saved filters on every project (from the API client).,feature_request,train
+Keyboard save does nothing since yesterday (on Safari).,technical_support,train
+We need a way to remember the last view (on the enterprise tier).,feature_request,train
+"It says paid, the bank says otherwise (during the trial).",billing,train
+The number changed without anyone telling us (on Safari).,billing,train
+How many reviewers can one workspace have? (on a slow connection).,general_inquiry,train
+"We pay for five seats and only three of them work (desktop, second attempt).",billing,train
+What happens if we downgrade? (on the beta workspace).,general_inquiry,train
+What is the support response time on weekends? (on a slow connection).,general_inquiry,train
+Nobody on the team can get past the login screen (during the trial).,technical_support,train
+The page just spins and nothing arrives (again after a refresh).,technical_support,train
+Adding a second language means a spreadsheet import (before the release).,feature_request,train
+"Same amount again this month, third time now (before the release).",billing,train
+Who signed off on this renewal? (again after a refresh).,billing,train
+It freezes on open every single time (on a slow connection).,technical_support,train
+How long do you keep deleted records? (in the EU region).,general_inquiry,train
+Cheaper to cancel than keep arguing about the statement (before the release).,billing,train
+Two weeks and the money still has not come back (on mobile).,billing,train
+Can it remember the view I used last time? (third time today).,feature_request,train
+Wish this worked on my phone (on the beta workspace).,feature_request,train
+Can a viewer export data? (from the API client).,general_inquiry,train
+Cheaper to cancel than keep arguing about the card on file.,billing,train
+We pay for five seats and only three of them work (since Monday).,billing,train
+There is no way to tell who changed a label.,feature_request,train
+"Please move us to monthly, the annual was not worth it (after a password reset).",billing,train
+Where is the guide for new annotators? (on the beta workspace).,general_inquiry,train
+Who do I ask about an invoice from last year? (from the API client).,general_inquiry,train
+Compliance wants an immutable trail of decisions (in the EU region).,feature_request,train
+"Same amount again this month, third time now (from the API client).",billing,train
+Export finishes but the archive is empty (after a password reset).,technical_support,train
+"We cannot ship, exports blocks the last step (with SSO enabled).",technical_support,train
+How long do you keep deleted records? (at month end).,general_inquiry,train
+I keep doing this by hand every Monday (before the release).,feature_request,train
+The upgrade was declined but the plan switched anyway (after the last update).,billing,train
+Sync loops forever between laptop and desktop (again after a refresh).,technical_support,train
+Adding a second language means a spreadsheet import (on a large dataset).,feature_request,train
+"Please move us to monthly, the annual was not worth it (third time today).",billing,train
+"Saving does nothing, no confirmation, no error (desktop, second attempt).",technical_support,train
+Search returns nothing even for exact names (on mobile).,technical_support,train
+Password reset completes but the old session still works (on mobile).,technical_support,train
+Is there a limit on stored media? (since Monday).,general_inquiry,train
+"You took it twice again and support keeps closing the ticket (desktop, second attempt).",billing,train
+Can it flag duplicates at import time? (at month end).,feature_request,train
+We cancelled last quarter and still got the payment before the renewal date (on a large dataset).,billing,train
+The statement does not match the plan we agreed (after a password reset).,billing,train
+Cheaper to cancel than keep arguing about the payment (while reviewing).,billing,train
+"One event, two webhook calls, duplicated work (third time today).",technical_support,train
+Adding a second language means a spreadsheet import.,feature_request,train
+Uploading a 2GB archive blanks out on mobile (again after a refresh).,technical_support,train
+"We cannot ship, exports blocks the last step.",technical_support,train
+Adding a second language means a spreadsheet import (at month end).,feature_request,train
+Who signed off on this renewal? (after a password reset).,billing,train
+The statement does not match the plan we agreed (from the API client).,billing,train
+Can it remember the view I used last time? (before the release).,feature_request,train
+Do you support single sign-on? (third time today).,general_inquiry,train
+Thirty records in and I want to stop clicking (again after a refresh).,feature_request,train
+It dies at 60 percent every single time (while reviewing).,technical_support,train
+Please make the reports keyboard navigable (before the release).,feature_request,train
+Search returns nothing even for exact names.,technical_support,train
+We need a way to keyboard-first triage.,feature_request,train
+I keep doing this by hand every Monday (again after a refresh).,feature_request,train
+Cheaper to cancel than keep arguing about the statement (while reviewing).,billing,train
+You took it twice in the wrong currency and support keeps closing the ticket (on a large dataset).,billing,train
+"Saving does nothing, no confirmation, no error (at month end).",technical_support,train
+Can it remember the view I used last time? (on the beta workspace).,feature_request,train
+Who do I ask about an invoice from last year? (on the enterprise tier).,general_inquiry,train
+"Please move us to monthly, the annual was not worth it (on a slow connection).",billing,train
+Bulk approve needs a confirmation step (for the whole team).,feature_request,train
+What tier are we on? (on the beta workspace).,general_inquiry,train
+Password reset completes but the old session still works (again after a refresh).,technical_support,train
+Uploading a 2GB archive nothing happens on save (on a slow connection).,technical_support,train
+The number changed without anyone telling us (from the API client).,billing,train
+"After the update the import wizard freezes on open (desktop, second attempt).",technical_support,train
+Our finance lead needs the receipt before Friday (after a password reset).,billing,train
+Is this allowed under our policy? (on Safari).,general_inquiry,train
+Sync loops forever between laptop and desktop (with SSO enabled).,technical_support,train
+Our reviewers keep asking for keyboard-first triage (while reviewing).,feature_request,train
+Two weeks and the money still has not come back (on the beta workspace).,billing,train
+Two weeks and the money still has not come back (on the enterprise tier).,billing,train
+Our finance lead needs the receipt before Friday (in the EU region).,billing,train
+Is this allowed under our policy? (for the whole team).,general_inquiry,train
+Would be nice if exports could run on a schedule (on Safari).,feature_request,train
+Password reset completes but the old session still works (after the last update).,technical_support,train
+Who owns this account? (on the enterprise tier).,general_inquiry,train
+Wish this worked on my phone (since Monday).,feature_request,train
+Who owns this account? (since Monday).,general_inquiry,train
+"It says paid, the bank says otherwise (after a password reset).",billing,train
+Open the dashboard on mobile and it blanks out.,technical_support,train
+Our reviewers keep asking for keyboard-first triage (during the trial).,feature_request,train
+We pay for five seats and only three of them work (again after a refresh).,billing,train
+Wish this worked on my phone (after a password reset).,feature_request,train
+After the update the editor freezes on open (after a password reset).,technical_support,train
+Sync loops forever between laptop and desktop (on the enterprise tier).,technical_support,train
+Can it remember the view I used last time? (after a password reset).,feature_request,train
+Search returns nothing even for exact names (on the enterprise tier).,technical_support,train
+We pay for five seats and only three of them work.,billing,train
+We cancelled last quarter and still got the upgrade again (again after a refresh).,billing,train
+"Two weeks and the money still has not come back (desktop, second attempt).",billing,train
+What tier are we on? (at month end).,general_inquiry,train
+We pay for five seats and only three of them work (on the beta workspace).,billing,train
+What happens if we downgrade? (while reviewing).,general_inquiry,train
+It loses half the rows every single time (after the last update).,technical_support,train
+Nobody on the team can get past the login screen (for two weeks now).,technical_support,train
+There is no way to tell who changed a label (on Safari).,feature_request,train
+"It says paid, the bank says otherwise (from the API client).",billing,train
+Password reset completes but the old session still works (for two weeks now).,technical_support,train
+Export finishes but the archive is empty (since Monday).,technical_support,train
+I need the balance corrected before we can close the quarter (while reviewing).,billing,train
+We cancelled last quarter and still got the annual plan in the wrong currency (on a large dataset).,billing,train
+I keep doing this by hand every Monday (for the whole team).,feature_request,train
+Our finance lead needs the receipt before Friday (for the whole team).,billing,train
+Where do I even start with a new dataset? (on the beta workspace).,general_inquiry,train
+I keep doing this by hand every Monday (at month end).,feature_request,train
+The page just spins and nothing arrives (since Monday).,technical_support,train
+Wish this worked on my phone (for the whole team).,feature_request,train
+Please make the dashboard keyboard navigable (for two weeks now).,feature_request,train
+It returns an empty archive every single time (with SSO enabled).,technical_support,val
+"It says paid, the bank says otherwise (on the beta workspace).",billing,val
+We cancelled last quarter and still got the balance a third time (on a slow connection).,billing,val
+I need the annual plan corrected before we can close the quarter (while reviewing).,billing,val
+Please make the import wizard keyboard navigable (again after a refresh).,feature_request,val
+"I would use saved filters on every project (desktop, second attempt).",feature_request,val
+What is the support response time on weekends? (third time today).,general_inquiry,val
+Would be nice if exports could run on a schedule (on the enterprise tier).,feature_request,val
+"Please move us to monthly, the annual was not worth it (while reviewing).",billing,val
+Webhooks would save us a nightly script (from the API client).,feature_request,val
+Would be nice if exports could run on a schedule (before the release).,feature_request,val
+We cancelled last quarter and still got the renewal after the trial (after the last update).,billing,val
+Where do I even start with a new dataset? (with SSO enabled).,general_inquiry,val
+Bulk approve needs a confirmation step (for two weeks now).,feature_request,val
+Nobody on the team can get past the login screen (on mobile).,technical_support,val
+"How long do you keep deleted records? (desktop, second attempt).",general_inquiry,val
+The statement does not match the plan we agreed (with SSO enabled).,billing,val
+Can I bring my own model? (on a large dataset).,general_inquiry,val
+Where is the guide for new annotators? (at month end).,general_inquiry,val
+"Please move us to monthly, the annual was not worth it (on mobile).",billing,val
+There is no way to tell who changed a label (since Monday).,feature_request,val
+I need the renewal corrected before we can close the quarter (during the trial).,billing,val
+Adding a second language means a spreadsheet import (after the last update).,feature_request,val
+You took it twice again and support keeps closing the ticket (on the beta workspace).,billing,val
+"Same amount again this month, third time now (on a slow connection).",billing,val
+How many reviewers can one workspace have? (while reviewing).,general_inquiry,val
+Our reviewers keep asking for keyboard-first triage (before the release).,feature_request,val
+Webhooks would save us a nightly script (on mobile).,feature_request,val
+What is the difference between a project and a dataset? (again after a refresh).,general_inquiry,val
+Open the dashboard on mobile and it blanks out (on the beta workspace).,technical_support,val
+Half the rows vanish after import (since Monday).,technical_support,val
+Where is the guide for new annotators? (since Monday).,general_inquiry,val
+What tier are we on? (after the last update).,general_inquiry,val
+"We cannot ship, the dashboard blocks the last step (on a large dataset).",technical_support,val
+I would use saved filters on every project (at month end).,feature_request,val
+Please make the dashboard keyboard navigable (with SSO enabled).,feature_request,val
+Can I bring my own model? (on the enterprise tier).,general_inquiry,val
+After the update the review flow freezes on open (on the beta workspace).,technical_support,val
+Cheaper to cancel than keep arguing about the upgrade (on mobile).,billing,val
+It dies at 60 percent every single time (for two weeks now).,technical_support,val
+Export finishes but the archive is empty (on mobile).,technical_support,val
+We cancelled last quarter and still got the annual plan twice this month (while reviewing).,billing,val
+Can it flag duplicates at import time? (after the last update).,feature_request,val
+The trial converted while we were still evaluating (with SSO enabled).,billing,val
+Is there a limit on stored media? (on Safari).,general_inquiry,val
+Adding a second language means a spreadsheet import (while reviewing).,feature_request,val
+After the update exports freezes on open (on a large dataset).,technical_support,val
+"It says paid, the bank says otherwise (for the whole team).",billing,val
+Adding a second language means a spreadsheet import (from the API client).,feature_request,val
+What happens if we downgrade? (on mobile).,general_inquiry,val
+Where do I even start with a new dataset? (before the release).,general_inquiry,val
+The number changed without anyone telling us (on mobile).,billing,val
+We need a way to single sign-on (from the API client).,feature_request,val
+Can a viewer export data?,general_inquiry,val
+How many reviewers can one workspace have? (on the beta workspace).,general_inquiry,val
+Do you support single sign-on? (on the beta workspace).,general_inquiry,val
+Is there a limit on stored media? (on a slow connection).,general_inquiry,val
+What is the difference between a project and a dataset? (on Safari).,general_inquiry,val
+The page just spins and nothing arrives (on a large dataset).,technical_support,val
+We need a way to an immutable trail of decisions (for two weeks now).,feature_request,val
+Do you support single sign-on? (on the enterprise tier).,general_inquiry,test
+Who do I ask about an invoice from last year? (in the EU region).,general_inquiry,test
+What is the support response time on weekends? (after the last update).,general_inquiry,test
+Can it remember the view I used last time? (for two weeks now).,feature_request,test
+Adding a second language means a spreadsheet import (on mobile).,feature_request,test
+Password reset completes but the old session still works (while reviewing).,technical_support,test
+Wish this worked on my phone (after the last update).,feature_request,test
+Is this allowed under our policy? (on mobile).,general_inquiry,test
+We pay for five seats and only three of them work (for the whole team).,billing,test
+Is there a limit on stored media? (in the EU region).,general_inquiry,test
+It freezes on open every single time (while reviewing).,technical_support,test
+Half the rows vanish after import (on the beta workspace).,technical_support,test
+"Saving does nothing, no confirmation, no error (for two weeks now).",technical_support,test
+Keyboard save does nothing since yesterday (while reviewing).,technical_support,test
+Two weeks and the money still has not come back (on Safari).,billing,test
+Do you support single sign-on? (on a slow connection).,general_inquiry,test
+After the update the reports freezes on open (during the trial).,technical_support,test
+Wish this worked on my phone (on mobile).,feature_request,test
+Who signed off on this renewal? (on a slow connection).,billing,test
+The trial converted while we were still evaluating (after the last update).,billing,test
+"Keyboard save does nothing since yesterday (desktop, second attempt).",technical_support,test
+"Same amount again this month, third time now.",billing,test
+There is no way to tell who changed a label (on the beta workspace).,feature_request,test
+Search returns nothing even for exact names (since Monday).,technical_support,test
+Adding a second language means a spreadsheet import (on a slow connection).,feature_request,test
+Can a viewer export data? (in the EU region).,general_inquiry,test
+Would be nice if exports could run on a schedule (from the API client).,feature_request,test
+The statement does not match the plan we agreed (on the enterprise tier).,billing,test
+Thirty records in and I want to stop clicking (at month end).,feature_request,test
+Do you support single sign-on? (in the EU region).,general_inquiry,test
+Who do I ask about an invoice from last year? (on a slow connection).,general_inquiry,test
+What tier are we on? (on a slow connection).,general_inquiry,test
+"We cannot ship, the reports blocks the last step (again after a refresh).",technical_support,test
+What happens if we downgrade? (with SSO enabled).,general_inquiry,test
+Where do I even start with a new dataset? (while reviewing).,general_inquiry,test
+Do you support single sign-on? (during the trial).,general_inquiry,test
+We cancelled last quarter and still got the payment for a plan we left (on mobile).,billing,test
+"One event, two webhook calls, duplicated work (from the API client).",technical_support,test
+Two weeks and the money still has not come back (while reviewing).,billing,test
+Password reset completes but the old session still works (on Safari).,technical_support,test
+Half the rows vanish after import (on Safari).,technical_support,test
+The number changed without anyone telling us (again after a refresh).,billing,test
+Can it remember the view I used last time? (on the enterprise tier).,feature_request,test
+We pay for five seats and only three of them work (with SSO enabled).,billing,test
+Can it flag duplicates at import time? (with SSO enabled).,feature_request,test
+Can it remember the view I used last time? (again after a refresh).,feature_request,test
+Thirty records in and I want to stop clicking (during the trial).,feature_request,test
+The upgrade was declined but the plan switched anyway (at month end).,billing,test
+Uploading a 2GB archive fires twice for one event (with SSO enabled).,technical_support,test
+"We cannot ship, the queue blocks the last step (in the EU region).",technical_support,test
+"Saving does nothing, no confirmation, no error (on a slow connection).",technical_support,test
+We need a way to a webhook on status change (for two weeks now).,feature_request,test
+"Same amount again this month, third time now (at month end).",billing,test
+Who owns this account? (on the beta workspace).,general_inquiry,test
+Open the dashboard on mobile and it blanks out (at month end).,technical_support,test
+Webhooks would save us a nightly script (with SSO enabled).,feature_request,test
+Half the rows vanish after import (while reviewing).,technical_support,test
+Where is the guide for new annotators? (from the API client).,general_inquiry,test
+What is the support response time on weekends? (on Safari).,general_inquiry,test
+We need a way to undo a bulk change (in the EU region).,feature_request,test

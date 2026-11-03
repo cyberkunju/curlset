@@ -5,12 +5,100 @@ Generates tailored directory structures, configurations, and conversation format
 2. Axolotl (Alpaca/ChatML format + axolotl_config.yml)
 3. LLaMA-Factory (Dataset bundle + dataset_info.json registry with SHA-256)
 4. Ultralytics YOLO v8/v11 (images/, labels/, classes.txt, data.yaml)
+
+Text MVP contract (docs/TEXT_MVP.md §0): every text preset reads the real input text from
+``record.metadata["text"]``. ``annotation.payload["text"]`` is only a fallback for
+audio_transcription / document_ocr records. Fabricated instruction/response placeholders
+are never emitted, and an empty split produces an empty file instead of aliasing train.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 from typing import Any
+
+# Task types whose text content legitimately lives in the annotation payload.
+_PAYLOAD_TEXT_TASK_TYPES = frozenset({"audio_transcription", "document_ocr"})
+_IMAGE_ROLES = frozenset({"primary_image", "image"})
+# Splits that belong in the validation file for the supervised fine-tuning presets.
+_VAL_SPLITS = frozenset({"val", "validation", "test"})
+
+
+def _payload(record: dict[str, Any]) -> dict[str, Any]:
+    annotation = record.get("annotation")
+    payload = annotation.get("payload") if isinstance(annotation, dict) else None
+    return payload if isinstance(payload, dict) else {}
+
+
+def _record_text(record: dict[str, Any], task_type: str | None) -> str:
+    """Canonical input text: ``metadata.text``; payload text only for audio/OCR."""
+    metadata = record.get("metadata") or {}
+    if isinstance(metadata, dict):
+        text = metadata.get("text")
+        if isinstance(text, str) and text.strip():
+            return text
+
+    if task_type in _PAYLOAD_TEXT_TASK_TYPES:
+        text = _payload(record).get("text")
+        if isinstance(text, str) and text.strip():
+            return text
+    return ""
+
+
+def _record_label(record: dict[str, Any]) -> str:
+    """Decided label from ``annotation.payload["label"]`` (legacy keys allowed)."""
+    payload = _payload(record)
+    for key in ("label", "category"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    labels = payload.get("labels")
+    if isinstance(labels, list):
+        return "|".join(str(item) for item in labels)
+    if isinstance(labels, str) and labels.strip():
+        return labels
+    return ""
+
+
+def _is_image_asset(asset: dict[str, Any]) -> bool:
+    return asset.get("modality") == "image" or str(asset.get("role") or "").strip() in _IMAGE_ROLES
+
+
+def _select_primary_image(assets: list[Any] | None) -> dict[str, Any]:
+    """Resolve the record's primary image asset deterministically (role/modality first)."""
+    items = [a for a in (assets or []) if isinstance(a, dict)]
+    if not items:
+        return {}
+
+    def _sort_key(asset: dict[str, Any]) -> str:
+        return str(asset.get("asset_id") or "")
+
+    primary = [
+        a
+        for a in items
+        if str(a.get("role") or "").strip() == "primary_image"
+        and (a.get("modality") in (None, "", "image"))
+    ]
+    if primary:
+        return min(primary, key=_sort_key)
+
+    images = [a for a in items if _is_image_asset(a)]
+    if images:
+        return min(images, key=_sort_key)
+    return min(items, key=_sort_key)
+
+
+def _primary_image_storage_key(record: dict[str, Any]) -> str | None:
+    asset = _select_primary_image(record.get("assets") or [])
+    if asset and _is_image_asset(asset):
+        storage_key = asset.get("storage_key")
+        return storage_key if isinstance(storage_key, str) and storage_key else None
+    return None
+
+
+def _encode_jsonl(lines: list[str]) -> bytes:
+    """Encode JSON Lines bytes; an empty split yields a genuinely empty (0-byte) file."""
+    return ("\n".join(lines) + ("\n" if lines else "")).encode("utf-8")
 
 
 def export_unsloth_sharegpt_vlm(manifest: dict[str, Any]) -> dict[str, bytes]:
@@ -19,35 +107,29 @@ def export_unsloth_sharegpt_vlm(manifest: dict[str, Any]) -> dict[str, bytes]:
     Produces train.jsonl, val.jsonl, and an executable train_unsloth.py starter script.
     """
     records = manifest.get("records", [])
+    task_type = manifest.get("task_type")
     train_lines: list[str] = []
     val_lines: list[str] = []
 
     for r in records:
-        split = r.get("split", "train")
-        payload = r.get("annotation", {}).get("payload", {})
-        assets = r.get("assets", [])
+        text = _record_text(r, task_type)
+        label = _record_label(r)
+        image_ref = _primary_image_storage_key(r)
 
-        # Extract text content
-        user_prompt = payload.get("text") or payload.get("instruction") or payload.get("prompt") or ""
-        gpt_response = payload.get("label") or payload.get("response") or payload.get("output") or ""
+        # Never fabricate a prompt: a record with neither text nor an image carries no signal.
+        if not text and not image_ref:
+            continue
 
-        # Check for image asset
-        has_image = any(a.get("role") in {"primary_image", "image"} for a in assets)
-        primary_asset = assets[0] if assets else None
-        image_ref = primary_asset.get("storage_key") if primary_asset and has_image else None
-
-        conversations = []
-        user_message: dict[str, Any] = {"from": "human"}
-        if image_ref:
-            user_message["value"] = f"<image>\n{user_prompt}" if user_prompt else "<image>\nDescribe this image."
+        if image_ref and text:
+            user_value = f"<image>\n{text}"
+        elif image_ref:
+            user_value = "<image>"
         else:
-            user_message["value"] = user_prompt or "Provide analysis for the input."
-        conversations.append(user_message)
+            user_value = text
 
-        conversations.append({
-            "from": "gpt",
-            "value": str(gpt_response) if gpt_response else "Approved label.",
-        })
+        conversations: list[dict[str, Any]] = [{"from": "human", "value": user_value}]
+        if label:
+            conversations.append({"from": "gpt", "value": label})
 
         entry: dict[str, Any] = {
             "id": r.get("record_id", ""),
@@ -56,14 +138,16 @@ def export_unsloth_sharegpt_vlm(manifest: dict[str, Any]) -> dict[str, bytes]:
         if image_ref:
             entry["images"] = [image_ref]
 
-        json_line = json.dumps(entry, ensure_ascii=False)
-        if split in {"val", "validation", "test"}:
+        json_line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
+        split = r.get("split", "train")
+        if split in _VAL_SPLITS:
             val_lines.append(json_line)
         else:
             train_lines.append(json_line)
 
-    train_data = ("\n".join(train_lines) + "\n").encode("utf-8")
-    val_data = ("\n".join(val_lines) + "\n").encode("utf-8") if val_lines else train_data
+    train_data = _encode_jsonl(train_lines)
+    # E3: an empty val split is an empty file, never a copy of train.
+    val_data = _encode_jsonl(val_lines)
 
     # Executable Unsloth fine-tuning template
     dataset_name = manifest.get("dataset_name", "dataset")
@@ -141,24 +225,28 @@ print("Training completed successfully.")
 
 def export_axolotl_alpaca_chatml(manifest: dict[str, Any]) -> dict[str, bytes]:
     """
-    Export dataset for Axolotl fine-tuning framework (Alpaca / ChatML schema + axolotl_config.yml).
+    Export dataset for Axolotl fine-tuning framework (Alpaca schema + axolotl_config.yml).
     """
     records = manifest.get("records", [])
+    task_type = manifest.get("task_type")
     data_records: list[dict[str, Any]] = []
 
     for r in records:
-        payload = r.get("annotation", {}).get("payload", {})
-        instruction = payload.get("text") or payload.get("instruction") or "Classify this sample."
-        output = payload.get("label") or payload.get("output") or "positive"
-        input_data = payload.get("input") or ""
+        text = _record_text(r, task_type)
+        label = _record_label(r)
+        # Honest rows only: no fabricated instruction/output values.
+        if not text and not label:
+            continue
 
         data_records.append({
-            "instruction": instruction,
-            "input": input_data,
-            "output": str(output),
+            "instruction": text,
+            "input": "",
+            "output": label,
         })
 
-    jsonl_bytes = ("\n".join(json.dumps(dr, ensure_ascii=False) for dr in data_records) + "\n").encode("utf-8")
+    jsonl_bytes = _encode_jsonl(
+        [json.dumps(dr, ensure_ascii=False, sort_keys=True) for dr in data_records]
+    )
 
     dataset_name = manifest.get("dataset_name", "dataset")
     axolotl_yaml = f"""# Axolotl Fine-Tuning Configuration
@@ -223,17 +311,19 @@ def export_llama_factory_bundle(manifest: dict[str, Any]) -> dict[str, bytes]:
     Export dataset for LLaMA-Factory with dataset_info.json registry and SHA-256 verification.
     """
     records = manifest.get("records", [])
+    task_type = manifest.get("task_type")
     formatted: list[dict[str, Any]] = []
 
     for r in records:
-        payload = r.get("annotation", {}).get("payload", {})
-        instruction = payload.get("text") or payload.get("instruction") or "Sample instruction"
-        response = payload.get("label") or payload.get("output") or "Target answer"
+        text = _record_text(r, task_type)
+        label = _record_label(r)
+        if not text and not label:
+            continue
 
         formatted.append({
-            "instruction": instruction,
-            "input": payload.get("input", ""),
-            "output": str(response),
+            "instruction": text,
+            "input": "",
+            "output": label,
             "history": [],
         })
 
@@ -264,7 +354,7 @@ def export_llama_factory_bundle(manifest: dict[str, Any]) -> dict[str, bytes]:
 def export_ultralytics_yolo(manifest: dict[str, Any]) -> dict[str, bytes]:
     """
     Export dataset for Ultralytics YOLO (v8 / v9 / v10 / v11).
-    Produces images/, labels/, classes.txt, and canonical data.yaml.
+    Produces classes.txt and canonical data.yaml plus per-record label files.
     """
     records = manifest.get("records", [])
     label_schema = manifest.get("label_schema", {})
@@ -273,10 +363,12 @@ def export_ultralytics_yolo(manifest: dict[str, Any]) -> dict[str, bytes]:
     # Collect unique classes from annotations if not explicitly in schema
     class_set: set[str] = set(classes)
     for r in records:
-        payload = r.get("annotation", {}).get("payload", {})
-        for b in payload.get("boxes", []):
-            if "label" in b:
-                class_set.add(b["label"])
+        payload = _payload(r)
+        boxes = payload.get("boxes")
+        if isinstance(boxes, list):
+            for b in boxes:
+                if isinstance(b, dict) and "label" in b:
+                    class_set.add(b["label"])
     final_classes = sorted(class_set) if class_set else ["object"]
     class_to_idx = {cls_name: i for i, cls_name in enumerate(final_classes)}
 
@@ -286,20 +378,24 @@ def export_ultralytics_yolo(manifest: dict[str, Any]) -> dict[str, bytes]:
     for r in records:
         split = r.get("split", "train")
         rec_id = r.get("record_id", "rec")
-        payload = r.get("annotation", {}).get("payload", {})
-        boxes = payload.get("boxes", [])
+        payload = _payload(r)
+        boxes = payload.get("boxes") if isinstance(payload.get("boxes"), list) else []
 
-        # Retrieve source image dimensions for precise normalization
-        first_asset = (r.get("assets") or [{}])[0]
-        dims = first_asset.get("dimensions") or {}
+        # Retrieve source image dimensions for precise normalization (role-based, not index 0)
+        image_asset = _select_primary_image(r.get("assets") or [])
+        dims = image_asset.get("dimensions") or {}
         img_dims = payload.get("image_dimensions") if isinstance(payload, dict) else {}
-        img_w = float(dims.get("width") or (img_dims.get("width") if img_dims else 640))
-        img_h = float(dims.get("height") or (img_dims.get("height") if img_dims else 480))
+        if not isinstance(img_dims, dict):
+            img_dims = {}
+        img_w = float(dims.get("width") or img_dims.get("width") or 640)
+        img_h = float(dims.get("height") or img_dims.get("height") or 480)
         coord_sys = payload.get("coordinate_system") if isinstance(payload, dict) else None
 
         # Label lines: <class_idx> <x_center> <y_center> <width> <height>
         yolo_lines: list[str] = []
         for box in boxes:
+            if not isinstance(box, dict):
+                continue
             cls_name = box.get("label", final_classes[0])
             c_idx = class_to_idx.get(cls_name, 0)
 

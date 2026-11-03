@@ -1,0 +1,16 @@
+text,label
+"I was charged twice for my subscription this month. Please issue a refund.",billing
+"My invoice shows a different amount than the plan I signed up for.",billing
+"Can you update the credit card on file for my account?",billing
+"The app crashes every time I try to upload a CSV file.",technical_support
+"Keyboard shortcut for next record does not work in the annotation editor.",technical_support
+"Export to JSONL finishes but the downloaded archive is empty.",technical_support
+"Dark mode would make long labelling sessions much easier on the eyes.",feature_request
+"Please add bulk actions so I can approve many records at once.",feature_request
+"Could you support importing parquet files in addition to CSV?",feature_request
+"How do I invite a teammate to review my dataset?",general_inquiry
+"Where can I find documentation about the annotation guidelines?",general_inquiry
+"Is there a way to see who approved a specific label?",general_inquiry
+"Payment failed with error code 4021 and now my plan is suspended.",billing
+"The review queue keeps showing the same record after I approve it.",technical_support
+"Add a keyboard shortcut to jump straight to the quality dashboard please.",feature_request

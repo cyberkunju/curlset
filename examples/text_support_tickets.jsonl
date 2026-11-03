@@ -1,0 +1,8 @@
+{"text": "Refund has not arrived after seven business days.", "label": "billing"}
+{"text": "Dark mode flickers when the modal is open.", "label": "technical_support"}
+{"text": "Please add a search box to the dataset list.", "label": "feature_request"}
+{"text": "How do I export only the approved records?", "label": "general_inquiry"}
+{"text": "My card was declined but the charge still shows as pending.", "label": "billing"}
+{"text": "The canvas lags when I draw more than twenty boxes.", "label": "technical_support"}
+{"text": "Support for multi-label classification would be useful.", "label": "feature_request"}
+{"text": "Is there an audit log of every label change?", "label": "general_inquiry"}

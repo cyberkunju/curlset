@@ -1,0 +1,201 @@
+text,label,split
+I was charged twice for my API credits this month. Please issue a refund.,billing,train
+It would be great to schedule validation runs automatically from the quality dashboard.,feature_request,train
+The discount code was not applied to my latest invoice for $240.,billing,train
+Why did the price of my annual plan increase without notice this renewal date?,billing,train
+Do you offer a free trial for the enterprise plan?,general_inquiry,train
+Can I export my account data at any time from the import wizard?,general_inquiry,train
+It would help to have export in the evaluation view.,feature_request,train
+Login fails with a 500 error after I reset my password on the desktop.,technical_support,train
+Where can I find the documentation for billing?,general_inquiry,train
+Do you offer a free trial for the pro plan?,general_inquiry,train
+Where is the receipt for the $240 charge on my statement?,billing,train
+Is training available for new team members using the import wizard?,general_inquiry,train
+Which browsers are supported for the web app on a laptop?,general_inquiry,train
+The keyboard shortcut for reject does nothing in the editor.,technical_support,train
+It would help to have provider in the evaluation view.,feature_request,train
+Add a keyboard shortcut to jump straight to the import wizard.,feature_request,train
+Please add dataset so I can review quicker.,feature_request,train
+Can you add multi-label support for validation runs in the workspace?,feature_request,train
+Can you add multi-label support for retraining jobs in the governance?,feature_request,train
+Is training available for new team members using the governance?,general_inquiry,train
+Where can I find the documentation for dataset?,general_inquiry,train
+Please add settings so I can filter faster.,feature_request,train
+Could you support COCO files in addition to CSV?,feature_request,train
+Exporting to WebVTT produces an empty file.,technical_support,train
+Syncing between my desktop and my browser keeps failing with an error.,technical_support,train
+Can you add multi-label support for reviews in the import wizard?,feature_request,train
+How do I invite a teammate to review my dataset in the evaluation?,general_inquiry,train
+The discount code was not applied to my latest invoice for $8.50.,billing,train
+The search results ignore my filters on the provider tab.,technical_support,train
+How do I invite a teammate to review my dataset in the versions?,general_inquiry,train
+The review table shows stale data until I reload twice on my laptop.,technical_support,train
+Please add settings so I can ship sooner.,feature_request,train
+Is training available for new team members using the quality dashboard?,general_inquiry,train
+Is there a way to see who approved a specific label in the quality dashboard?,general_inquiry,train
+Please switch my billing from monthly to annual for the premium seat.,billing,train
+Where is the receipt for the $49 charge on my statement?,billing,train
+The discount code was not applied to my latest invoice for $15.,billing,train
+Could you support WebVTT files in addition to CSV?,feature_request,train
+How do I invite a teammate to review my dataset in the governance?,general_inquiry,train
+The keyboard shortcut for bulk-assign does nothing in the editor.,technical_support,train
+I cancelled last month but I am still being billed for API credits.,billing,train
+The discount code was not applied to my latest invoice for $49.,billing,train
+The search results ignore my filters on the review tab.,technical_support,train
+Syncing between my phone and my desktop keeps failing with an error.,technical_support,train
+Please expose an API endpoint for quality.,feature_request,train
+It would help to have review in the workspace view.,feature_request,train
+Where is the receipt for the $99 charge on my statement?,billing,train
+I cancelled last billing cycle but I am still being billed for storage add-on.,billing,train
+I cancelled last quarter but I am still being billed for API credits.,billing,train
+Playback stutters when I scrub the timeline in the annotation view.,technical_support,train
+Please add billing so I can cut busywork.,feature_request,train
+Add a keyboard shortcut to jump straight to the evaluation.,feature_request,train
+Uploading a file larger than 900 MB never finishes.,technical_support,train
+The discount code was not applied to my latest invoice for $12.,billing,train
+Syncing between my desktop and my tablet keeps failing with an error.,technical_support,train
+Exporting to COCO produces an empty file.,technical_support,train
+Syncing between my desktop and my laptop keeps failing with an error.,technical_support,train
+The provider table shows stale data until I reload twice on my laptop.,technical_support,train
+The billing table shows stale data until I reload twice on my browser.,technical_support,train
+Dark mode would make long QA sessions easier.,feature_request,train
+Please add dashboard so I can audit changes.,feature_request,train
+Playback stutters when I scrub the timeline in the dashboard view.,technical_support,train
+Can I export my account data at any time from the versions?,general_inquiry,train
+Why did the price of my annual plan increase without notice this quarter?,billing,train
+Dark mode would make long annotation sessions easier.,feature_request,train
+Which browsers are supported for the web app on a desktop?,general_inquiry,train
+Syncing between my tablet and my phone keeps failing with an error.,technical_support,train
+Can you update the credit card on file for the pro subscription?,billing,train
+The app crashes whenever I open the provider screen.,technical_support,train
+I was charged twice for my API credits this week. Please issue a refund.,billing,train
+Can you update the credit card on file for the team plan?,billing,train
+Please switch my billing from monthly to annual for the enterprise contract.,billing,train
+The review page spins forever after I refresh.,technical_support,train
+Is there a way to see who approved a specific label in the import wizard?,general_inquiry,train
+Syncing between my phone and my browser keeps failing with an error.,technical_support,train
+We need bulk actions so I can reject many records at once.,feature_request,train
+It would help to have billing in the versions view.,feature_request,train
+Login fails with a 500 error after I reset my password on the tablet.,technical_support,train
+How do I invite a teammate to review my dataset in the quality dashboard?,general_inquiry,train
+Can you add multi-label support for validation runs in the dataset list?,feature_request,train
+Uploading a file larger than 2000 MB never finishes.,technical_support,train
+Can I export my account data at any time from the quality dashboard?,general_inquiry,train
+We need bulk actions so I can navigate many records at once.,feature_request,train
+Dark mode would make long review sessions easier.,feature_request,train
+Can you add multi-label support for validation runs in the import wizard?,feature_request,train
+I need a refund for the team plan I never received.,billing,train
+Is there a way to see who approved a specific label in the evaluation?,general_inquiry,train
+The app crashes whenever I open the settings screen.,technical_support,train
+I cancelled last renewal date but I am still being billed for API credits.,billing,train
+Syncing between my browser and my laptop keeps failing with an error.,technical_support,train
+It would be great to schedule validation runs automatically from the evaluation.,feature_request,train
+Can you add multi-label support for exports in the versions?,feature_request,train
+The dashboard table shows stale data until I reload twice on my browser.,technical_support,train
+Why did the price of my pro subscription increase without notice this billing cycle?,billing,train
+The payment for my pro subscription renewal failed and now my account is suspended.,billing,train
+How long do you retain uploaded data on the student tier?,general_inquiry,train
+Can you add multi-label support for retraining jobs in the import wizard?,feature_request,train
+It would help to have quality in the workspace view.,feature_request,train
+A search box on the governance page would help me filter faster.,feature_request,train
+My invoice shows $12 more than the plan I signed up for.,billing,train
+Which browsers are supported for the web app on a tablet?,general_inquiry,train
+Is training available for new team members using the dataset list?,general_inquiry,train
+Can I export my account data at any time from the governance?,general_inquiry,train
+The app crashes whenever I open the search screen.,technical_support,train
+Exporting to Parquet produces an empty file.,technical_support,train
+Please expose an API endpoint for billing.,feature_request,train
+The search results ignore my filters on the dashboard tab.,technical_support,train
+The payment for my API credits renewal failed and now my account is suspended.,billing,train
+Where can I find the documentation for annotation?,general_inquiry,train
+Dark mode would make long triage sessions easier.,feature_request,train
+Where can I find the documentation for review?,general_inquiry,train
+Please expose an API endpoint for search.,feature_request,train
+Playback stutters when I scrub the timeline in the billing view.,technical_support,train
+Login fails with a 500 error after I reset my password on the laptop.,technical_support,train
+Where can I find the documentation for search?,general_inquiry,train
+The payment for my starter tier renewal failed and now my account is suspended.,billing,train
+Exporting to JSONL produces an empty file.,technical_support,train
+How do I contact support outside business hours?,general_inquiry,train
+Can I export my account data at any time from the workspace?,general_inquiry,train
+Why did the price of my premium seat increase without notice this month?,billing,train
+Do you offer a free trial for the student plan?,general_inquiry,val
+The dataset table shows stale data until I reload twice on my laptop.,technical_support,val
+The dashboard table shows stale data until I reload twice on my laptop.,technical_support,val
+The keyboard shortcut for approve does nothing in the editor.,technical_support,val
+I was charged twice for my pro subscription this quarter. Please issue a refund.,billing,val
+Playback stutters when I scrub the timeline in the review view.,technical_support,val
+Uploading a file larger than 100 MB never finishes.,technical_support,val
+The dashboard page spins forever after I refresh.,technical_support,val
+Is training available for new team members using the versions?,general_inquiry,val
+The dataset page spins forever after I refresh.,technical_support,val
+I cancelled last month but I am still being billed for storage add-on.,billing,val
+I cancelled last month but I am still being billed for enterprise contract.,billing,val
+Can I export my account data at any time from the dataset list?,general_inquiry,val
+Which browsers are supported for the web app on a phone?,general_inquiry,val
+The provider page spins forever after I refresh.,technical_support,val
+Where can I find the documentation for export?,general_inquiry,val
+The search results ignore my filters on the billing tab.,technical_support,val
+The discount code was not applied to my latest invoice for $120.,billing,val
+Can I export my account data at any time from the evaluation?,general_inquiry,val
+Is there a way to see who approved a specific label in the governance?,general_inquiry,val
+It would be great to schedule quality audits automatically from the import wizard.,feature_request,val
+Please expose an API endpoint for dashboard.,feature_request,val
+It would help to have quality in the quality dashboard view.,feature_request,val
+The search results ignore my filters on the annotation tab.,technical_support,val
+It would help to have settings in the import wizard view.,feature_request,val
+Where can I find the documentation for quality?,general_inquiry,val
+How long do you retain uploaded data on the pro tier?,general_inquiry,val
+I need a refund for the annual plan I never received.,billing,val
+Could you support Parquet files in addition to CSV?,feature_request,val
+Please switch my billing from monthly to annual for the pro subscription.,billing,val
+Syncing between my laptop and my laptop keeps failing with an error.,technical_support,val
+Syncing between my desktop and my phone keeps failing with an error.,technical_support,val
+Why did the price of my starter tier increase without notice this week?,billing,val
+How do I invite a teammate to review my dataset in the dataset list?,general_inquiry,val
+I cancelled last week but I am still being billed for pro subscription.,billing,val
+My invoice shows $15 more than the plan I signed up for.,billing,val
+It would help to have search in the versions view.,feature_request,val
+Where is the receipt for the $120 charge on my statement?,billing,val
+My invoice shows $120 more than the plan I signed up for.,billing,val
+How do I invite a teammate to review my dataset in the workspace?,general_inquiry,val
+I was charged twice for my pro subscription this renewal date. Please issue a refund.,billing,test
+Is there a way to see who approved a specific label in the workspace?,general_inquiry,test
+Playback stutters when I scrub the timeline in the dataset view.,technical_support,test
+Could you support JSONL files in addition to CSV?,feature_request,test
+What is the difference between a project and a dataset?,general_inquiry,test
+Syncing between my tablet and my browser keeps failing with an error.,technical_support,test
+I need a refund for the starter tier I never received.,billing,test
+Could you support YOLO files in addition to CSV?,feature_request,test
+Is training available for new team members using the workspace?,general_inquiry,test
+I cancelled last renewal date but I am still being billed for starter tier.,billing,test
+Is there a way to see who approved a specific label in the versions?,general_inquiry,test
+I need a refund for the storage add-on I never received.,billing,test
+The settings table shows stale data until I reload twice on my laptop.,technical_support,test
+Can you update the credit card on file for the storage add-on?,billing,test
+The payment for my annual plan renewal failed and now my account is suspended.,billing,test
+Where is the receipt for the $12 charge on my statement?,billing,test
+The discount code was not applied to my latest invoice for $99.,billing,test
+A search box on the governance page would help me cut busywork.,feature_request,test
+Add a keyboard shortcut to jump straight to the quality dashboard.,feature_request,test
+Add a keyboard shortcut to jump straight to the workspace.,feature_request,test
+How long do you retain uploaded data on the team tier?,general_inquiry,test
+Syncing between my laptop and my desktop keeps failing with an error.,technical_support,test
+A search box on the quality dashboard page would help me filter faster.,feature_request,test
+We need bulk actions so I can approve many records at once.,feature_request,test
+Please add export so I can review quicker.,feature_request,test
+Why did the price of my starter tier increase without notice this month?,billing,test
+Which browsers are supported for the web app on a browser?,general_inquiry,test
+Please add export so I can trace provenance.,feature_request,test
+Do you offer a free trial for the team plan?,general_inquiry,test
+It would help to have annotation in the quality dashboard view.,feature_request,test
+My invoice shows $99 more than the plan I signed up for.,billing,test
+Where can I find the documentation for dashboard?,general_inquiry,test
+Is there a way to see who approved a specific label in the dataset list?,general_inquiry,test
+The app crashes whenever I open the review screen.,technical_support,test
+Can you add multi-label support for exports in the quality dashboard?,feature_request,test
+Where is the receipt for the $15 charge on my statement?,billing,test
+How long do you retain uploaded data on the enterprise tier?,general_inquiry,test
+Where can I find the documentation for provider?,general_inquiry,test
+The dashboard table shows stale data until I reload twice on my desktop.,technical_support,test
+Can you update the credit card on file for the enterprise contract?,billing,test
