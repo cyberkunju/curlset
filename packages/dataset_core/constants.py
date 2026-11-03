@@ -20,6 +20,9 @@ class AnnotationOrigin(str, Enum):
     RULE_GENERATED = "rule_generated"
     SYNTHETIC = "synthetic"
     AUGMENTED = "augmented"
+    #: Aggregated multi-model pseudo-label (docs/ENSEMBLE_PSEUDO_LABELING.md). Always paired with
+    #: status="pending_review": an ensemble candidate is not a human approval.
+    ENSEMBLE = "ensemble"
 
 
 class ReviewStatus(str, Enum):
@@ -85,6 +88,8 @@ class ExportFormat(str, Enum):
     AXOLOTL_ALPACA_CHATML = "axolotl_alpaca_chatml"
     LLAMA_FACTORY_BUNDLE = "llama_factory_bundle"
     ULTRALYTICS_YOLO_V8_V11 = "ultralytics_yolo_v8_v11"
+    #: Self-contained image dataset: images/ + labels.jsonl/csv + manifest (re-importable).
+    IMAGE_BUNDLE = "image_bundle"
 
 
 

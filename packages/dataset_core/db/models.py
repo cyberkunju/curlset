@@ -321,6 +321,118 @@ class ProviderCredentialModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
 
+class EvaluationRunModel(Base):
+    """Persisted gold-vs-candidate accuracy evaluation run (TEXT_MVP.md F4).
+
+    One row per POST /datasets/{id}/evaluation/run. ``metrics_json`` stores the
+    complete EvaluationReport so the reported numbers are reproducible/auditable
+    after the fact (model annotation rows may later be edited or deleted).
+    """
+
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    split: Mapped[str] = mapped_column(String(32), default="test", index=True)
+    gold_source: Mapped[str] = mapped_column(String(64), default="human_approved")
+    candidate_source: Mapped[str] = mapped_column(String(64), default="model")
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    total_samples: Mapped[int] = mapped_column(Integer, default=0)
+    accuracy: Mapped[float] = mapped_column(Float, default=0.0)
+    macro_f1: Mapped[float] = mapped_column(Float, default=0.0)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class EnsembleVoteModel(Base):
+    """One model's raw judgment about one record — the evidence base for ensemble labeling.
+
+    Design: docs/ENSEMBLE_PSEUDO_LABELING.md. Votes are stored *before* aggregation so that
+    calibration, weighting and thresholds can be recomputed without re-paying for inference.
+    The unique key makes fan-out idempotent: re-running never double-bills the same call.
+    """
+
+    __tablename__ = "ensemble_votes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    record_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("dataset_records.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), default="v1")
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    probs_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tokens_in: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_out: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+
+class GenerationJobModel(Base):
+    """A long-running dataset-generation job with live progress and a measured ETA.
+
+    Simple Mode needs a progress bar, a cancel button and an honest time estimate; that requires
+    the work to be a first-class record rather than a blocking request.
+    """
+
+    __tablename__ = "generation_jobs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dataset_name: Mapped[str] = mapped_column(String(255), default="")
+    #: "generate" (synthetic data) or "auto_label" (autonomous labelling); see packages/autolabel
+    kind: Mapped[str] = mapped_column(String(32), default="generate", index=True)
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    task_type: Mapped[str] = mapped_column(String(64), default="text_classification")
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    total_items: Mapped[int] = mapped_column(Integer, default=0)
+    processed_items: Mapped[int] = mapped_column(Integer, default=0)
+    elapsed_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    eta_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: last heartbeat from the runner; lets the UI detect an interrupted/stalled run
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    phase: Mapped[str] = mapped_column(String(32), default="queued")
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DatasetEditModel(Base):
+    """A natural-language edit change set: the parsed plan, what changed, and how to undo it."""
+
+    __tablename__ = "dataset_edits"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    instruction: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(32), default="applied", index=True)
+    plan_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    affected_counts_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    reversal_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    job_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    actor_id: Mapped[str] = mapped_column(String(128), default="default_user")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
 # Explicit composite indexes for high-frequency queries
 Index("idx_records_dataset_split", DatasetRecordModel.dataset_id, DatasetRecordModel.split)
 Index("idx_assets_dataset_sha256", AssetModel.dataset_id, AssetModel.sha256)
@@ -328,4 +440,17 @@ Index("idx_annotations_dataset_status", AnnotationModel.dataset_id, AnnotationMo
 Index("idx_revisions_annotation_number", AnnotationRevisionModel.annotation_id, AnnotationRevisionModel.revision_number)
 Index("idx_project_members_project_user", ProjectMemberModel.project_id, ProjectMemberModel.user_id, unique=True)
 Index("idx_provider_credentials_user_prov", ProviderCredentialModel.user_id, ProviderCredentialModel.provider)
+Index("idx_evaluation_runs_dataset_created", EvaluationRunModel.dataset_id, EvaluationRunModel.created_at)
+Index(
+    "idx_ensemble_votes_unique_call",
+    EnsembleVoteModel.dataset_id,
+    EnsembleVoteModel.record_id,
+    EnsembleVoteModel.provider_name,
+    EnsembleVoteModel.model_name,
+    EnsembleVoteModel.prompt_version,
+    unique=True,
+)
+Index("idx_ensemble_votes_dataset_provider", EnsembleVoteModel.dataset_id, EnsembleVoteModel.provider_name)
+Index("idx_generation_jobs_status_created", GenerationJobModel.status, GenerationJobModel.created_at)
+Index("idx_dataset_edits_dataset_created", DatasetEditModel.dataset_id, DatasetEditModel.created_at)
 

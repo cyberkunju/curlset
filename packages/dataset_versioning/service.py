@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from packages.dataset_core.annotation_selector import select_active_annotation
 from packages.dataset_core.constants import AssetModality, AssetRole
 from packages.dataset_core.db.models import (
     AssetModel,
@@ -176,10 +177,11 @@ class VersioningService:
         version_items: list[VersionItemModel] = []
 
         for record in records:
-            # Annotation item
+            # Annotation item — canonical selector, identical to the quality engine's
+            # choice, so the freeze can never pin a different annotation than validated.
             manifest_ann = None
             revision_id = None
-            active_ann = record.annotations[0] if record.annotations else None
+            active_ann = select_active_annotation(record.annotations)
             if active_ann:
                 ann = active_ann
                 revision_id = ann.current_revision_id or ann.id
@@ -230,7 +232,9 @@ class VersioningService:
                     record_id=record.id,
                     external_key=record.external_key,
                     split=record.split,
-                    metadata=record.extra_metadata or {},
+                    # TEXT-MVP D1: the input text lives in record metadata and is
+                    # frozen verbatim in the immutable manifest.
+                    metadata=dict(record.extra_metadata or {}),
                     annotation=manifest_ann,
                     assets=manifest_assets,
                 )

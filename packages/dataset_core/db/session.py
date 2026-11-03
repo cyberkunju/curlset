@@ -50,16 +50,56 @@ def get_engine(database_url: str | None = None) -> Engine:
         def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            # Keep SQLite's temporary tables/spill in memory and give the page cache a sane size.
+            # Without this, a large import (hundreds of rows, each in its own SAVEPOINT) can spill
+            # to an OS temp file and fail with "unable to open database file" in restricted
+            # environments. temp_store=MEMORY removes that failure mode entirely.
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.execute("PRAGMA cache_size=-16000")  # ~16 MB
+            # Background generation jobs write progress while requests read: wait briefly on a
+            # locked database instead of failing immediately.
+            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
 
     _session_factory = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
     return _engine
 
 
+def _add_missing_sqlite_columns(engine: Engine) -> None:
+    """Add columns introduced after a database was created.
+
+    The project has no migration tool yet: ``create_all`` creates missing *tables* but never alters an
+    existing one. Without this, a new column (e.g. the generation-job heartbeat) breaks every query on
+    an existing dev database with "no such column". The operation is additive and idempotent, which is
+    the safe subset for local-first SQLite; a real migration tool is still the follow-up for hosted
+    deployments (see docs/EXECUTION_PLAN.md known limitations).
+    """
+    if engine.dialect.name != "sqlite":
+        return
+    additions: dict[str, dict[str, str]] = {
+        "generation_jobs": {
+            "updated_at": "DATETIME",
+            "phase": "VARCHAR(32) DEFAULT 'queued'",
+            "kind": "VARCHAR(32) DEFAULT 'generate'",
+        },
+    }
+    with engine.begin() as connection:
+        for table, columns in additions.items():
+            existing = {
+                row[1] for row in connection.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            }
+            if not existing:
+                continue  # table does not exist yet; create_all handled it
+            for name, ddl in columns.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
 def init_database(engine: Engine | None = None) -> None:
-    """Create all tables defined in models if they do not exist."""
+    """Create all tables defined in models if they do not exist, then apply additive columns."""
     active_engine = engine or get_engine()
     Base.metadata.create_all(bind=active_engine)
+    _add_missing_sqlite_columns(active_engine)
 
 
 def reset_database(engine: Engine | None = None) -> None:

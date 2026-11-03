@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from packages.dataset_core.annotation_selector import select_active_annotation
 from packages.dataset_core.constants import (
     AnnotationOrigin,
     ReviewStatus,
@@ -22,6 +23,7 @@ from packages.dataset_core.db.models import (
 from packages.dataset_core.exceptions import ResourceNotFoundError
 from packages.dataset_core.id_generator import generate_id
 from packages.dataset_io.storage import StorageBackend, get_storage_backend
+from packages.dataset_io.text_normalize import normalize_text_value
 from packages.dataset_quality.confident_learning import (
     ConfidentLearningAuditor,
     LabeledSample,
@@ -72,6 +74,13 @@ class QualityEngine:
 
         total_records = len(records)
 
+        # TEXT-MVP canonical contract: for text tasks the input text lives only in
+        # record.extra_metadata["text"] (docs/TEXT_MVP.md §0). Rule ids C1/C2.
+        is_text_dataset = dataset.task_type in {
+            TaskType.TEXT_CLASSIFICATION.value,
+            TaskType.PAIRED_IMAGE_TEXT.value,
+        }
+
         # 1. Check for empty dataset
         if total_records == 0:
             findings.append(
@@ -93,6 +102,8 @@ class QualityEngine:
         missing_asset_ids: list[str] = []
         empty_content_ids: list[str] = []
         invalid_timestamp_ids: list[str] = []
+        empty_text_ids: list[str] = []
+        normalized_text_ids: dict[str, list[str]] = {}
         phash_items: list[PHashSplitItem] = []
         confident_samples: list[LabeledSample] = []
         cross_modal_pairs: list[CrossModalPair] = []
@@ -100,11 +111,11 @@ class QualityEngine:
         for r in records:
             split_counter[r.split] += 1
 
-            # Check annotation status
+            # Check annotation status (canonical selector — same one the freeze uses)
             if not r.annotations:
                 unresolved_record_ids.append(r.id)
             else:
-                latest_ann = max(r.annotations, key=lambda a: a.created_at)
+                latest_ann = select_active_annotation(r.annotations)
                 origin_counter[latest_ann.origin] += 1
 
                 if latest_ann.status != ReviewStatus.APPROVED.value:
@@ -173,6 +184,21 @@ class QualityEngine:
                 if not text_val:
                     empty_content_ids.append(r.id)
 
+            # TEXT-MVP C1/C2: canonical input text presence + normalized duplicates.
+            # Strict C1: for text tasks, metadata["text"] is the only source of truth.
+            # A record whose text exists only as an asset is invisible to the workspace,
+            # labeling, exports and accuracy — treat it as missing, never as a warning.
+            if is_text_dataset:
+                meta = r.extra_metadata if isinstance(r.extra_metadata, dict) else {}
+                raw_text = meta.get("text")
+                has_text = isinstance(raw_text, str) and bool(raw_text.strip())
+                if has_text:
+                    normalized = normalize_text_value(raw_text)
+                    if normalized:
+                        normalized_text_ids.setdefault(normalized, []).append(r.id)
+                else:
+                    empty_text_ids.append(r.id)
+
             # Check linked assets
             for ra in r.record_assets:
                 asset = ra.asset
@@ -199,7 +225,7 @@ class QualityEngine:
                     )
 
             if r.annotations:
-                latest_ann = max(r.annotations, key=lambda a: a.created_at)
+                latest_ann = select_active_annotation(r.annotations)
                 if dataset.task_type == TaskType.OBJECT_DETECTION.value:
                     boxes = latest_ann.payload.get("boxes", [])
                     detected_classes = [b.get("label", "") for b in boxes if isinstance(b, dict)]
@@ -282,6 +308,26 @@ class QualityEngine:
                 )
             )
 
+        # 5a. Missing Input Text Finding (TEXT-MVP C1)
+        if empty_text_ids:
+            findings.append(
+                ValidationFinding(
+                    rule_id="RULE_EMPTY_TEXT",
+                    severity=ValidationSeverity.BLOCKING,
+                    title="Missing or Blank Input Text",
+                    description=(
+                        f"{len(empty_text_ids)} text record(s) have no non-blank metadata['text'] value. "
+                        "Text features, labeling and exports read the input text only from that field."
+                    ),
+                    remediation=(
+                        "Re-import the rows with a populated text column (text|sentence|content|...), "
+                        "or delete the affected records."
+                    ),
+                    affected_record_ids=empty_text_ids[:50],
+                    count=len(empty_text_ids),
+                )
+            )
+
         # 5b. Audio Timestamp Violation Finding
         if invalid_timestamp_ids:
             findings.append(
@@ -332,6 +378,30 @@ class QualityEngine:
                     remediation="Deduplicate records if unique representations are desired.",
                     affected_record_ids=list(set(duplicate_records))[:50],
                     count=len(duplicate_records),
+                )
+            )
+
+        # 7b. Normalized Duplicate Text Finding (TEXT-MVP C2)
+        # Grouped by case/whitespace-insensitive normalization; deterministic ordering:
+        # normalized text (sorted) then record ids (sorted).
+        duplicate_text_ids: list[str] = []
+        for normalized_key in sorted(normalized_text_ids):
+            same_text_ids = sorted(normalized_text_ids[normalized_key])
+            if len(same_text_ids) > 1:
+                duplicate_text_ids.extend(same_text_ids)
+        if duplicate_text_ids:
+            findings.append(
+                ValidationFinding(
+                    rule_id="RULE_DUPLICATE_TEXT",
+                    severity=ValidationSeverity.WARNING,
+                    title="Normalized Duplicate Text Records",
+                    description=(
+                        f"{len(duplicate_text_ids)} records share identical normalized text content "
+                        "(case- and whitespace-insensitive)."
+                    ),
+                    remediation="Deduplicate records or keep duplicate content in a single split.",
+                    affected_record_ids=duplicate_text_ids[:50],
+                    count=len(duplicate_text_ids),
                 )
             )
 

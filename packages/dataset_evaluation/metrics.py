@@ -30,6 +30,17 @@ class EvaluationReport(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # Provenance / honesty fields (TEXT_MVP.md F3). A report must state *what* was
+    # compared; "accuracy" without sources is a misleading claim.
+    gold_source: str | None = None
+    candidate_source: str | None = None
+    split: str | None = None
+    dataset_id: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    skipped_records: int = 0
+    run_id: str | None = None
+
 
 def compute_classification_metrics(
     y_true: list[str],
@@ -92,6 +103,14 @@ def compute_classification_metrics(
     recalls: list[float] = []
     f1s: list[float] = []
     warnings: list[str] = []
+
+    # Honest global sample-size disclosure: a tiny evaluation set is a sanity check,
+    # never proof of generalization (TEXT_MVP "high accuracy made honest").
+    if total_samples < 30:
+        warnings.append(
+            f"Only {total_samples} comparable sample{'s' if total_samples != 1 else ''} were evaluated. "
+            "Treat this accuracy as a sanity check, not as evidence of generalization."
+        )
 
     for cls in all_classes:
         sup = support[cls]
