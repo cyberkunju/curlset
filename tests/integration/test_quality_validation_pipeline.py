@@ -113,7 +113,15 @@ def test_clean_approved_dataset_passes_quality_check():
         )
         ds_id = ds.id
 
-        r = RecordService.create_record(session, dataset_id=ds_id, split="train", external_key="clean_01")
+        # Canonical text contract (docs/TEXT_MVP.md §0): input text must live in
+        # record.metadata["text"]; the text asset below is lineage only.
+        r = RecordService.create_record(
+            session,
+            dataset_id=ds_id,
+            split="train",
+            external_key="clean_01",
+            metadata={"text": text_bytes.decode("utf-8")},
+        )
         k = f"assets/{ds_id}/clean_01.txt"
         backend.write_bytes(k, text_bytes)
         a = RecordService.create_asset(

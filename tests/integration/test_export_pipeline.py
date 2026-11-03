@@ -19,6 +19,23 @@ def setup_function():
     init_database()
 
 
+def _create_approved_annotation(record_id: str, payload: dict) -> None:
+    """Create an annotation through the API, then approve it via the review FSM.
+
+    Trust boundary (docs/TEXT_MVP.md §0 rule 3): ``POST /records/{id}/annotations``
+    always creates ``origin="human"`` + ``status="pending_review"``; the review decision
+    must go through ``POST /annotations/{id}/transition``.
+    """
+    created = client.post(f"/api/v1/records/{record_id}/annotations", json={"payload": payload})
+    assert created.status_code == 201, created.text
+    annotation_id = created.json()["id"]
+    transitioned = client.post(
+        f"/api/v1/annotations/{annotation_id}/transition",
+        json={"next_status": "approved", "reason": "test setup approval"},
+    )
+    assert transitioned.status_code == 200, transitioned.text
+
+
 def test_export_pipeline_csv_and_jsonl_round_trip():
     # 1. Setup project and dataset
     p_resp = client.post("/api/v1/projects", json={"name": "Export Test Project"})
@@ -48,8 +65,8 @@ def test_export_pipeline_csv_and_jsonl_round_trip():
         r1_id = r1.id
         r2_id = r2.id
 
-    client.post(f"/api/v1/records/{r1_id}/annotations", json={"payload": {"label": "tech"}, "status": "approved"})
-    client.post(f"/api/v1/records/{r2_id}/annotations", json={"payload": {"label": "sports"}, "status": "approved"})
+    _create_approved_annotation(r1_id, {"label": "tech"})
+    _create_approved_annotation(r2_id, {"label": "sports"})
 
     # 3. Publish Version v1.0.0
     v_resp = client.post(f"/api/v1/datasets/{dataset_id}/versions", json={"version_tag": "v1.0.0"})

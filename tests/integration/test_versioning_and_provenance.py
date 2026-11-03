@@ -50,10 +50,10 @@ def test_versioning_blocks_on_unreviewed_records_and_publishes_when_approved():
         r1_id = rec1.id
         r2_id = rec2.id
 
-    # Add annotation in pending_review
+    # Add annotation in pending_review (status is server-derived; never sent by clients)
     client.post(
         f"/api/v1/records/{r1_id}/annotations",
-        json={"payload": {"label": "positive"}, "status": "pending_review"},
+        json={"payload": {"label": "positive"}},
     )
 
     # 2. Attempt to publish version while unreviewed -> must be blocked
@@ -78,11 +78,19 @@ def test_versioning_blocks_on_unreviewed_records_and_publishes_when_approved():
         )
         assert trans_resp.status_code == 200
 
-    # Add approved annotation for r2
-    client.post(
+    # Add annotation for r2, then approve it via the explicit review-decision endpoint
+    # (annotation creation always yields pending_review; client-supplied status is ignored).
+    r2_ann_resp = client.post(
         f"/api/v1/records/{r2_id}/annotations",
-        json={"payload": {"label": "neutral"}, "status": "approved"},
+        json={"payload": {"label": "neutral"}},
     )
+    assert r2_ann_resp.status_code == 201
+    r2_ann_id = r2_ann_resp.json()["id"]
+    r2_trans_resp = client.post(
+        f"/api/v1/annotations/{r2_ann_id}/transition",
+        json={"next_status": "approved", "reason": "Verified accurate"},
+    )
+    assert r2_trans_resp.status_code == 200
 
     # 4. Now publish v1.0.0
     v1_resp = client.post(
@@ -130,10 +138,16 @@ def test_versioning_blocks_on_unreviewed_records_and_publishes_when_approved():
         session.commit()
         r3_id = rec3.id
 
-    client.post(
+    r3_ann_resp = client.post(
         f"/api/v1/records/{r3_id}/annotations",
-        json={"payload": {"label": "negative"}, "status": "approved"},
+        json={"payload": {"label": "negative"}},
     )
+    assert r3_ann_resp.status_code == 201
+    r3_trans_resp = client.post(
+        f"/api/v1/annotations/{r3_ann_resp.json()['id']}/transition",
+        json={"next_status": "approved", "reason": "Verified accurate"},
+    )
+    assert r3_trans_resp.status_code == 200
 
     # Verify that v1 manifest STILL has exactly 2 records
     manifest_check = client.get(f"/api/v1/versions/{version_1_id}/manifest").json()

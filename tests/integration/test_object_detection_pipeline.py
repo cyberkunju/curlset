@@ -24,6 +24,23 @@ def setup_function():
     init_database()
 
 
+def _create_approved_annotation(record_id: str, payload: dict) -> None:
+    """Create an annotation through the API, then approve it via the review FSM.
+
+    Trust boundary (docs/TEXT_MVP.md §0 rule 3): ``POST /records/{id}/annotations``
+    always creates ``origin="human"`` + ``status="pending_review"``; the review decision
+    must go through ``POST /annotations/{id}/transition``.
+    """
+    created = client.post(f"/api/v1/records/{record_id}/annotations", json={"payload": payload})
+    assert created.status_code == 201, created.text
+    annotation_id = created.json()["id"]
+    transitioned = client.post(
+        f"/api/v1/annotations/{annotation_id}/transition",
+        json={"next_status": "approved", "reason": "test setup approval"},
+    )
+    assert transitioned.status_code == 200, transitioned.text
+
+
 def test_object_detection_geometry_validation():
     label_schema = {"classes": ["vehicle", "person"]}
 
@@ -105,10 +122,7 @@ def test_object_detection_coco_and_yolo_exports():
             {"label": "pedestrian", "x": 350, "y": 180, "w": 40, "h": 100},
         ]
     }
-    client.post(
-        f"/api/v1/records/{record_id}/annotations",
-        json={"payload": ann_payload, "status": "approved"},
-    )
+    _create_approved_annotation(record_id, ann_payload)
 
     # 4. Freeze Version Snapshot
     v_resp = client.post(
