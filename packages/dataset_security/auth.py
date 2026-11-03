@@ -6,24 +6,52 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from packages.dataset_core.db.models import (
+    AnnotationModel,
     DatasetModel,
     DatasetRecordModel,
     ProjectMemberModel,
     ProjectModel,
 )
 from packages.dataset_core.exceptions import (
+    DomainValidationError,
     ProjectOwnershipError,
     ResourceNotFoundError,
 )
 from packages.dataset_security.roles import has_permission
 
+MAX_ACTOR_ID_LENGTH = 64
+
 
 def get_auth_user(x_user_id: str | None = Header(None)) -> str:
     """
-    Extract authenticated user/tenant identifier from request header.
-    Defaults to 'default_user' for local single-user mode to preserve 100% backward compatibility.
+    Resolve the acting principal for the current request.
+
+    This is the *only* accepted source of actor identity: the ``X-User-Id``
+    request header. It is never read from a JSON body (see docs/TEXT_MVP.md §0
+    rule 3 — ``origin``/``status``/``actor_id`` are server-derived only).
+
+    Local single-user mode: an absent/blank header resolves to ``"default_user"``
+    so the local-first workflow needs no login (``verify_project_access`` treats
+    that principal as the local owner). The value is sanitised and bounded to the
+    64-character column width so a malformed header cannot silently collide with
+    another principal.
+
+    NOTE: the header itself is trivially forgeable by any client that can reach
+    the API. Real authentication is explicitly out of scope for this MVP
+    (docs/TEXT_MVP.md §2); this function makes the *derivation* trustworthy and
+    keeps every audit row/actor id server-derived rather than body-supplied.
     """
-    return x_user_id or "default_user"
+    if not x_user_id:
+        return "default_user"
+    cleaned = x_user_id.strip()
+    if not cleaned:
+        return "default_user"
+    if len(cleaned) > MAX_ACTOR_ID_LENGTH:
+        raise DomainValidationError(
+            f"X-User-Id header must not exceed {MAX_ACTOR_ID_LENGTH} characters.",
+            field="x_user_id",
+        )
+    return cleaned
 
 
 def verify_project_access(
@@ -96,3 +124,24 @@ def verify_record_access(
 
     verify_dataset_access(session, record.dataset_id, user_id, required_role)
     return record
+
+
+def verify_annotation_access(
+    session: Session,
+    annotation_id: str,
+    user_id: str,
+    required_role: str = "viewer",
+) -> AnnotationModel:
+    """
+    Verify access to an annotation through its record → dataset → project chain.
+
+    Annotation mutations (payload revision, review transition) must always go
+    through this guard so the acting principal is authorized against the owning
+    project before a ReviewEvent or revision is written.
+    """
+    annotation = session.get(AnnotationModel, annotation_id)
+    if not annotation:
+        raise ResourceNotFoundError("Annotation", annotation_id)
+
+    verify_record_access(session, annotation.record_id, user_id, required_role)
+    return annotation

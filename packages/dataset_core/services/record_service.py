@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from packages.dataset_core.annotation_selector import select_active_annotation
 from packages.dataset_core.constants import AssetModality, AssetRole, LicenseStatus
 from packages.dataset_core.db.models import (
     AssetModel,
@@ -207,22 +208,25 @@ class RecordService:
         annotation_data = None
         revisions_data = []
         review_events_data = []
-        if record.annotations:
-            latest_ann = max(record.annotations, key=lambda x: x.created_at)
+        # TEXT-MVP §0 rule 4: the record's decision is the shared selector's
+        # choice (approved first, newest otherwise) — never "newest annotation",
+        # which would let a fresh unreviewed proposal shadow an approved label.
+        active_ann = select_active_annotation(record.annotations)
+        if active_ann is not None:
             annotation_data = {
-                "id": latest_ann.id,
-                "task_type": latest_ann.task_type,
-                "schema_version": latest_ann.schema_version,
-                "payload": latest_ann.payload,
-                "origin": latest_ann.origin,
-                "status": latest_ann.status,
-                "confidence": latest_ann.confidence,
-                "consensus_score": latest_ann.consensus_score,
-                "current_revision_id": latest_ann.current_revision_id,
-                "created_at": latest_ann.created_at.isoformat(),
-                "updated_at": latest_ann.updated_at.isoformat(),
+                "id": active_ann.id,
+                "task_type": active_ann.task_type,
+                "schema_version": active_ann.schema_version,
+                "payload": active_ann.payload,
+                "origin": active_ann.origin,
+                "status": active_ann.status,
+                "confidence": active_ann.confidence,
+                "consensus_score": active_ann.consensus_score,
+                "current_revision_id": active_ann.current_revision_id,
+                "created_at": active_ann.created_at.isoformat(),
+                "updated_at": active_ann.updated_at.isoformat(),
             }
-            for rev in sorted(latest_ann.revisions, key=lambda x: x.revision_number):
+            for rev in sorted(active_ann.revisions, key=lambda x: x.revision_number):
                 revisions_data.append({
                     "id": rev.id,
                     "revision_number": rev.revision_number,
@@ -235,7 +239,7 @@ class RecordService:
                 })
             events = session.scalars(
                 select(ReviewEventModel)
-                .where(ReviewEventModel.annotation_id == latest_ann.id)
+                .where(ReviewEventModel.annotation_id == active_ann.id)
                 .order_by(ReviewEventModel.created_at.asc())
             ).all()
             for ev in events:
@@ -287,11 +291,14 @@ class RecordService:
             latest_status = "unannotated"
             latest_payload = None
             annotation_id = None
-            if r.annotations:
-                latest_ann = max(r.annotations, key=lambda x: x.created_at)
-                latest_status = latest_ann.status
-                latest_payload = latest_ann.payload
-                annotation_id = latest_ann.id
+            # Queue/status/search/filter all describe the selector-chosen
+            # annotation, so an approved label cannot be shadowed by a newer
+            # pending proposal (TEXT-MVP §0 rule 4 / B5).
+            active_ann = select_active_annotation(r.annotations)
+            if active_ann is not None:
+                latest_status = active_ann.status
+                latest_payload = active_ann.payload
+                annotation_id = active_ann.id
 
             if review_status:
                 if review_status == "unannotated" and latest_status != "unannotated":

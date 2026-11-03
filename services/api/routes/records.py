@@ -31,6 +31,14 @@ def get_dataset_queue(
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_db),
 ) -> RecordListResponse:
+    """
+    Review queue for a dataset.
+
+    ``annotation_id`` / ``annotation_payload`` / ``review_status`` describe the
+    *selector-chosen* annotation (``annotation_selector.select_active_annotation``:
+    approved first, newest otherwise), so ``review_status`` filtering matches the
+    annotation that a version freeze / quality audit would use.
+    """
     items, total = RecordService.list_records_with_status(
         session=session,
         dataset_id=dataset_id,
@@ -54,4 +62,9 @@ def get_record_detail(
     record_id: str,
     session: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    """
+    Full record view. ``annotation`` / ``revisions`` / ``review_events`` belong to
+    the selector-chosen annotation for the record (not simply the newest one), so
+    the UI, quality engine and version freeze agree on which label is current.
+    """
     return RecordService.get_record_detail(session=session, record_id=record_id)

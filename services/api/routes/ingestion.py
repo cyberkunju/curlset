@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from packages.dataset_core.db.session import get_db
 from packages.dataset_io.ingestion_service import ImportReport, IngestionService
+from packages.dataset_io.text_normalize import VALID_SPLITS
 from packages.dataset_security.audit import AuditService
 from packages.dataset_security.auth import get_auth_user, verify_dataset_access
 from packages.dataset_security.quotas import QuotaManager
@@ -24,6 +25,13 @@ async def import_file_to_dataset(
 ):
     # Verify dataset exists and user has editor permissions
     dataset = verify_dataset_access(session, dataset_id, user_id, required_role="editor")
+
+    # A bad dataset-level split would otherwise reject every row of the file.
+    if split not in VALID_SPLITS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid split '{split}'. Allowed: {sorted(VALID_SPLITS)}",
+        )
 
     # Read bytes safely with size check
     max_bytes = settings.MAX_UPLOAD_SIZE_BYTES
@@ -44,6 +52,7 @@ async def import_file_to_dataset(
         filename=filename,
         data=data,
         split=split,
+        actor_id=user_id,
     )
 
     AuditService.record_event(
