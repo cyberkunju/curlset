@@ -1,6 +1,7 @@
 """
 Main FastAPI entry point for AI Dataset Engineering Platform.
 """
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
@@ -29,14 +30,23 @@ from services.api.config import settings
 from services.api.routes import (
     annotations,
     assets,
+    autolabel,
+    dataset_types,
     datasets,
+    detection_proposals,
+    edits,
+    ensemble,
     evaluation,
     exports,
+    generate,
+    generation,
+    image_generation,
     inference,
     ingestion,
     projects,
     providers,
     records,
+    review,
     security,
     sources,
     synthesis,
@@ -56,6 +66,57 @@ async def lifespan(app: FastAPI):
     init_database()
     if settings.STORAGE_BACKEND == "local":
         os.makedirs(settings.LOCAL_STORAGE_DIR, exist_ok=True)
+    # Settle generation jobs orphaned by the previous process. The runner is an in-process daemon
+    # thread, so a restart would otherwise leave a job "running" forever and the UI polling it.
+    from packages.generation_jobs.service import recover_interrupted_jobs
+
+    settled_jobs = recover_interrupted_jobs()
+    if settled_jobs:
+        logging.getLogger(__name__).warning(
+            "Settled %s generation job(s) interrupted by the previous process", settled_jobs
+        )
+    # Verify the schema on a real connection, then drop pooled connections created on this
+    # startup thread. Without this, the first savepoint-based row import (CSV/JSONL/text, which
+    # uses session.begin_nested() per row) can fail with sqlite "unable to open database file"
+    # because the request thread reuses a connection that predates the freshly created schema.
+    engine = get_engine()
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+        connection.commit()
+    engine.dispose()
+    # Optional paid image-generation providers (OpenAI gpt-image-2, Meta muse-image-1.0).
+    if settings.ENABLE_LIVE_IMAGE_PROVIDERS:
+        from packages.provider_gateway.gateway import (
+            ProviderGateway as ImageProviderGateway,
+        )
+        from packages.provider_gateway.image_generation import (
+            build_live_image_providers,
+        )
+
+        image_gateway = ImageProviderGateway.get_instance()
+        for image_provider in build_live_image_providers():
+            image_gateway.register_provider(image_provider)
+        # SAM 3.1 object detection uses the same Meta key on the Responses API.
+        import os as _os
+
+        from packages.provider_gateway.sam_provider import SamProvider
+
+        meta_key = _os.environ.get("META_API_KEY", "").strip()
+        if meta_key:
+            image_gateway.register_provider(SamProvider(
+                api_key=meta_key,
+                base_url=_os.environ.get("META_BASE_URL", "https://api.meta.ai/v1"),
+                models=[_os.environ.get("META_SAM_MODEL", "sam-3.1")],
+            ))
+    # Development-only: deterministic simulated experts so the ensemble/generation UI can be used
+    # without any paid model calls. Explicitly opt-in via ALLOW_SIMULATED_PROVIDERS.
+    if settings.ALLOW_SIMULATED_PROVIDERS and settings.ENVIRONMENT != "production":
+        from packages.provider_gateway.gateway import ProviderGateway
+        from packages.provider_gateway.simulated_provider import build_simulated_trio
+
+        gateway = ProviderGateway.get_instance()
+        for provider in build_simulated_trio():
+            gateway.register_provider(provider)
     yield
 
 
@@ -161,17 +222,26 @@ async def generic_domain_error_handler(request: Request, exc: DomainError):
 # Routers
 app.include_router(projects.router)
 app.include_router(security.router)
+app.include_router(dataset_types.router)
+app.include_router(detection_proposals.router)
 app.include_router(datasets.router)
 app.include_router(ingestion.router)
 app.include_router(records.router)
 app.include_router(annotations.router)
+app.include_router(autolabel.router)
+app.include_router(review.router)
 app.include_router(assets.router)
 app.include_router(inference.router)
 app.include_router(validation.router)
 app.include_router(versions.router)
+app.include_router(edits.router)
 app.include_router(exports.router)
+app.include_router(generation.router)
+app.include_router(generate.router)
+app.include_router(image_generation.router)
 app.include_router(sources.router)
 app.include_router(synthesis.router)
+app.include_router(ensemble.router)
 app.include_router(evaluation.router)
 app.include_router(providers.router)
 
