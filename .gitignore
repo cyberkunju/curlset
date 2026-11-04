@@ -75,3 +75,17 @@ Thumbs.db
 apps/web/e2e/screenshots/
 .tmp/
 *.bundle
+
+# Local scratch / packaging leftovers
+tmp*/
+pip-install-*/
+pip-build-tracker-*/
+pip-ephem-wheel-cache-*/
+pytest-of-*/
+backups/
+*.tar.gz
+*.bundle
+
+# Playwright artifacts
+playwright-report/
+test-results/

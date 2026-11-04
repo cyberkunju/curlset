@@ -1,12 +1,12 @@
 # AGENTS.md — Mandatory Development Contract
 
-This file is the highest-priority repository-specific instruction for AI coding agents. Read it before inspecting or modifying application code. Follow it together with docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md, docs/PHASE_BY_PHASE_PLAN.md, docs/EXAMPLES.md and docs/DECISIONS.md.
+This file is the highest-priority repository-specific instruction for AI coding agents. Read it before inspecting or modifying application code. Follow it together with docs/REQUIREMENTS.md, docs/ARCHITECTURE.md, docs/STATUS.md, docs/ROADMAP.md, docs/EXAMPLES.md and docs/DECISIONS.md (index: docs/README.md).
 
 ## 1. Mission and autonomy
 
 Build the AI Dataset Engineering Platform as a working, testable product, not merely a mockup or a collection of disconnected demos. The product helps individual developers and students turn raw multimodal data into reviewed, validated, documented, versioned and portable training datasets.
 
-**Proceed autonomously without asking the user routine questions.** The product decisions in the repository are the default decisions. If a detail is unspecified, choose the simplest safe and maintainable option consistent with these documents, record the decision in docs/DECISIONS.md, and continue. Do not stop to ask about naming, library choice, component details, routine implementation trade-offs or the next phase.
+**Proceed autonomously without asking the user routine questions.** The product decisions in the repository are the default decisions. If a detail is unspecified, choose the simplest safe and maintainable option consistent with these documents, record the decision in docs/DECISIONS.md, and continue. Do not stop to ask about naming, library choice, component details, routine implementation trade-offs or the next milestone.
 
 This is not permission to perform unsafe, destructive or externally consequential actions. Never delete user data, rewrite Git history, force-push, publish private data, incur paid API costs, create external accounts, or send user datasets to a third-party provider without explicit configuration/authorization. If blocked by credentials, missing infrastructure or a genuinely irreversible decision, implement the safe portion, document the blocker and continue other independent work.
 
@@ -15,20 +15,20 @@ This is not permission to perform unsafe, destructive or externally consequentia
 At the beginning of every session:
 
 1. Read this file completely.
-2. Read docs/DESIGN.md, docs/REQUIREMENTS.md, docs/EXECUTION_PLAN.md, docs/PHASE_BY_PHASE_PLAN.md, docs/EXAMPLES.md and docs/DECISIONS.md.
+2. Read docs/README.md, docs/REQUIREMENTS.md, docs/ARCHITECTURE.md, docs/STATUS.md, docs/ROADMAP.md, docs/EXAMPLES.md and docs/DECISIONS.md.
 3. Inspect the repository tree, Git status, current branch, recent commits, package manifests, existing code, tests, CI and configuration.
 4. Preserve working user changes. Never overwrite unrelated work simply to match the plan.
-5. Compare the actual repository state with the phase checklist. Treat code and tests as evidence; do not trust stale progress notes alone.
-6. Update the execution log/checklist before substantial work if the existing state is unclear.
-7. Identify the earliest incomplete phase whose dependencies are satisfied and begin implementation immediately.
+5. Compare the actual repository state with docs/STATUS.md and docs/ROADMAP.md. Treat code and tests as evidence; do not trust stale progress notes alone.
+6. Update docs/STATUS.md before substantial work if the existing state is unclear.
+7. Identify the earliest incomplete roadmap item whose dependencies are satisfied and begin implementation immediately.
 
-Do not ask the user to repeat information already in the repository. Do not ask for confirmation between phases. Do not stop after producing a plan when implementation is possible.
+Do not ask the user to repeat information already in the repository. Do not ask for confirmation between milestones. Do not stop after producing a plan when implementation is possible.
 
 ## 3. Execution loop
 
-For each phase:
+For each roadmap item:
 
-1. Read the phase goal and high-level dependencies in docs/EXECUTION_PLAN.md, then read the matching detailed work packages, tests and exit gate in docs/PHASE_BY_PHASE_PLAN.md.
+1. Read the milestone and dependencies in docs/ROADMAP.md, then the current evidence and limitations in docs/STATUS.md.
 2. Inspect existing implementation before creating new files or abstractions.
 3. Break work into small vertical slices that leave the repository runnable.
 4. Implement the simplest complete solution consistent with the design.
@@ -36,9 +36,9 @@ For each phase:
 6. Run formatting, linting, type checks, tests and build commands available in the repository.
 7. Fix failures caused by the change. Never hide failures by weakening assertions, skipping relevant tests, swallowing exceptions or marking tests as expected failures without justification.
 8. Review the diff for secrets, generated binaries, unrelated changes, unsafe file operations, broken migrations and documentation drift.
-9. Update docs/EXECUTION_PLAN.md with status, evidence, test commands/results, known limitations and the next action.
+9. Update docs/STATUS.md with measured evidence (commands/results, limitations) and move delivered work to CHANGELOG.md.
 10. Commit only when repository policy and environment permit. Never force-push or rewrite history.
-11. Continue to the next phase when its dependencies and exit gate are satisfied.
+11. Continue to the next roadmap item when its dependencies and acceptance gate are satisfied.
 
 Run independent, safe tasks in parallel when useful. Do not parallelize conflicting writes, migrations or changes to the same files. Avoid asking for confirmation for ordinary reversible implementation decisions.
 
@@ -49,8 +49,8 @@ Use this priority order:
 1. Safety, privacy, security and explicit user instructions in the active conversation.
 2. AGENTS.md.
 3. docs/REQUIREMENTS.md for observable product behavior.
-4. docs/DESIGN.md for architecture and technical boundaries.
-5. docs/EXECUTION_PLAN.md for sequencing and completion gates.
+4. docs/ARCHITECTURE.md for architecture and technical boundaries.
+5. docs/ROADMAP.md for sequencing; docs/STATUS.md for measured state and completion gates.
 6. docs/EXAMPLES.md for illustrative fixtures and expected behavior.
 7. Existing code and tests, after determining whether they are intentional and current.
 
@@ -59,7 +59,7 @@ If two documents conflict, preserve safety and existing user data, choose the mo
 ## 5. Engineering principles
 
 - Prefer a modular monolith with explicit module boundaries. Do not introduce microservices without measured need.
-- Use the existing stack if already established and healthy. For a new project, follow the design: React + TypeScript frontend; FastAPI + Pydantic backend; PostgreSQL metadata; object storage for media; Redis-backed background jobs; Docker Compose for local setup.
+- Use the existing stack if already established and healthy. For a new project, follow the design: React + TypeScript frontend; FastAPI + Pydantic backend; the storage/job stack documented in docs/ARCHITECTURE.md (SQLite default, local filesystem, in-process jobs). Do not reintroduce PostgreSQL/Redis/S3 claims without the roadmap items being done.
 - Keep frontend, API, domain logic, provider integrations, import/export and persistence concerns separate.
 - Use typed contracts and schema validation at trust boundaries.
 - Keep database migrations explicit and reversible where practical.
@@ -144,7 +144,7 @@ If two documents conflict, preserve safety and existing user data, choose the mo
 
 ## 11. Tests and quality gates
 
-- Add tests alongside implementation, not as a final optional phase.
+- Add tests alongside implementation, not as a final optional step.
 - Test domain logic independently of the database and provider network.
 - Use provider fakes/fixtures for deterministic automated tests; do not require paid API keys in CI.
 - Test malformed provider responses, timeout, rate limiting, cancellation and retry behavior.
@@ -169,20 +169,20 @@ If two documents conflict, preserve safety and existing user data, choose the mo
 
 - Keep requirements, architecture, execution status and implementation aligned.
 - For every significant architectural choice, add a short entry to docs/DECISIONS.md with context, decision, alternatives and consequences.
-- Update the execution plan only with evidence. Use NOT STARTED, IN PROGRESS, BLOCKED or DONE.
-- A phase is DONE only when all required acceptance criteria are met and tests have been run.
+- Update docs/STATUS.md only with measured evidence; move delivered work to CHANGELOG.md.
+- A capability is DONE only when its acceptance criteria are met and tests have been run.
 - Document limitations and deferred work honestly.
 - Provide setup, configuration, migration, test and troubleshooting instructions as the product grows.
 
 ## 14. Completion and reporting
 
-Do not stop after creating scaffolding. Continue until all feasible phases in the execution plan are implemented or a real external blocker is reached.
+Do not stop after creating scaffolding. Continue until all feasible roadmap items are implemented or a real external blocker is reached.
 
 At the end of a work session, report:
 1. What was implemented.
 2. Files and modules changed.
 3. Tests/build commands run and actual results.
-4. Current phase and remaining tasks.
+4. Current state and remaining tasks.
 5. Any blockers or decisions recorded.
 6. The next concrete action.
 
