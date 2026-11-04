@@ -70,3 +70,8 @@ storage/
 *~
 .DS_Store
 Thumbs.db
+
+# Verification artifacts & local bundles
+apps/web/e2e/screenshots/
+.tmp/
+*.bundle
