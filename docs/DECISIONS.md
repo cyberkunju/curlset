@@ -192,3 +192,329 @@ This log records material decisions. New decisions should include context, the c
 **Alternatives:** Arbitrary ad-hoc utility blues; monochrome-only surfaces; unstandardized hex codes across components.
 
 **Consequences:** All future UI iterations, chart distributions, and component states reference this single source of truth for color definitions, contrast guarantees, and interaction states.
+
+---
+
+## D-013 — Simple Mode as the primary information architecture; generation jobs as first-class records
+
+**Context.** The product shipped as an engineer's console (dense headers, ~12 modals, jargon). The
+operator reported that a first-time user cannot see how to create data, and asked for a beginner-first
+Home with two doors (Generate / Label), a plain-language wizard, live progress with a *time estimate*,
+sample-guided generation, natural-language dataset editing and an advanced escape hatch.
+
+**Decision.**
+1. Home becomes the default view (`#home`): recent generation, recent projects, two primary actions, and
+   Quick start that needs no project (`Scratch` project is auto-created).
+2. Generation runs as a **job record** (`generation_jobs`) executed by a background thread, not a blocking
+   request, so the UI can show progress, cancel, and resume after refresh.
+3. ETA is **measured, never promised**: `remaining × rolling mean seconds/item`, and the API reports
+   `eta_seconds: null` ("estimating…") until at least 5 items complete. No hard-coded durations.
+4. Plan drafting is deterministic and offline: it extracts counts/classes and asks at most three questions
+   with examples. It never claims to have understood more than it did.
+5. Simple Mode never hides state that Advanced Mode needs: generated rows are still `origin=synthetic` /
+   `pending_review`, gates stay all-or-nothing.
+
+**Alternatives considered.** (a) Keep the current console and only add tooltips — rejected: the operator's
+failure was structural, not explanatory. (b) Run generation synchronously with a spinner — rejected: no
+cancel, no ETA, and request timeouts on larger batches. (c) LLM-drafted plans via a provider call —
+deferred: requires a configured provider and a paid call for what heuristics already do acceptably; kept
+as an optional enhancement.
+
+**Consequences.** Long jobs need a process-local worker (single-process deployments only for now; a real
+queue is the follow-up for multi-worker hosting). Job progress writes contended with request reads on
+SQLite, mitigated with `PRAGMA busy_timeout=5000`. The ETA is honest but coarse for highly variable
+providers, which is preferable to a fabricated constant.
+
+---
+
+## D-014 — Sample-guided generation: analyse the upload, never pretend to reproduce it
+
+**Context.** The operator asked that generation accept a sample (files / ZIP / images) and "generate
+the rest" from it. Naively promising this would be dishonest: the generator is a text LLM, so an image
+sample cannot be pixel-reproduced.
+
+**Decision.**
+1. `POST /generate/analyze-sample` accepts CSV/JSONL/JSON/TXT/ZIP-or-images, runs the same upload-safety
+   validator as dataset import, and infers: modality, row count, text/label columns, class counts,
+   three representative samples, and a style hint (length + tone).
+2. The inferred **labels + style hint + up to five seed examples** are persisted on the generation job and
+   forwarded to the provider's generation request, so a real model imitates the sample instead of
+   guessing. Simulated providers ignore the hint (documented).
+3. Images are accepted **as a reference only**, and the API/UI say so explicitly. ZIPs are inspected for
+   a text member; if there is none, the response explains that no pattern could be inferred.
+4. `OpenAICompatibleProvider.generate()` is now a **real** generation call (new prompt asking for
+   `{"text","label"}`), no longer an alias of `annotate()`. The alias was a correctness bug: the adapter
+   advertised `text_generation` while returning classification labels, so the wizard would have generated
+   nothing. Shared transport was extracted into `_chat_completion()` (same optional-parameter stripping,
+   auth/rate-limit mapping, cost accounting).
+
+**Alternatives considered.** (a) Keep image samples as full multimodal generation — rejected: not
+supported by the adapter and would be a capability lie. (b) Ask the model to "understand" the sample at
+generation time on every call — rejected: repeated cost and non-deterministic labels.
+
+**Consequences.** Generation is one example per provider call; batching is a cost optimisation left for a
+later phase and must not be advertised until implemented.` 
+
+---
+
+## D-015 — Natural-language editing as previewable, reversible change sets
+
+**Context.** The objective requires editing datasets by natural language. Applying an LLM-parsed
+instruction straight to rows would be unreviewable and could silently corrupt a dataset.
+
+**Decision.**
+1. Instructions are parsed **deterministically** into four named operations — `add_examples`,
+   `reject_label`, `rename_label`, `shorten_text` — plus an explicit `unsupported` result that lists the
+   supported vocabulary. Tone/style rewriting is *not* faked: it requires a provider and is reported as
+   unsupported in this build.
+2. Two-step API: `POST /edits/preview` never mutates and returns **real counts** computed from the
+   database; `POST /edits/apply` requires `confirm=true` and records a `dataset_edits` change set.
+3. Reversibility is structural, not promised: "remove labelled X" is a **review rejection** (rows are
+   kept), text shortening stores the previous text, renaming appends annotation revisions and restores
+   the previous schema on undo. `POST /edits/{id}/undo` replays the stored before-state.
+4. `add_examples` reuses the generation job layer targeting the **existing** dataset (`create_job(...,
+   dataset_id=...)`), so natural-language growth inherits the same diversity gate, label-preservation
+   check and pending-review rule as every other generation path.
+5. Destructive hard deletion is deliberately not offered in Simple Mode; it remains an Advanced-mode
+   operation with its own confirmation.
+
+**Alternatives considered.** (a) Let the LLM write SQL/JSON patches — rejected: unauditable and unsafe.
+(b) Apply edits immediately with an implicit undo buffer in the browser — rejected: state must survive a
+refresh and be auditable server-side. (c) Hard-delete rows for "remove label X" — rejected: violates the
+principle that raw records are preserved; rejection is reversible and keeps provenance.
+
+**Consequences.** Some phrasings map to nothing; the API says so with examples instead of guessing. Text
+body changes are recorded in `extra_metadata.edited` and are not part of annotation revision history, so
+Advanced users should re-review shortened rows before publishing.
+
+---
+
+## D-016 — Generation run limits are part of the contract
+
+**Context.** UI and API disagreed: the wizard offered 1,000 examples while `per_class` was capped at 200,
+so a legitimate-looking request failed with raw validation JSON.
+
+**Decision.** Limits are explicit and shared: **≤500 per category, ≤2,000 per run**. The UI clamps to the
+same numbers (`min(2000, 500 × categories)`), so it cannot produce a rejected request; the API raises a
+domain error with a readable sentence for the total bound and keeps field-level validation for the rest;
+the client translates validation arrays into one plain sentence rather than echoing JSON.
+
+**Alternatives.** Silently lowering the user's requested count was rejected (surprising); removing the cap
+was rejected (a 10,000-call run at one provider call per item must not be an accidental default).
+
+---
+
+## D-017 — In-process job runners require recovery, heartbeats and preflight
+
+**Context.** A live run appeared stuck at 500/500. Root cause: the generation runner is a daemon thread,
+so restarting the server orphaned the database row at `running`; the UI had no way to notice.
+
+**Decision.**
+1. Startup **settles orphaned jobs** (`interrupted` + readable reason) rather than leaving them running.
+2. Jobs emit a **heartbeat and phase**; the API exposes `stale`, and clients must treat a
+   non-terminal job without a recent heartbeat as stalled (UI shows a banner with "Stop waiting").
+3. Candidate verifier models are **preflighted once** before a batch; failures are dropped and an
+   unusable set fails the job immediately. Verification heartbeats every few items.
+4. Generation **retries in bounded waves** to fill a shortfall caused by the diversity gate, instead of
+   silently delivering a fraction of the requested count.
+5. **Browser tests are part of the gate** for UI work: `npm run e2e:ui` and `npm run e2e:ui:large`
+   drive Chromium and fail on console/page errors. API-only tests were proven insufficient here.
+
+**Alternatives.** A real task queue (Celery/RQ + Redis) remains the correct multi-worker answer and is
+documented as the follow-up; recovery + heartbeat makes the single-process deployment honest meanwhile.
+
+---
+
+## D-018 — Autonomous labelling engine (models label; humans only where models disagree)
+
+**Context.** The operator asked that everything in the product be autonomous except the manual hand-off.
+Manual labelling already existed; what was missing was a model-driven labelling path that also covers the
+whole dataset without hand-holding.
+
+**Decision.**
+1. New engine (`packages/autolabel/service.py`, `POST /datasets/{id}/auto-label`) runs on the **same job
+   record** as generation (`kind="auto_label"`), inheriting progress, measured ETA, cancel,
+   heartbeat/staleness and restart recovery.
+2. Routing is explicit: if the models **agree** and mean confidence clears the threshold (default 0.90),
+   the annotation is created with `origin=ensemble` (multi-model) or `origin=model` (single) and moved to
+   `approved` through a **recorded review transition** by actor `auto-labeler`. Otherwise it stays
+   `pending_review` and enters the human queue. The engine never writes `origin=human`.
+3. Model output is **sanitised to the dataset's label space**: an out-of-schema label gets no vote. This
+   was a real bug found in verification — the simulated verifier emitted `general_inquiry` for a
+   positive/negative/neutral dataset and previously cost the whole record.
+4. Each record uses three short transactions (read state → call models outside any transaction → write
+   annotation), avoiding SQLite write-lock contention between the runner and the API.
+
+**Alternatives.** A separate “auto” workflow UI — rejected: it duplicates the wizard. Auto-approving
+everything — rejected: it would make the precision guarantee meaningless and violate the rule that model
+output is never presented as human-approved.
+
+**Consequences.** Cost scales as `models × records` calls; the UI defaults to local/simulated models. Only
+classification datasets are supported for now (the decision function is task-agnostic, but detection/OCR
+routing needs its own geometry validation).
+
+---
+
+## Fix — class names leaked their counts ("neutral — 150 examples")
+
+`draft_plan` split a prompt on commas and kept trailing counts in class names. Labels are now normalised
+(`_clean_labels`): trailing “— N examples / N rows / (N samples)” is stripped, duplicates are removed
+case-insensitively, and length is bounded. Verified on realistic prompts:
+`"positive, negative, neutral — 150 examples"` → `positive, negative, neutral`.
+
+---
+
+## Autonomous labelling: verification
+
+| Gate | Result |
+|---|---|
+| Engine integration tests | **4 passed** (decision routing, honest provenance, cancel, authz) |
+| Backend suite | **365 passed** |
+| Browser suite (`e2e:ui`) | **14/14** — inline auto-label: badge “2 auto-labelled · 2 need review”, queue shrinks 4 → 2, keyboard labelling still works on the review band |
+| Browser large run (`e2e:ui:large`) | 8/8 |
+| API E2E matrix | **112/112** |
+| `ruff` / frontend build | clean / green |
+
+
+---
+
+## D-019 — Multimodal inputs flow as bytes through the gateway; simulated truth is content-addressed
+
+**Context.** Image datasets already existed in the engine, but every model call carried only text, so image
+labelling could only be manual.
+
+**Decision.**
+1. `ProviderRequest.asset_bytes` is the single transport for binary inputs; the OpenAI-compatible adapter
+   converts it into a multimodal chat payload (`image_url` data URL + instruction text). Text-only calls
+   keep their plain-string shape.
+2. The simulated provider derives its "truth" from a hash of the asset bytes, not the model name, so
+   different simulated models agree on the same image and can demonstrate the fusion/routing logic offline.
+3. The autonomous engine probes models with a **real image** for image datasets; a text-only model fails at
+   preflight with an actionable message rather than producing garbage labels per record.
+4. The generation track stays text-only for now: no pixel synthesis is claimed without an
+   `image_generation` provider (see docs/MODALITY_ROADMAP.md).
+
+
+---
+
+## D-020 — Scope: 18 dataset types acknowledged, MVP limited to text + image
+
+**Context.** The operator listed 18 dataset types (text, image, audio, video, multimodal, tabular,
+time-series, geospatial, 3D/spatial, motion/pose, graph, code, scientific, medical, sensor/IoT,
+neurophysiological, robotics, transactional). Building all of them now would guarantee a shallow product.
+
+**Decision.** Tier them (docs/DATASET_TYPES_PLAN.md):
+* **MVP** = **text (done)** and **image (in progress: classification done; export bundle, object detection,
+  captioning, quality surfacing remain)**.
+* **Next** = audio and video.
+* **Near** = types that reuse existing primitives (multimodal pairs, tabular, time-series, code,
+  transactional).
+* **Later** = types needing new primitives (geospatial, 3D, motion, graph, scientific/medical formats,
+  sensor, neuro, robotics) — explicitly not advertised.
+
+Every type passes the same gate before being called supported: ingestion + editor + validation +
+immutable versioning + round-trip exporter + browser E2E.
+
+**Consequences.** No UI promises for unbuilt types; the image track is the only active build track besides
+MVP polish. Deadlines are deliberately not promised; slices are sequenced by dependency.
+
+
+---
+
+## D-021 — Image generation: two real providers, hard 25/run cap, explicit pricing
+
+**Context.** The operator supplied a Meta API key (`~/.pi/agent/auth.json`) and the existing OpenAI key,
+asking for real image-dataset generation with tight cost control (≤25 images per test dataset, low/medium
+quality). Probing found OpenAI `gpt-image-2` at `/images/generations` and Meta `muse-image-1.0` at
+`https://api.meta.ai/v1` (OpenAI-compatible response shape, WEBP output).
+
+**Decision.**
+1. Both are `IMAGE_GENERATION`-only providers registered at startup when `ENABLE_LIVE_IMAGE_PROVIDERS=true`
+   and their keys are present in the environment. Keys are never committed; the server reads env vars.
+2. **Hard cap 25 images per run**, enforced in the API (`le=25`) and the service. UI offers 2/4/8/12/25.
+3. Default quality **low**; medium/high selectable. Generation supports image-classification datasets.
+4. Cost is configuration: `IMAGE_PRICES` (per model/quality) with gpt-image-2 defaults; Meta pricing is
+   unknown and reported as `priced: false`, never as $0.
+5. Each image becomes an asset + record + `synthetic` annotation at `pending_review` with prompt/provider
+   lineage; progress, measured ETA, cancel and restart recovery reuse the job record.
+
+**Consequences.** A 25-image gpt-image-2 low run costs ≈$0.275 and took ~250 s in this environment.
+Object-detection datasets cannot be generated this way (they need boxes), and simulated `IMAGE_CLASSIFICATION`
+models remain hash-based, so semantic accuracy claims require a real vision model run (not done here).
+
+
+---
+
+
+---
+
+## D-022 — Dataset-type catalogue is the single source of truth; non-text requests always confirm
+
+**Context.** A natural-language request ("i need an dataset for bottle labeling … detect the label
+mistakes") was silently turned into a **text_classification** dataset: the detector only knew a handful
+of keywords, the wizard had no type switch, and Home had no type chooser.
+
+**Decision.**
+1. `packages/dataset_core/dataset_types.py` + `GET /api/v1/dataset-types` define every known dataset type
+   with an honest status — **available** (text, image), **beta** (object detection, image+text, audio,
+   document/OCR), **planned** (the rest of the 18-type taxonomy). The UI must not hard-code this.
+2. Natural-language detection scores the prompt against a weighted lexicon covering all types (multi-word
+   phrases weigh more). Any **non-text** detection — or low confidence — inserts a mandatory
+   "What kind of dataset is this?" question with the detected type preselected; the wizard also always
+   shows a type selector. Silent text fallback is gone.
+3. Home gets a **New dataset** chooser listing all types grouped by status; planned types are disabled,
+   beta types create a dataset and open it for import/annotation, available types continue to the wizard.
+4. Object-detection datasets can now be **generated as base images** (no annotations): detection needs
+   human/detector boxes, so the engine stores images only and hands off to the workbench.
+
+**Consequences.** Planned types cannot be selected and make no promise in the UI. Detection generation
+costs the same per image as classification generation (≤25/run). The detector is deterministic and
+offline; it is a draft the user confirms, never a hidden classification.
+
+
+---
+
+## D-023 — Image exports must carry pixels and a machine-readable label mapping
+
+**Context.** Version exports bundled asset files under `assets/<original filename>`, which is neither
+collision-safe nor linked to labels: a user could not rebuild the dataset from the archive.
+
+**Decision.** New `image_bundle` export format:
+* `images/<index>_<safe-stem>.<ext>` — index-prefixed names, sorted by record id, byte-identical to the
+  stored asset; each row's `asset_sha256` lets a consumer verify the pixels.
+* `labels.jsonl` + `labels.csv` — record id, image path, decided label, split, annotation origin,
+  review status, confidence, asset id/hash, dimensions, mime, synthetic flag and generation lineage.
+  Unannotated records export with `label: null` (never a fabricated label).
+* `images/README.md` explains how to re-import; canonical `manifest.json` and dataset card stay.
+* The generic formats keep their existing layout. Text-only datasets get a clear 422 for `image_bundle`.
+
+**Consequences.** Archives are larger (the pixels are included) but self-contained and deterministic;
+same version + format → identical bytes. This is the format to hand to a trainer or to archive.
+
+
+---
+
+## D-024 — SAM 3.1 for box proposals: contract, provenance and idempotency
+
+**Context.** The operator asked whether SAM 3.1 works in the product. It did not: probing showed
+`/chat/completions` returns 404 ("use /v1/responses") and `/v1/responses` returns **special-token text**,
+not prose. Docs confirmed the format and the confidence switch.
+
+**Decision.**
+1. `packages/provider_gateway/sam_provider.py` implements `OBJECT_DETECTION` for `meta-sam`:
+   Responses API, `stream: true`, one concept noun phrase per call, parses
+   `<0f>id<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..;c=..|><|mask;…|>` into canonical boxes
+   (`x, y, width, height` in source pixels); masks are parsed but **not stored** yet.
+   Confidence is requested via `metadata: {"include_confidence": "true"}` (metadata values are strings;
+   the top-level parameter is rejected).
+2. `POST /datasets/{id}/proposals/detect` runs a bounded job (≤50 records, ≤3 concepts) and stores each
+   record's merged boxes as a `model`/`pending_review` annotation with `coordinate_system=pixel-intrinsic`,
+   image dimensions, `proposed_by` and concepts. **Never auto-approved.**
+3. Concepts must be classes of the dataset (box labels are validated against the schema at job creation).
+4. Re-running proposals updates the existing pending model annotation (a revision) instead of duplicating it.
+5. UI: detection datasets get a **Propose boxes (AI)** action with progress/ETA and a result banner;
+   the workbench renders the proposals for accept/edit/delete.
+
+**Consequences.** SAM calls are billed by the Meta API (usage reported as zero tokens for these image
+calls in our probes; pricing unknown in this build). Detection quality depends on the concept phrasing
+(one concrete noun phrase); the model returns zero matches legitimately. Masks remain a future slice.

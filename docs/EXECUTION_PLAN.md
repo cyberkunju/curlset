@@ -628,3 +628,285 @@ The coding agent must append a dated entry after each meaningful work session:
 ## 22. Definition of complete execution
 
 Execution is complete only when every committed phase is either DONE with evidence or explicitly BLOCKED with a concrete external dependency and safe alternatives explored. Deferred future features may remain NOT STARTED if they are outside the agreed release; the MVP must meet its release gate. The agent must never claim the entire platform is complete merely because the scaffold builds.
+
+---
+
+## Simple Mode track (UX redesign)
+
+| Phase | Status | Evidence |
+|---|---|---|
+| S1 Home dashboard (history, two doors, quick start) | **DONE** | `apps/web/src/components/HomeDashboard.tsx`; default view `#home`; build green |
+| S2 Plan + job orchestration + honest ETA | **DONE** | `packages/generation_jobs/`; `POST /generate/plan`, `POST/GET /generate/jobs`, `GET /generate/jobs/{id}`, `POST .../cancel`; 10 unit + 4 integration tests |
+| S3 Generation wizard (describe → confirm → live progress → done) | **DONE** | `apps/web/src/components/GenerateWizard.tsx`; E2E `verify_simple_mode.py` 25/25 checks (accept verdict, 100 % label preservation, rows pending review) |
+| S4 Labeling wizard (drop → confirm → keyboard labeling → validate → export) | IN PROGRESS (existing workbench is the base) | current annotation workspace + import flow; needs the reduced 3-step shell |
+| S5 Natural-language dataset editing with previewed change sets | NOT STARTED | spec in docs/SIMPLE_MODE_UX.md §4 |
+| S6 Sample-guided plan analysis (CSV/JSONL/TXT/ZIP/images) | NOT STARTED | spec §5 |
+| S7 Advanced-mode parity + copy/a11y audit (no jargon in Simple Mode) | NOT STARTED | spec §7 |
+
+**Verification at time of writing:** backend 338 tests passing, `ruff` clean, frontend build green,
+Simple-Mode E2E 25/25 with the simulated trio (zero API spend).
+
+---
+
+## S6 — sample-guided generation: DONE
+
+- `packages/generation_jobs/sample_analysis.py` (CSV/JSONL/JSON/TXT/ZIP/images; safety-bounded).
+- `POST /api/v1/generate/analyze-sample` → detection + prefilled plan.
+- Job config carries `style_hint`, `seed_examples`, `description`, `labels`, `difficulty`; the runner
+  forwards them to `GenerationSpec` → provider request parameters.
+- `OpenAICompatibleProvider.generate()` is a real generation call (was an alias of `annotate()`), sharing
+  the new `_chat_completion()` transport.
+- Wizard step 1 accepts a sample, shows what was detected (rows, labels, 2 quoted samples, style, notes)
+  and prefills the confirm step.
+- Evidence: 12 new tests (8 unit + 4 integration; 350 total), Simple-Mode E2E **31/31**, ruff clean,
+  frontend build green.
+
+**Remaining phases:** S4 labeling wizard shell, S5 natural-language editing, S7 advanced parity + copy audit.
+
+---
+
+## S4 — guided labeling path: DONE
+
+- `apps/web/src/components/LabelWizard.tsx`: **bring** (import CSV/JSONL/TXT with auto-detected columns and
+  classes via the shared sample analyser, or pick an existing text dataset) → **label** (one example at a
+  time, numbered classes, `1–9` to label, `S` to skip, live progress) → **done** (saved/skipped counts,
+  one-click validation, hand-off to the dataset for export/versions).
+- Every keystroke performs the same two calls the full workbench uses: create a real annotation, then an
+  explicit `approved` transition — **no bulk auto-approval**, in line with AGENTS.md §6.
+- The generation wizard's “Label these examples” button now hands off directly into this wizard with the
+  produced dataset preselected (one-click generate → label).
+- Both wizards are lazy-loaded (`React.lazy` + `Suspense`), keeping the Home route bundle at 475 kB and
+  splitting the wizards into 11–14 kB chunks.
+- Evidence: guided-labeling E2E **12/12** (import → queue → annotate+approve 4/4 → validate publishable →
+  freeze version → export), generation E2E **31/31** unchanged, backend **350 tests**, ruff clean, build green.
+
+**Remaining phases:** S5 natural-language dataset editing, S7 advanced-mode parity + copy audit.
+
+---
+
+## S5 — natural-language dataset editing: DONE
+
+- `packages/dataset_edits/service.py`: deterministic instruction parser → operations with real counts;
+  apply with change-set persistence; undo from stored before-state.
+- Operations: `add_examples` (starts a generation job on the same dataset), `reject_label` (reversible
+  review rejection, not deletion), `rename_label` (schema + annotation revisions), `shorten_text`
+  (reversible text truncation); anything else returns `unsupported` with the supported vocabulary.
+- API: `POST /datasets/{id}/edits/preview`, `POST /datasets/{id}/edits/apply` (requires `confirm`),
+  `GET /datasets/{id}/edits`, `POST /datasets/{id}/edits/{changeset}/undo`.
+- UI: `EditByDescriptionModal` (lazy-loaded) in the dataset toolbar — instruction box with suggestions,
+  preview table with counts/warnings, Apply, result summary, and a change history with Undo.
+- Evidence: **8 new integration tests** (358 total), NL-editing E2E **18/18**, generation E2E **31/31**,
+  labeling E2E **12/12**, ruff clean, frontend build green.
+
+**Remaining phase:** S7 advanced-mode parity + copy audit (no jargon left in Simple Mode paths).
+
+---
+
+## S7 — advanced controls + copy audit: DONE
+
+- The generation wizard's `Advanced ▸` panel is now **functional**, not informational: model service and
+  model selection (default “Automatic”), max share of one class, minimum label agreement, and target split
+  (train/val/test). These flow into the job request and were verified end-to-end: a run with
+  `target_split=val` landed **6/6 accepted rows in the validation split**.
+- Copy audit across Simple-Mode surfaces: “No model service is connected yet…” instead of provider jargon,
+  “Ready to export / A few checks are still open” instead of publishability jargon, plainer advanced-tool
+  names in the dataset toolbar (“Multi-model labels”, “Generate more examples”), and an explicit
+  **Advanced workspace** entry on Home.
+- Bug found by the verification matrix and fixed: `add_examples` started the generation runner **before**
+  the request transaction committed, leaving the job stuck in `pending`; the runner now starts after
+  commit, with a regression test that waits for the terminal state.
+
+---
+
+## Objective coverage — final verification
+
+| Objective requirement | Status | Evidence |
+|---|---|---|
+| Home dashboard with recent history + quick/scratch creation | DONE | `HomeDashboard.tsx`; scratch project auto-created by the job layer |
+| Two guided paths: Dataset Generation and Dataset Labeling | DONE | `GenerateWizard.tsx`, `LabelWizard.tsx`; E2E 31/31 and 12/12 |
+| NL prompt → a few plain questions with examples | DONE | `POST /generate/plan` (3 questions, each with an example); parsed the operator's own grammar example (200 examples, 2 classes) |
+| Analyse an uploaded sample (files/zip/images) to infer the pattern | DONE | `POST /generate/analyze-sample`; CSV/JSONL/JSON/TXT/ZIP + image reference-only note; E2E checks |
+| Live progress bar + estimated time remaining | DONE | job/progress API + wizard polling; ETA measured (`null` → “estimating…” until 5 items) |
+| One-click hand-off to labeling | DONE | “Label these examples” opens the labeling wizard on the generated dataset |
+| Simple mode minimal, advanced mode granular | DONE | S7 advanced panel; split/threshold settings verified to reach the data |
+| View, edit by natural language, export in many formats | DONE | `EditByDescriptionModal` (preview/apply/undo) 18/18; 5 export formats byte-deterministic |
+| Honest: no fabricated ETAs or capability claims | DONE | measured ETA; image samples reference-only; unsupported edit instructions reported; `OpenAICompatibleProvider.generate()` implemented for real instead of aliasing `annotate()` |
+| Backend job orchestration, API, UI, tests verified end to end | DONE | 358 tests, ruff clean, build green, E2E matrix: 31 + 12 + 18 + 9 + 32 = **102/102 checks** |
+
+**E2E matrix (live stack, simulated providers, zero API spend):**
+SIMPLE MODE 31/31 · GUIDED LABELING 12/12 · NL EDITING 18/18 · S7 9/9 · FULL-MVP 32/32.
+
+---
+
+## Post-completion bugfix — generation limits (reported from a screenshot)
+
+**Symptom.** The wizard let a user request 1,000 examples across 2 classes, which produced
+`per_class = 500`; the API cap was 200, so the request failed with FastAPI's raw validation JSON
+(`{"type":"less_than_equal","loc":["body","per_class"],…}`) rendered verbatim in the red banner.
+
+**Fix.**
+1. **Limits aligned and documented**: at most **500 per category** and **2,000 per run**. A run over
+   2,000 now raises a `DomainValidationError` that the API returns as a readable sentence
+   ("That is too many examples for one run (2,500). Keep it to 2,000 or fewer, or split it into several runs.").
+2. **UI can no longer build an invalid request**: the count options are clamped to
+   `min(2000, 500 × categories)`; a `Custom` chip reveals the number input instead of showing a
+   duplicate value next to the chips; the helper text states the limit and adds "Capped at the per-run
+   limit." when reached.
+3. **Raw validation JSON never reaches the user**: `handleResponse` translates FastAPI `detail[]`
+   arrays into one plain sentence naming the field.
+4. **Placeholder categories are explained**: when no categories can be detected in the description, the
+   plan notes "No categories were detected in your description — rename these two…".
+
+**Verification.** New tests: 2,500-example run rejected with a plain message, `per_class=501` remains a
+structured field error, 1,000-example run accepted with `total_items=1000` (**361 tests total**).
+`verify_limits_fix.py` — **10/10** checks, including the exact screenshot scenario. Regression matrix
+unchanged: Simple Mode 31/31, Labeling 12/12, NL editing 18/18, S7 9/9, Full MVP 32/32; ruff clean;
+frontend build green.
+
+---
+
+## Incident: "stuck at 500/500" (reported from a live screenshot, and a real gap in our testing)
+
+**What the user saw.** The generation dialog showed `500/500`, "about estimating… left", and never moved.
+
+**What was actually wrong — three separate defects, all reproduced:**
+
+1. **Orphaned jobs.** The runner is an in-process daemon thread. A server restart (which happened
+   during a fix rollout) killed it, leaving the database row at `status=running, processed=500/500`
+   forever. The UI polled that row indefinitely. Confirmed from the database: a job created at
+   17:37:36 was still `running` hours later.
+2. **No stall detection in the UI.** Even without a restart, a job that stops heartbeating was
+   indistinguishable from a slow one, so the dialog had no way to tell the user.
+3. **A verifier that could hang the run.** The wizard auto-selected the *first* provider in API order,
+   which could be a cloud provider with no working key. Verification makes one call per generated
+   item, so a 50-item run could sit in "checking quality" for 50 × the provider timeout.
+
+**Fixes.**
+* `recover_interrupted_jobs()` runs at startup and settles any `pending/running/cancelling` row as
+  `interrupted` with a user-readable reason; the UI shows that message instead of an endless spinner.
+* Jobs now write a **heartbeat** (`updated_at`) and a **phase** (`generating` → `checking quality and
+  saving`); the API exposes `stale`, and the wizard shows a stall banner with a "Stop waiting" action
+  after 70 s without a heartbeat.
+* Verification models are **preflighted with one tiny call**; models that fail are dropped, and if none
+  respond the job fails immediately with an actionable message instead of timing out per item.
+* The wizard prefers models that need no key/network (simulated trio → local fake → local ollama →
+  cloud), so the default path works out of the box.
+* Anti-collapse shortfall fixed: the gate rejects near-duplicates, so a single pass can deliver far
+  fewer rows than requested (1,000 requested → ~16 usable). The runner now retries in **bounded waves**
+  (max 4) asking for the shortfall, and the simulated generator composes from large independent pools
+  (measured unique-trigram ratio: 0.81 @ 50, 0.69 @ 200, **0.47 @ 1,000** — above the 0.35 gate).
+  Result: 1,000 requested → **1,000 accepted**, 8 s, through the browser.
+
+**Testing gap, corrected.** Every prior "E2E" in this session was an API-level script with 6–12 item
+jobs. There is now a **real browser suite** (Playwright + Chromium) that drives the actual UI, fails on
+any console/page error, and includes the reported case:
+
+* `cd apps/web && npm run e2e:ui` → 13/13 checks (Home → generate 50 → result → label wizard → keyboard label)
+* `cd apps/web && npm run e2e:ui:large` → 8/8 checks (the exact 1,000-example / 500-per-class screenshot case)
+
+**Verification after the fixes.** Backend **361 tests**; API E2E matrix 31 + 12 + 18 + 9 + 32 + 10 =
+**112/112**; browser **21/21**; `ruff` clean; frontend build green.
+
+---
+
+## Autonomous labelling engine: DONE
+
+- `packages/autolabel/service.py`: `decide()` routing (agreement + confidence), preflight, heartbeat,
+  cancel, label-space sanitising; job `kind="auto_label"` reuses the existing job endpoints
+  (`GET /generate/jobs/{id}`, cancel) and startup recovery.
+- `POST /api/v1/datasets/{id}/auto-label` — queues labelling of every record that is not yet approved.
+- UI: in the Labeling wizard, **“Label automatically”** runs the engine with progress + ETA, then reloads
+  the queue and shows “N auto-labelled · M need review”; Home shows auto-labelled counts in the feed.
+- Provenance: `origin=ensemble|model`, actor `auto-labeler`, approval via recorded review transition;
+  never `origin=human`.
+- Class-name parsing fixed (`neutral — 150 examples` → `neutral`).
+- Evidence: 365 backend tests, browser 14/14 + 8/8, API E2E 112/112, ruff clean, build green.
+
+
+---
+
+## M1 — Image classification in Simple Mode: DONE
+
+- Label wizard accepts **PNG/JPG/WEBP/ZIP of images**, creates an `image_classification` dataset, renders
+  the real asset thumbnail, keyboard-labels, and runs the autonomous engine.
+- Provider path: `ProviderRequest.asset_bytes` now flows end to end —
+  * simulated provider answers deterministically from the image content hash (shared truth across models);
+  * `OpenAICompatibleProvider` sends multimodal `image_url` content (base64 data URL) for real vision models.
+- Auto-label engine reads the record's primary asset (`record_assets` → storage), probes models with a real
+  image before a run, and rejects text-only models at preflight instead of mislabelling pixels.
+- Honesty fix: when the engine labels everything, the done screen now says the rows were
+  **machine-labelled (`origin=ensemble|model`), never human**, instead of the old manual-label wording.
+- Evidence: **8 new tests** (373 total), browser image E2E **9/9** (ZIP upload → thumbnail pixels verified →
+  auto-label → provenance copy), other browser suites 14/14 and 8/8, API E2E 112/112, ruff clean, build green.
+
+**Next:** M2 object detection (bbox proposals + guided canvas), M3 paired image-text, M4 audio transcription
+wizard, M5 document OCR, M6 video keyframes — see docs/MODALITY_ROADMAP.md.
+
+
+---
+
+## Dataset-type expansion: plan recorded
+
+`docs/DATASET_TYPES_PLAN.md` now holds the tiered plan for all 18 dataset types and the image MVP work
+packages (I1 done; I2 export bundle → I3 object detection → I4 captioning → I5 quality → optional I6 live
+vision validation). Audio and video are the next tier; the remaining types are deferred behind new
+primitives. No type is advertised in the UI before its acceptance gate passes.
+
+---
+
+## Image generation (real providers) + boxing verification: DONE
+
+- Providers: OpenAI `gpt-image-2` (PNG, priced) and Meta `muse-image-1.0` (WEBP, price unknown) behind the
+  gateway, `IMAGE_GENERATION` capability only; registered via `ENABLE_LIVE_IMAGE_PROVIDERS=true` + env keys.
+- Service: bounded job (≤25 images), quality low/medium, prompt per class, assets + synthetic
+  `pending_review` records, progress/ETA/cancel, per-image cost accounting, `max_cost_usd` guard.
+- UI: the Generate wizard detects image plans and offers image mode (count ≤25, low/medium quality, style);
+  result shows generated thumbnails and cost, then hands off to labeling.
+- Live evidence: 25/25 images accepted for **$0.275** in 250 s; auto-label on those images produced
+  **16 auto-approved / 9 review** with diverse labels after fixing an engine bug that dropped image bytes;
+  boxing verified in a real browser (draw → save → geometry persisted and inside image bounds).
+- Bugs fixed: engine sent no asset bytes (identical labels), Enter shortcut saved stale/empty boxes,
+  `FakeProvider` falsely advertised image generation, empty-box detection saves now blocked.
+- Tests: **392 backend**, browser 14/14, 8/8, 9/9, **7/7 boxing**; ruff clean; build green.
+
+---
+
+---
+
+## Dataset-type chooser + NL type detection: DONE
+
+- `GET /api/v1/dataset-types` returns the catalogue (21 entries covering the 18-type taxonomy plus
+  object detection / image+text / document-OCR): **2 available** (text, image), **4 beta**, **15 planned**.
+- Weighted lexicon over all types; non-text and uncertain prompts insert a mandatory type question; the
+  wizard always shows a type selector. The reported bottle-labeling prompt now detects Object detection.
+- Home "New dataset" chooser groups types by status; planned types are disabled, beta types create a
+  dataset for import/workbench, available types open the wizard.
+- Detection datasets can be generated as **unannotated base images** (no fabricated boxes).
+- Evidence: **399 backend tests**, browser `e2e:ui:dataset-types` **20/20**, other browser suites 14/14,
+  8/8, 9/9, 7/7, 10/10; ruff clean; build green.
+
+---
+
+## I2 — image export bundle: DONE
+
+- `ExportFormat.IMAGE_BUNDLE` + `packages/dataset_export/image_bundle_exporter.py`; service branch writes
+  `images/` (collision-safe, stable) + `labels.jsonl`/`labels.csv` + `images/README.md` + manifest/README.
+- Evidence: **4 integration tests** (contents/provenance, byte determinism, full re-import round-trip,
+  text-only rejection → 422); live export of the 25 real generated images (24.4 MB, deterministic,
+  SHA matches, label distribution preserved, generation lineage included); browser export dialog check 3/3.
+- Backend suite: **403 passed**; ruff clean; build green.
+
+---
+
+## SAM 3.1 box proposals: DONE
+
+- `meta-sam` provider on the Meta Responses API (special-token box grammar, confidence via
+  `metadata.include_confidence`), registered with the Meta key next to image generation.
+- `POST /datasets/{id}/proposals/detect` + bounded job (`detection_proposals`) with progress/ETA/cancel and
+  restart recovery; proposals are `model`/`pending_review` annotations (never auto-approved).
+- Box-label schema validation, idempotent re-runs (revision instead of duplicate), `BaseProvider.detect`
+  contract, and `FakeProvider.detect` so its OBJECT_DETECTION claim is truthful.
+- UI: **Propose boxes (AI)** on detection datasets with a progress/result banner; workbench renders boxes.
+- Evidence: **11 new tests** (parser/transport/guards + job lifecycle), **414 backend passed**, browser
+  `e2e:ui:proposals` **6/6**, live SAM run: 3/3 images, boxes at ~0.90–0.91 confidence on 1024² images,
+  provenance `meta-sam`; ruff clean; build green.
