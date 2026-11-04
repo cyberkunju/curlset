@@ -25,6 +25,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Dataset-local specialist: linear probe over frozen embeddings. Optional so the core platform
+# keeps its current dependency footprint; the code raises a clear error when it is absent.
+specialist = [
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+]
+# Sentence encoder used to produce the embeddings the specialist probes. Pulls in torch, so it is
+# deliberately separate from `specialist`.
+embeddings = [
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+    "sentence-transformers>=3.3.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
