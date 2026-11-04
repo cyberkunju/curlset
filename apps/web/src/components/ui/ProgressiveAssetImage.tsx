@@ -178,10 +178,7 @@ export const ProgressiveAssetImage: React.FC<ProgressiveAssetImageProps> = ({
                   display: 'inline-block',
                 }}
               />
-              {stage === 'grain' && 'Allocating frame buffer...'}
-              {stage === 'scanning' && 'Scanning asset geometry...'}
-              {stage === 'blueprint_blur' && 'De-quantizing full resolution...'}
-            </div>
+              Loading asset…            </div>
           </motion.div>
         )}
       </AnimatePresence>

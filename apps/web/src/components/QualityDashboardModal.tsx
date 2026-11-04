@@ -195,7 +195,7 @@ export const QualityDashboardModal: React.FC<QualityDashboardModalProps> = ({
                   </h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.15rem' }}>
                     {report.is_publishable
-                      ? 'No blocking structural or integrity issues found. Safe to freeze immutable release version.'
+                      ? 'No blocking structural or integrity issues were detected by the rules in this report. Review the findings and the validation policy below before freezing a release; automated checks do not guarantee training suitability.'
                       : `Contains ${report.blocking_count} blocking issue(s) that must be resolved before this dataset can be published.`}
                   </p>
                 </div>

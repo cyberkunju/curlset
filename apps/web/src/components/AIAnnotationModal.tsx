@@ -126,12 +126,15 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
     return name;
   };
 
-  // Honest illustrative task schema preview with zero fabricated confidence or coordinates
+  // Honest illustrative task schema preview with zero fabricated confidence or coordinates.
+  // `origin`/`status` are shown as server-derived, because the client never sends them.
   const proposalSchemaPreview = useMemo(() => {
     const payload: Record<string, any> = {
       task_type: taskType,
-      origin: 'model',
-      review_status: 'pending_review',
+      server_derived: {
+        origin: 'model',
+        status: 'pending_review',
+      },
       model_metadata: {
         provider: selectedProvider || '<selected_provider>',
         model: selectedModel || '<selected_model>',
@@ -502,7 +505,9 @@ export const AIAnnotationModal: React.FC<AIAnnotationModalProps> = ({
                 </span>
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontStyle: 'italic' }}>
-                Illustrative schema only — values are placeholders, not model predictions.
+                Illustrative schema only — values are placeholders, not model predictions. Fields under
+                <code> server_derived </code> are stamped by the API; this client does not send origin, status or actor
+                ids.
               </div>
               <pre
                 style={{

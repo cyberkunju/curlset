@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "npm run test:coordinates && npm run test:integrity",
     "test:coordinates": "node --experimental-strip-types tests/coordinate_contract.test.ts",
-    "test:integrity": "node --experimental-strip-types tests/ui_integrity.test.ts"
+    "test:integrity": "node --experimental-strip-types tests/ui_integrity.test.ts",
+    "e2e:ui": "node e2e/ui-smoke.mjs",
+    "e2e:ui:large": "node e2e/ui-large-run.mjs",
+    "e2e:ui:image": "node e2e/ui-image-label.mjs"
   },
   "dependencies": {
     "boneyard-js": "^1.10.0",
@@ -22,6 +25,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "playwright": "^1.64.1",
     "typescript": "^5.7.3",
     "vite": "^6.0.11"
   }

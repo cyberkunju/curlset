@@ -245,6 +245,45 @@ body {
   border-bottom: 1px solid var(--border-hairline);
 }
 
+/* Top-left brand lockup — the supplied logo itself, no plate or tile behind it. */
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  transition: transform 0.2s var(--ease-apple-out, ease);
+}
+
+.brand-lockup:hover {
+  transform: translateY(-1px);
+}
+
+.brand-logo {
+  height: 39px;
+  width: auto;
+  max-width: 224px;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-logo--dark {
+  display: none;
+}
+
+.dark .brand-logo--light {
+  display: none;
+}
+
+.dark .brand-logo--dark {
+  display: block;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: block;
+  object-fit: contain;
+}
+
 .brand-icon {
   width: 36px;
   height: 36px;

@@ -19,9 +19,9 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
   onCreated,
 }) => {
   const [name, setName] = useState('');
-  const [taskType, setTaskType] = useState<TaskType>('image_classification');
+  const [taskType, setTaskType] = useState<TaskType>('text_classification');
   const [description, setDescription] = useState('');
-  const [labelsInput, setLabelsInput] = useState('normal, damaged');
+  const [labelsInput, setLabelsInput] = useState('');
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +35,15 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
     e.preventDefault();
     if (!name.trim()) {
       setError('Dataset name is required');
+      return;
+    }
+    // A classification dataset without classes cannot be labelled: reject up front instead of
+    // creating a dataset that the annotation workspace cannot use.
+    const classificationTasks: TaskType[] = ['text_classification', 'image_classification'];
+    if (classificationTasks.includes(taskType) && parsedLabels.length === 0) {
+      setError(
+        'Add at least one allowed class (comma separated). Without classes the annotation workbench has nothing to assign.',
+      );
       return;
     }
 
@@ -115,11 +124,15 @@ export const CreateDatasetModal: React.FC<CreateDatasetModalProps> = ({
             id="labelsInput"
             type="text"
             className="form-input"
-            placeholder="e.g. normal, damaged, defective"
+            placeholder="e.g. positive, negative, neutral"
             value={labelsInput}
             onChange={(e) => setLabelsInput(e.target.value)}
             disabled={loading}
           />
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', lineHeight: 1.45 }}>
+            Used as the dataset label schema: imported rows whose label is outside this list are rejected per row, and
+            the annotation workbench only offers these classes.
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
             {parsedLabels.map((lbl, idx) => (
               <span key={idx} className="badge badge-blue">{lbl}</span>

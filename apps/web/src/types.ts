@@ -226,6 +226,7 @@ export type ExportFormatType =
   | 'unsloth_sharegpt_vlm'
   | 'axolotl_alpaca_chatml'
   | 'llama_factory_bundle'
+  | 'image_bundle'
   | 'ultralytics_yolo_v8_v11';
 
 export interface TokenSimulationResponse {
@@ -335,7 +336,17 @@ export interface EvaluationReport {
   classes: string[];
   warnings: string[];
   metadata: Record<string, any>;
+  /**
+   * Provenance of the two label sources that were compared. Optional because an
+   * older API version may not report it; callers must render provenance only when
+   * it is actually present (never assume "human gold").
+   */
+  gold_source?: string;
+  candidate_source?: string;
+  /** True when the API certifies the report compared distinct label sources. */
+  comparable?: boolean;
 }
+
 
 export interface ClusterPoint {
   record_id: string;
@@ -417,3 +428,185 @@ export interface ProviderCredential {
 
 
 
+
+// ---------------------------------------------------------------- ensemble lab ---
+
+export interface EnsembleAggregatorScore {
+  accuracy: number;
+  macro_f1: number;
+  n: number;
+}
+
+export interface EnsembleCalibrationRow {
+  model: string;
+  temperature: number;
+  ece_raw: number;
+  ece_calibrated: number;
+  ece_improvement: number;
+  brier_raw: number;
+  brier_calibrated: number;
+  accuracy: number;
+  n_samples: number;
+}
+
+export interface EnsembleThreshold {
+  tau_hi: number;
+  accepted: number;
+  support: number;
+  precision: number;
+  wilson_low: number;
+  wilson_high: number;
+  met_target: boolean;
+  yield_fraction: number;
+}
+
+export interface EnsembleLabelResponse {
+  dataset_id: string;
+  models: string[];
+  records_aggregated: number;
+  gold_pairs: number;
+  optimistic: boolean;
+  target_precision: number;
+  fanout: {
+    records: number;
+    calls_made: number;
+    calls_reused: number;
+    failures: number;
+    cost_usd: number;
+    elapsed_s: number;
+    aborted_reason: string | null;
+  };
+  aggregator_scores: Record<string, EnsembleAggregatorScore>;
+  single_model_scores: Record<string, EnsembleAggregatorScore>;
+  best_single_model: string | null;
+  ensemble_macro_f1: number;
+  lift_over_best_single: number;
+  calibration: EnsembleCalibrationRow[];
+  model_weights: Record<string, number>;
+  weight_alpha: number;
+  weight_beta: number;
+  thresholds: Record<string, EnsembleThreshold>;
+  band_counts: Record<string, number>;
+  correlated_error: Record<string, number>;
+  materialized_annotations: number;
+  requested_models: Array<{ provider: string; model: string }>;
+}
+
+export interface EnsembleVotesResponse {
+  dataset_id: string;
+  models: Array<{ provider: string; model: string; votes: number; cost_usd: number; failures: number }>;
+  total_votes: number;
+  total_cost_usd: number;
+  ensemble_candidates: number;
+  ensemble_candidates_pending_review: number;
+}
+
+export interface EnsembleAuditSampleResponse {
+  dataset_id: string;
+  population: number;
+  recommended_size: number;
+  sample_record_ids: string[];
+  target_precision: number;
+  note: string;
+}
+
+// ------------------------------------------------------------ gated generation ---
+
+export interface GatedGenerationResponse {
+  dataset_id: string;
+  generated: number;
+  accepted: number;
+  passed_filters: number;
+  rejected: number;
+  verdict: 'accept' | 'reject';
+  rejection_reasons: string[];
+  rejection_breakdown: Record<string, number>;
+  label_preservation: number;
+  batch_unique_trigram_ratio: number;
+  collapsed: boolean;
+  record_ids: string[];
+  class_counts_after: Record<string, number>;
+  policy: Record<string, unknown>;
+}
+
+// ------------------------------------------------------------ simple-mode generate ---
+
+export interface GenerationPlanQuestion {
+  id: string;
+  question: string;
+  kind: 'count' | 'classes' | 'difficulty' | string;
+  default: unknown;
+  options: unknown[];
+  example: string;
+  help: string;
+}
+
+export interface GenerationPlan {
+  title: string;
+  task_type: string;
+  summary: string;
+  classes: string[];
+  suggested_total: number;
+  per_class: number;
+  difficulty: string;
+  detected_from_sample: boolean;
+  notes: string[];
+  questions: GenerationPlanQuestion[];
+  dataset_type?: string;
+  dataset_type_label?: string;
+  dataset_type_status?: string;
+  dataset_type_confidence?: number;
+  dataset_type_alternatives?: Array<{ id: string; label: string; status: string }>;
+  needs_type_choice?: boolean;
+}
+
+export interface GenerationJob {
+  id: string;
+  status: 'pending' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled' | string;
+  prompt: string;
+  dataset_id: string;
+  project_id: string;
+  dataset_name: string;
+  task_type: string;
+  classes: string[];
+  per_class: number;
+  total_items: number;
+  processed_items: number;
+  progress: number;
+  elapsed_seconds: number;
+  eta_seconds: number | null;
+  eta_confidence: string | null;
+  kind?: string;
+  cost_usd?: number | null;
+  priced?: boolean | null;
+  failed?: number;
+  auto_approved?: number;
+  needs_review?: number;
+  phase?: string | null;
+  updated_at?: string | null;
+  stale?: boolean;
+  passed_filters?: number;
+  rejected?: number;
+  rejection_breakdown?: Record<string, number>;
+  accepted: number;
+  verdict: 'accept' | 'reject' | null;
+  rejection_reasons: string[];
+  label_preservation: number | null;
+  error: string | null;
+  created_at: string | null;
+  finished_at: string | null;
+}
+
+
+// ------------------------------------------------------------ dataset types ---
+
+export interface DatasetTypeInfo {
+  id: string;
+  label: string;
+  status: 'available' | 'beta' | 'planned' | string;
+  task_type: string | null;
+  can_generate: boolean;
+  can_import: boolean;
+  description: string;
+  import_hint?: string;
+}

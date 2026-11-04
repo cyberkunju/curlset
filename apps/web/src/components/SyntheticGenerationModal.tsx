@@ -101,12 +101,15 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
   // Schema matching status
   const isClassInSchema = labels.length === 0 || labels.includes(targetClass);
 
-  // Honest illustrative task schema preview derived from task type and form state
+  // Honest illustrative task schema preview derived from task type and form state.
+  // `origin`/`status` are shown as server-derived, because the client never sends them.
   const schemaPreview = useMemo(() => {
     const previewPayload: Record<string, any> = {
       task_type: taskType,
-      origin: 'synthetic',
-      review_status: 'pending_review',
+      server_derived: {
+        origin: 'synthetic',
+        status: 'pending_review',
+      },
       target_class: targetClass || '<unspecified_target_class>',
       provenance: {
         prompt_template: promptTemplate,
@@ -405,7 +408,8 @@ export const SyntheticGenerationModal: React.FC<SyntheticGenerationModalProps> =
               )}
 
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontStyle: 'italic' }}>
-                Illustrative schema template only — not a generated record. Synthetic samples will be routed to pending_review upon generation.
+                Illustrative schema template only — not a generated record. The API stamps origin/status and routes
+                synthetic samples to pending_review; this client does not send them.
               </div>
 
               <pre

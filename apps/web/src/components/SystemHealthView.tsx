@@ -172,7 +172,7 @@ export const SystemHealthView: React.FC = () => {
             <Activity size={24} style={{ color: 'var(--accent-interactive)' }} /> System Health & Diagnostics
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Real-time diagnostics console: core services, storage probes, provider gateways, and request latency.
+            Diagnostics console: core services, storage probes, provider gateways, and measured request latency. Probes run when this page loads or when you press Refresh.
           </p>
         </div>
 

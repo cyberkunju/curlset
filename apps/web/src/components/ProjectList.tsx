@@ -58,6 +58,7 @@ interface ProjectListProps {
   loading: boolean;
   onSelectProject: (projectId: string) => void;
   onOpenCreateModal: () => void;
+  onCreateDataset: (projectId: string) => void;
   includeArchived: boolean;
   onToggleArchived: (val: boolean) => void;
   searchQuery: string;
@@ -68,6 +69,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   loading,
   onSelectProject,
   onOpenCreateModal,
+  onCreateDataset,
   includeArchived,
   onToggleArchived,
   searchQuery,
@@ -693,6 +695,30 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                           borderTop: '1px solid var(--border-hairline)',
                         }}
                       >
+                        <button
+                          type="button"
+                          title={`Create a dataset in ${proj.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onCreateDataset(proj.id);
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: 'pointer',
+                            color: 'var(--accent-interactive)',
+                            backgroundColor: 'transparent',
+                            border: '1px solid var(--border-hairline)',
+                          }}
+                        >
+                          <Plus size={13} strokeWidth={2.2} />
+                          Dataset
+                        </button>
                         <span
                           style={{
                             fontFamily: 'var(--font-mono)',

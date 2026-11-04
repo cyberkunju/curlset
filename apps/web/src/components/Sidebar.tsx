@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { Home, FolderKanban, ShieldCheck, Activity, X, PanelLeftClose, PanelLeftOpen, KeyRound } from 'lucide-react';
-import curlsetIcon from '../assets/curlset-icon.png';
+import curlsetLogoLight from '../assets/curlset-logo-light.png';
+import curlsetLogoDark from '../assets/curlset-logo-dark.png';
+import curlsetMark from '../assets/curlset-mark.png';
 import { SpringButton } from './ui/SpringButton';
 
 interface SidebarProps {
@@ -51,8 +53,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     {
-      id: 'landing',
-      label: 'Home / Overview',
+      id: 'home',
+      label: 'Home',
       icon: <Home size={17} strokeWidth={1.75} />,
       isActive: currentView === 'landing',
     },
@@ -102,24 +104,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.65rem',
+              gap: '0.5rem',
               cursor: 'pointer',
               minWidth: 0,
             }}
             onClick={() => handleNavClick('landing')}
             title="Curlset Multimodal Platform"
           >
-            <div className="brand-icon" style={{ flexShrink: 0 }}>
-              <img
-                src={curlsetIcon}
-                alt="Curlset Logo"
-                style={{ width: '24px', height: '24px', objectFit: 'contain', display: 'block' }}
-              />
-            </div>
-            {!isCollapsed && (
-              <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                <div className="brand-title" style={{ whiteSpace: 'nowrap' }}>Curlset</div>
-                <div className="brand-subtitle" style={{ whiteSpace: 'nowrap' }}>Multimodal Platform</div>
+            {isCollapsed ? (
+              <img src={curlsetMark} alt="Curlset" className="brand-mark" />
+            ) : (
+              <div className="brand-lockup">
+                <img src={curlsetLogoLight} alt="Curlset" className="brand-logo brand-logo--light" />
+                <img src={curlsetLogoDark} alt="Curlset" className="brand-logo brand-logo--dark" />
               </div>
             )}
           </div>

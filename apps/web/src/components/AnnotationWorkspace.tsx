@@ -6,6 +6,8 @@ import {
   createAnnotation,
   updateAnnotation,
   transitionReviewStatus,
+  bulkReviewRecords,
+  ApiError,
 } from '../api';
 import { Dataset, RecordQueueItem, RecordDetail } from '../types';
 import { ObjectDetectionCanvas, BoundingBox } from './ObjectDetectionCanvas';
@@ -52,6 +54,35 @@ interface AnnotationWorkspaceProps {
   onBack: () => void;
 }
 
+interface BulkReviewIssue {
+  record_id: string;
+  reason: string;
+}
+
+interface BulkReviewOutcome {
+  action: 'approved' | 'rejected';
+  updatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  updatedIds: string[];
+  skippedIds: string[];
+  skipped: BulkReviewIssue[];
+  errors: BulkReviewIssue[];
+}
+
+/** Normalises per-item skip/error entries from the bulk-review response. */
+function normalizeBulkIssues(raw: unknown): BulkReviewIssue[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry: any) => {
+    if (typeof entry === 'string') {
+      return { record_id: entry, reason: 'No detail reported' };
+    }
+    const recordId = String(entry?.record_id ?? entry?.id ?? entry?.record ?? 'unknown');
+    const reason = String(entry?.reason ?? entry?.message ?? entry?.status ?? 'No detail reported');
+    return { record_id: recordId, reason };
+  });
+}
+
 export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ dataset, onBack }) => {
   const [queue, setQueue] = useState<RecordQueueItem[]>([]);
   const [totalQueue, setTotalQueue] = useState(0);
@@ -77,6 +108,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(1.0);
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
+  // Keyboard shortcuts live in a window listener whose closure can go stale (it once saved an
+  // empty box list after drawing). Always call the latest handler through a ref instead.
+  const saveHandlerRef = useRef<() => void>(() => {});
   const [canvasImageDims, setCanvasImageDims] = useState<{ width: number; height: number } | null>(null);
   const [activeCoordSystem, setActiveCoordSystem] = useState<string | null>(null);
   const [isLegacyRecord, setIsLegacyRecord] = useState<boolean>(false);
@@ -106,6 +140,12 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Bulk review (queue-level approve/reject) state
+  const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
+  const [bulkReviewAction, setBulkReviewAction] = useState<'approved' | 'rejected' | null>(null);
+  const [bulkReviewOutcome, setBulkReviewOutcome] = useState<BulkReviewOutcome | null>(null);
+  const [bulkReviewError, setBulkReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.classList.add('workbench-active');
@@ -367,6 +407,13 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     try {
       const payload: Record<string, any> = {};
 
+      // A detection annotation with zero boxes is almost always an accidental save (it carries no
+      // supervision signal). Require a drawn box; negatives can be handled by an explicit review state.
+      if (dataset.task_type === 'object_detection' && boxes.length === 0) {
+        showToast('Draw at least one bounding box before saving an object-detection annotation.');
+        return;
+      }
+
       if (dataset.task_type === 'audio_transcription') {
         payload.text = transcriptText;
         if (transcriptSegments.length > 0) {
@@ -451,14 +498,8 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         );
         showToast(`Updated '${labelToSave || 'annotation'}' (Revision added)`);
       } else {
-        await createAnnotation(
-          currentRecord.id,
-          payload,
-          'human',
-          'pending_review',
-          'default_user',
-          confidence
-        );
+        // origin/status are derived by the API from the authenticated actor + action.
+        await createAnnotation(currentRecord.id, payload, confidence);
         showToast(`Created annotation '${labelToSave || 'annotation'}'`);
       }
 
@@ -480,6 +521,10 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
   };
 
   // Review Status Transitions
+  useEffect(() => {
+    saveHandlerRef.current = () => { void handleSaveAnnotation(); };
+  });
+
   const handleReviewAction = async (
     action: 'approved' | 'rejected' | 'needs_correction',
     comment?: string
@@ -516,32 +561,110 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
     if (currentRecord?.annotation) {
       await handleReviewAction('rejected', 'Marked as Not Similar / Disagreement');
     } else if (currentRecord) {
-      setSaving(true);
-      try {
-        await createAnnotation(
-          currentRecord.id,
-          {
-            label: 'not_similar',
-            rationale: 'Reviewer marked as Not Similar / Disagreement',
-            ...(notes ? { notes } : {}),
-          },
-          'human',
-          'rejected',
-          'default_user',
-          confidence
-        );
-        showToast("Marked as 'Not Similar / Disagree' (Rejected)");
-        recordCache.current.delete(currentRecord.id);
-        await loadActiveRecord(currentRecord.id);
-        loadQueue();
-        if (currentFilteredIndex >= 0 && currentFilteredIndex < filteredQueue.length - 1) {
-          setSelectedRecordId(filteredQueue[currentFilteredIndex + 1].id);
-        }
-      } catch (err: any) {
-        showToast(`Failed: ${err.message}`);
-      } finally {
-        setSaving(false);
+      // Creating a synthetic "not_similar" label would either violate the dataset label
+      // schema or fabricate an annotation. Rejection is a review transition that needs an
+      // existing annotation, so state that plainly instead of writing a fake label.
+      showToast('This record has no annotation to review yet. Label it or run AI labeling first, then reject it.');
+    }
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /* Bulk review (multi-select queue -> approve/reject in one audited call)  */
+  /* ---------------------------------------------------------------------- */
+
+  const isBulkSelected = (recordId: string) => selectedRecordIds.includes(recordId);
+
+  const toggleBulkSelection = (recordId: string) => {
+    setBulkReviewOutcome(null);
+    setSelectedRecordIds((prev) =>
+      prev.includes(recordId) ? prev.filter((id) => id !== recordId) : [...prev, recordId]
+    );
+  };
+
+  const allFilteredSelected =
+    filteredQueue.length > 0 && filteredQueue.every((item) => selectedRecordIds.includes(item.id));
+
+  const toggleSelectAllFiltered = () => {
+    setBulkReviewOutcome(null);
+    if (allFilteredSelected) {
+      setSelectedRecordIds([]);
+    } else {
+      setSelectedRecordIds(filteredQueue.map((item) => item.id));
+    }
+  };
+
+  const runBulkReview = async (action: 'approved' | 'rejected') => {
+    if (selectedRecordIds.length === 0 || bulkReviewAction) return;
+    setBulkReviewAction(action);
+    setBulkReviewError(null);
+    setBulkReviewOutcome(null);
+    try {
+      const response = await bulkReviewRecords(
+        dataset.id,
+        selectedRecordIds,
+        action,
+        action === 'approved' ? 'Bulk approved from Annotation Workbench' : 'Bulk rejected from Annotation Workbench'
+      );
+
+      const skippedDetail = normalizeBulkIssues(response?.skipped);
+      const errors = normalizeBulkIssues(response?.errors);
+      const updatedRaw = response?.updated;
+      const updatedIdsFromContract = Array.isArray(response?.updated_ids)
+        ? response.updated_ids.map(String)
+        : Array.isArray(updatedRaw)
+        ? updatedRaw.map(String)
+        : [];
+      const skippedIds = Array.isArray(response?.skipped_ids)
+        ? response.skipped_ids.map(String)
+        : skippedDetail.map((entry) => entry.record_id);
+      const updatedCount =
+        typeof updatedRaw === 'number'
+          ? updatedRaw
+          : Array.isArray(updatedRaw)
+          ? updatedRaw.length
+          : typeof response?.updated_count === 'number'
+          ? response.updated_count
+          : updatedIdsFromContract.length;
+      const skippedCount =
+        typeof response?.skipped_count === 'number'
+          ? response.skipped_count
+          : typeof response?.skipped === 'number'
+          ? response.skipped
+          : skippedIds.length;
+      const errorCount = typeof response?.error_count === 'number' ? response.error_count : errors.length;
+
+      setBulkReviewOutcome({
+        action,
+        updatedCount,
+        skippedCount,
+        errorCount,
+        updatedIds: updatedIdsFromContract,
+        skippedIds,
+        skipped: skippedDetail,
+        errors,
+      });
+      setSelectedRecordIds([]);
+
+      // Drop cached copies of records whose review state changed, then refresh queue + active record.
+      updatedIdsFromContract.forEach((id) => recordCache.current.delete(id));
+      loadQueue();
+      const activeId = currentRecordRef.current?.id;
+      if (activeId && updatedIdsFromContract.includes(activeId)) {
+        await loadActiveRecord(activeId);
       }
+    } catch (err: any) {
+      const status = err instanceof ApiError ? err.status : 0;
+      if (status === 404 || status === 405) {
+        setBulkReviewError(
+          'Bulk review is not available on this backend yet (HTTP ' +
+            status +
+            '). No review changes were made.'
+        );
+      } else {
+        setBulkReviewError(err?.message || 'Bulk review request failed. No changes are confirmed.');
+      }
+    } finally {
+      setBulkReviewAction(null);
     }
   };
 
@@ -567,7 +690,7 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
         handleNavigatePrev();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        handleSaveAnnotation();
+        saveHandlerRef.current();
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         handleReviewAction('approved');
@@ -828,7 +951,9 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
               fontSize: '0.74rem',
             }}
           >
-            <span style={{ color: 'var(--text-secondary)' }}>Reviewed:</span>
+            <span style={{ color: 'var(--text-secondary)' }} title="Reviews are counted over the records loaded in this queue (up to 150), not the full dataset.">
+              Reviewed (loaded):
+            </span>
             <span style={{ fontWeight: 700, color: 'var(--accent-interactive)', fontFamily: 'var(--font-mono)' }}>
               {reviewedCount} / {queue.length}
             </span>
@@ -1082,6 +1207,84 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                   </button>
                 )}
               </div>
+
+              {/* Bulk review controls (multi-select queue -> one audited approve/reject call) */}
+              <div style={{ marginTop: '0.55rem', paddingTop: '0.55rem', borderTop: '1px solid var(--border-hairline)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: filteredQueue.length === 0 ? 'default' : 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAllFiltered}
+                      disabled={filteredQueue.length === 0 || bulkReviewAction !== null}
+                      aria-label="Select all filtered records for bulk review"
+                    />
+                    <span>Select all filtered</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {selectedRecordIds.length} selected
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ flex: 1, padding: '0.3rem 0.4rem', fontSize: '0.74rem' }}
+                    disabled={selectedRecordIds.length === 0 || bulkReviewAction !== null}
+                    onClick={() => runBulkReview('approved')}
+                    title="Approve every selected record"
+                  >
+                    {bulkReviewAction === 'approved' ? 'Approving...' : 'Approve selected'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ flex: 1, padding: '0.3rem 0.4rem', fontSize: '0.74rem', color: 'var(--rose)' }}
+                    disabled={selectedRecordIds.length === 0 || bulkReviewAction !== null}
+                    onClick={() => runBulkReview('rejected')}
+                    title="Reject every selected record"
+                  >
+                    {bulkReviewAction === 'rejected' ? 'Rejecting...' : 'Reject selected'}
+                  </button>
+                </div>
+                {bulkReviewError && (
+                  <div role="alert" style={{ padding: '0.4rem 0.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--rose)', borderRadius: 'var(--radius-xs)', color: 'var(--rose)', fontSize: '0.72rem', lineHeight: 1.4 }}>
+                    {bulkReviewError}
+                  </div>
+                )}
+                {bulkReviewOutcome && (
+                  <div role="status" style={{ padding: '0.45rem 0.55rem', background: 'var(--bg-elevated)', border: '1px solid var(--border-hairline)', borderRadius: 'var(--radius-xs)', fontSize: '0.72rem', lineHeight: 1.45 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Bulk {bulkReviewOutcome.action}: {bulkReviewOutcome.updatedCount} updated,{' '}
+                      {bulkReviewOutcome.skippedCount} skipped, {bulkReviewOutcome.errorCount} error(s)
+                    </div>
+                    {(bulkReviewOutcome.skippedIds.length > 0 || bulkReviewOutcome.skipped.length > 0) && (
+                      <div style={{ color: 'var(--amber)', marginTop: '0.2rem' }}>
+                        Skipped: {(bulkReviewOutcome.skippedIds.length > 0
+                          ? bulkReviewOutcome.skippedIds
+                          : bulkReviewOutcome.skipped.map((s) => s.record_id)
+                        )
+                          .slice(0, 3)
+                          .map((id) => id.slice(0, 8))
+                          .join(', ')}
+                        {(bulkReviewOutcome.skippedIds.length || bulkReviewOutcome.skipped.length) > 3
+                          ? ` +${(bulkReviewOutcome.skippedIds.length || bulkReviewOutcome.skipped.length) - 3} more`
+                          : ''}
+                      </div>
+                    )}
+                    {bulkReviewOutcome.errors.length > 0 && (
+                      <div style={{ color: 'var(--rose)', marginTop: '0.2rem' }}>
+                        Errors: {bulkReviewOutcome.errors.slice(0, 3).map((s) => `${s.record_id.slice(0, 8)} (${s.reason})`).join('; ')}
+                        {bulkReviewOutcome.errors.length > 3 ? `; +${bulkReviewOutcome.errors.length - 3} more` : ''}
+                      </div>
+                    )}
+                    <div style={{ color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Skipped records are records the API did not change (no annotation, already in the requested
+                      state, or a duplicate id). Errors list the reported reason.
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Queue Items List with Smooth Staggered Appearance */}
@@ -1170,17 +1373,27 @@ export const AnnotationWorkspace: React.FC<AnnotationWorkspaceProps> = ({ datase
                               />
                             )}
                             <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span
-                                  style={{
-                                    fontSize: '0.825rem',
-                                    fontFamily: 'var(--font-mono)',
-                                    fontWeight: isActive ? 700 : 500,
-                                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                  }}
-                                >
-                                  #{idx + 1} {item.external_key || item.id.slice(0, 8)}
-                                </span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.45rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isBulkSelected(item.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={() => toggleBulkSelection(item.id)}
+                                    aria-label={`Select record ${item.external_key || item.id} for bulk review`}
+                                    style={{ flexShrink: 0, cursor: 'pointer' }}
+                                  />
+                                  <span
+                                    style={{
+                                      fontSize: '0.825rem',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontWeight: isActive ? 700 : 500,
+                                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                    }}
+                                  >
+                                    #{idx + 1} {item.external_key || item.id.slice(0, 8)}
+                                  </span>
+                                </div>
                                 <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
                                   {item.review_status.replace(/_/g, ' ')}
                                 </span>

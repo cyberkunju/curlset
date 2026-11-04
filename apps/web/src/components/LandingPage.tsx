@@ -65,7 +65,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             margin: '0 auto 1rem auto',
           }}
         >
-          Turn Raw Multimodal Data into <span className="brand-gradient-text">Training-Ready Datasets</span>
+          Turn Raw Multimodal Data into <span className="brand-gradient-text">Reviewed, Versioned Datasets</span>
         </h1>
 
         <p
@@ -209,7 +209,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Interactive bounding-box canvas with <strong>Sobel magnetic edge-snapping</strong> (&lt;150ms). Audio transcription with segment scrubbing. Local AI model proposal generation via Ollama with consensus review.
+              Interactive bounding-box canvas with luminance-gradient edge snapping. Audio transcription with segment scrubbing. Model proposals are generated through the backend provider gateway and always land in pending review.
             </p>
           </div>
 
@@ -273,7 +273,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              All datasets and metadata are stored in local SQLite databases and local object directories. Data stays on your machine with zero external telemetry and zero mandatory cloud services.
+              Datasets and metadata are stored in a local SQLite database and a local object-storage directory by default. Provider calls happen only after you configure a provider; diagnostics are available under System Diagnostics.
             </p>
           </div>
         </div>

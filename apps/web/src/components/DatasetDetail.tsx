@@ -32,7 +32,7 @@ import {
   Check,
   Layers,
 } from 'lucide-react';
-import { fetchDatasetDetail, fetchDatasetQueue, fetchRecordDetail } from '../api';
+import { fetchDatasetDetail, fetchDatasetQueue, fetchRecordDetail, fetchGenerationJob, fetchProviders, startBoxProposals } from '../api';
 import { DatasetDetailResponse, RecordQueueItem } from '../types';
 import { AnnotationWorkspace } from './AnnotationWorkspace';
 import { SpringButton } from './ui/SpringButton';
@@ -49,6 +49,9 @@ const EvaluationModal = React.lazy(() => import('./EvaluationModal').then(m => (
 const AugmentationModal = React.lazy(() => import('./AugmentationModal').then(m => ({ default: m.AugmentationModal })));
 const VersionDiffModal = React.lazy(() => import('./VersionDiffModal').then(m => ({ default: m.VersionDiffModal })));
 const ClusterMapModal = React.lazy(() => import('./ClusterMapModal').then(m => ({ default: m.ClusterMapModal })));
+const EnsembleLab = React.lazy(() => import('./EnsembleLab').then(m => ({ default: m.EnsembleLab })));
+const GenerationLab = React.lazy(() => import('./GenerationLab').then(m => ({ default: m.GenerationLab })));
+const EditByDescriptionModal = React.lazy(() => import('./EditByDescriptionModal').then(m => ({ default: m.EditByDescriptionModal })));
 
 interface DatasetDetailProps {
   datasetId: string;
@@ -72,6 +75,12 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [isSynthesisOpen, setIsSynthesisOpen] = useState(false);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(false);
+  const [isEnsembleOpen, setIsEnsembleOpen] = useState(false);
+  const [isGenerationOpen, setIsGenerationOpen] = useState(false);
+  const [isEditByDescriptionOpen, setIsEditByDescriptionOpen] = useState(false);
+  const [proposalJob, setProposalJob] = useState<any | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  const [proposalRunning, setProposalRunning] = useState(false);
   const [isAugmentationOpen, setIsAugmentationOpen] = useState(false);
   const [isDiffOpen, setIsDiffOpen] = useState(false);
   const [isClusterMapOpen, setIsClusterMapOpen] = useState(false);
@@ -101,6 +110,51 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
     recStatus?: string;
     message: string;
   } | null>(null);
+
+  const runBoxProposals = async () => {
+    setProposalRunning(true);
+    setProposalError(null);
+    setProposalJob(null);
+    try {
+      const providers = await fetchProviders();
+      const detectors = (providers || []).filter((row: any) =>
+        Array.isArray(row?.capabilities) && row.capabilities.includes('object_detection'));
+      // Prefer the real SAM model over the offline fake detector.
+      const detector = detectors.find((row: any) => /sam/i.test(String(row.name))) ?? detectors[0];
+      if (!detector) throw new Error('No object-detection model is connected (expected meta-sam).');
+      const labels: string[] = (dataset?.label_schema?.labels as string[] | undefined) ?? [];
+      const created = await startBoxProposals(datasetId, {
+        concepts: labels.slice(0, 3),
+        provider: detector.name,
+        model: detector.models[0],
+        limit: 25,
+      });
+      if (created?.error) throw new Error(created.error.message || 'Could not start box proposals');
+      setProposalJob(created);
+      const poll = window.setInterval(async () => {
+        try {
+          const latest = await fetchGenerationJob(created.id);
+          setProposalJob(latest);
+          if (['completed', 'failed', 'cancelled', 'interrupted'].includes(latest.status)) {
+            window.clearInterval(poll);
+            setProposalRunning(false);
+            if (latest.status !== 'completed') {
+              setProposalError(latest.error || 'Box proposals stopped before finishing.');
+            } else {
+              await loadData();
+            }
+          }
+        } catch {
+          window.clearInterval(poll);
+          setProposalRunning(false);
+          setProposalError('Lost contact with the proposal job.');
+        }
+      }, 800);
+    } catch (err: any) {
+      setProposalRunning(false);
+      setProposalError(err?.message || 'Could not start box proposals');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -373,6 +427,25 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
         </div>
       </div>
 
+      {(proposalRunning || proposalJob || proposalError) && (
+        <div className="card" style={{ padding: '0.6rem 0.8rem', marginBottom: '1rem', borderColor: proposalError ? 'var(--rose)' : 'var(--border-hairline)' }}>
+          <div style={{ fontSize: '0.8rem' }}>
+            {proposalError
+              ? proposalError
+              : proposalRunning && proposalJob
+                ? `Detecting boxes… ${proposalJob.processed_items}/${proposalJob.total_items}`
+                : proposalJob?.status === 'completed'
+                  ? `Proposed ${proposalJob.boxes ?? 0} box(es) on ${proposalJob.accepted ?? 0} image(s) — pending review. Open the Annotation Workbench to accept, edit or delete them.`
+                  : 'Box proposals finished.'}
+          </div>
+          {proposalRunning && proposalJob && (
+            <div style={{ height: '4px', marginTop: '0.35rem', borderRadius: '999px', backgroundColor: 'var(--bg-elevated)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.round((proposalJob.progress || 0) * 100)}%`, backgroundColor: 'var(--accent-primary)', transition: 'width 300ms ease' }} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Collapsible Schema & Annotation Guidelines Drawer with Smooth Space Readjustment */}
       <AnimatePresence initial={false}>
         {isGuidelinesOpen && (
@@ -621,6 +694,26 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
             <SpringButton variant="secondary" onClick={() => setIsEvaluationOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
               <span>Evaluation</span>
             </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsEnsembleOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Multi-model labels</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsGenerationOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Generate more examples</span>
+            </SpringButton>
+            <SpringButton variant="secondary" onClick={() => setIsEditByDescriptionOpen(true)} style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}>
+              <span>Edit by description</span>
+            </SpringButton>
+            {dataset?.task_type === 'object_detection' && (
+              <SpringButton
+                variant="secondary"
+                onClick={runBoxProposals}
+                disabled={proposalRunning}
+                style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+                title="Run SAM 3.1 to propose boxes; results are pending review"
+              >
+                <span>{proposalRunning ? 'Proposing boxes…' : 'Propose boxes (AI)'}</span>
+              </SpringButton>
+            )}
           </div>
         </div>
 
@@ -1409,6 +1502,27 @@ export const DatasetDetail: React.FC<DatasetDetailProps> = ({ datasetId, onBack 
           isOpen={isEvaluationOpen}
           onClose={() => setIsEvaluationOpen(false)}
           onOpenSynthesize={() => setIsSynthesisOpen(true)}
+        />
+
+        <EnsembleLab
+          datasetId={datasetId}
+          isOpen={isEnsembleOpen}
+          onClose={() => setIsEnsembleOpen(false)}
+          onApplied={() => { void loadData(); }}
+        />
+
+        <GenerationLab
+          datasetId={datasetId}
+          isOpen={isGenerationOpen}
+          onClose={() => setIsGenerationOpen(false)}
+          onApplied={() => { void loadData(); }}
+        />
+
+        <EditByDescriptionModal
+          datasetId={datasetId}
+          isOpen={isEditByDescriptionOpen}
+          onClose={() => setIsEditByDescriptionOpen(false)}
+          onApplied={() => { void loadData(); }}
         />
       </React.Suspense>
     </div>

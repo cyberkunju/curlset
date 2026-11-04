@@ -378,6 +378,18 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
               <List size={15} strokeWidth={1.75} />
             </button>
           </div>
+
+          {/* Primary creation action lives in the toolbar so it is always reachable, even when the
+              page header is scrolled away, clipped, or the window is narrow. */}
+          <SpringButton
+            variant="primary"
+            onClick={() => setIsModalOpen(true)}
+            title="Create a new dataset in this project"
+            style={{ fontSize: '0.82rem', padding: '0.4rem 0.8rem' }}
+          >
+            <Plus size={15} strokeWidth={2.2} style={{ marginRight: '5px' }} />
+            <span>New Dataset</span>
+          </SpringButton>
         </div>
       </div>
 

@@ -29,7 +29,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'sk-ant-api03-...',
-      description: 'Supports vision, structured classification, and high-reasoning annotation.',
+      description: 'Access is routed through the backend provider gateway; vision and structured-output support are reported per provider.',
     };
   }
 
@@ -43,7 +43,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'gsk_...',
-      description: 'Ultra-fast LPU inference for real-time dataset filtering and batch runs.',
+      description: 'OpenAI-compatible endpoint; model availability is configured through the provider gateway.',
     };
   }
 
@@ -57,7 +57,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'AIzaSy...',
-      description: 'Massive context window and native multimodal audio/vision labeling.',
+      description: 'Google models are reached through an OpenAI-compatible endpoint in the provider gateway.',
     };
   }
 
@@ -71,7 +71,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'hf_...',
-      description: 'Open source models served via Hugging Face Serverless Inference.',
+      description: 'Hugging Face inference endpoint; registered as an OpenAI-compatible provider.',
     };
   }
 
@@ -86,7 +86,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresBaseUrl: true,
       defaultBaseUrl: 'http://localhost:11434',
       placeholderKey: 'No API key needed for local offline server',
-      description: 'Runs offline on your workstation with zero external network traffic.',
+      description: 'Local OpenAI-compatible server (default http://localhost:11434); no provider key required.',
     };
   }
 
@@ -100,7 +100,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'sk-...',
-      description: 'Cost-effective reasoning and code/text dataset engineering.',
+      description: 'OpenAI-compatible chat endpoint; capabilities depend on the configured model.',
     };
   }
 
@@ -114,7 +114,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'sk-...',
-      description: 'European open & frontier models for multilingual data synthesis.',
+      description: 'OpenAI-compatible endpoint; capabilities depend on the configured model.',
     };
   }
 
@@ -128,7 +128,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'co-...',
-      description: 'Specialized enterprise embeddings and reranking for dataset retrieval.',
+      description: 'OpenAI-compatible endpoint; capabilities depend on the configured model.',
     };
   }
 
@@ -142,7 +142,7 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
       requiresKey: true,
       requiresBaseUrl: false,
       placeholderKey: 'sk-proj-...',
-      description: 'High-accuracy GPT-4o multimodal vision and structured JSON outputs.',
+      description: 'OpenAI chat and vision models; capabilities depend on the configured model.',
     };
   }
 
@@ -156,6 +156,6 @@ export function detectProvider(rawInput: string): DetectedProviderInfo {
     requiresBaseUrl: true,
     defaultBaseUrl: 'http://localhost:8000/v1',
     placeholderKey: 'API key or Bearer token (optional for local)',
-    description: 'Any OpenAI-compatible server: vLLM, LM Studio, LocalAI, or private gateway.',
+    description: 'Any OpenAI-compatible server, for example vLLM, LM Studio, LocalAI, or a private gateway.',
   };
 }

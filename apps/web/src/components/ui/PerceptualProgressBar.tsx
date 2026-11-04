@@ -17,42 +17,20 @@ export interface PerceptualProgressProps {
   onComplete?: () => void;
 }
 
-const STAGE_MESSAGES: Record<NonNullable<PerceptualProgressProps['taskType']>, string[]> = {
-  ingest: [
-    'Inspecting magic-byte signatures & archive headers...',
-    'Streaming assets & computing SHA-256 checksums...',
-    'Calculating 64-bit perceptual pHash matrices...',
-    'Bundling multi-modal record pairs...',
-    'Indexing records & staging assets...',
-  ],
-  annotate: [
-    'Validating task schema against dataset configuration...',
-    'Dispatching multi-modal batches to provider gateway...',
-    'Running Critic verification & consensus scoring...',
-    'Normalizing spatial coordinates & confidence bounds...',
-    'Committing append-only annotation revisions...',
-  ],
-  validate: [
-    'Scanning schema contracts & required label ontologies...',
-    'Checking exact SHA-256 & perceptual pHash duplicate clusters...',
-    'Auditing train / val / test splits for cross-split leakage...',
-    'Running Confident Learning label-noise neighborhoods...',
-    'Compiling validation metrics & quality scorecard...',
-  ],
-  export: [
-    'Verifying immutable DatasetVersion cryptographic manifest...',
-    'Serializing records & transforming spatial coordinates...',
-    'Compiling automated Dataset Card (README.md) statistics...',
-    'Packaging archive & computing file SHA-256 digests...',
-    'Finalizing downloadable artifact...',
-  ],
-  synthesize: [
-    'Sampling seed records & target class distributions...',
-    'Generating candidate multi-modal variations...',
-    'Running 3-gram & perceptual anti-collapse diversity filter...',
-    'Attaching synthetic lineage & provenance metadata...',
-    'Staging synthetic candidates for review...',
-  ],
+/**
+ * Honest single-line status labels.
+ *
+ * This component renders only what it actually knows: an optional real backend
+ * percentage, an indeterminate state, completion or an error. It deliberately does
+ * NOT narrate fabricated backend stages — the client has no insight into which
+ * server-side step is executing, so claiming one would be invented telemetry.
+ */
+const TASK_STATUS_LABELS: Record<NonNullable<PerceptualProgressProps['taskType']>, string> = {
+  ingest: 'Importing records',
+  annotate: 'Running batch labeling',
+  validate: 'Running validation',
+  export: 'Generating export package',
+  synthesize: 'Generating synthetic samples',
 };
 
 export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
@@ -63,23 +41,6 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
   error = null,
   onComplete,
 }) => {
-  const [stageIndex, setStageIndex] = useState(0);
-
-  // Cycle stage micro-copy at a steady interval while active and no real backend percent
-  useEffect(() => {
-    if (!active) {
-      setStageIndex(0);
-      return;
-    }
-
-    const messages = STAGE_MESSAGES[taskType];
-    const interval = setInterval(() => {
-      setStageIndex((prev) => (prev + 1) % messages.length);
-    }, 2800);
-
-    return () => clearInterval(interval);
-  }, [active, taskType]);
-
   // Handle onComplete notification when genuine completion occurs
   useEffect(() => {
     if (completed && onComplete) {
@@ -98,7 +59,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
   // Do not render if the resolved state is hidden
   if (displayState.kind === 'hidden') return null;
 
-  const messages = STAGE_MESSAGES[taskType];
+  const statusLabel = TASK_STATUS_LABELS[taskType];
   const hasValidBackendPercent = displayState.clampedPercent !== null;
 
   return (
@@ -116,7 +77,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={hasValidBackendPercent ? Math.round(displayState.clampedPercent!) : undefined}
-      aria-label={messages[stageIndex]}
+      aria-label={statusLabel}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
@@ -141,7 +102,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
 
           <AnimatePresence mode="wait">
             <motion.span
-              key={error ? 'err' : completed ? 'done' : stageIndex}
+              key={error ? 'err' : completed ? 'done' : 'active'}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -155,7 +116,7 @@ export const PerceptualProgressBar: React.FC<PerceptualProgressProps> = ({
                 whiteSpace: 'nowrap',
               }}
             >
-              {error ? error : completed ? 'Operation completed successfully' : messages[stageIndex]}
+              {error ? error : completed ? 'Operation completed successfully' : statusLabel}
             </motion.span>
           </AnimatePresence>
         </div>

@@ -56,6 +56,17 @@ const EXPORT_FORMATS: FormatOption[] = [
     illustrativeTemplate: `id,text,label,split,media_path\nrec_001,"Sample input text",positive,train,assets/rec_001.jpg\nrec_002,"Second input sample",negative,train,assets/rec_002.jpg`,
   },
   {
+    id: 'image_bundle',
+    title: 'Image Bundle (images + labels)',
+    badge: 'Images',
+    category: 'Vision',
+    description: 'Self-contained image dataset: the exact stored images, labels.jsonl/labels.csv mapping, and full provenance — re-importable.',
+    illustrativeTemplate: `images/00000_bottle.png
+images/00001_bottle.png
+labels.jsonl
+{"record_id": "rec_001", "image": "images/00000_bottle.png", "label": "defect", "split": "train", "annotation_origin": "human"}`,
+  },
+  {
     id: 'jsonl',
     title: 'Structured JSONL',
     badge: 'LLM / VLM',
@@ -266,8 +277,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title="Training-Ready Dataset Exporter"
-      description="Generate reproducible training bundles bound to immutable version snapshots with live token capacity simulation"
+      title="Dataset Exporter"
+      description="Generate export bundles bound to immutable version snapshots, with a token/context capacity estimate for the selected target window"
       icon={<Package size={20} strokeWidth={1.75} style={{ color: 'var(--accent-interactive)' }} />}
       size="xl"
     >

@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { checkHealth, fetchProjects, fetchDatasetDetail } from './api';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { HomeDashboard } from './components/HomeDashboard';
+import { NewDatasetModal } from './components/NewDatasetModal';
+const GenerateWizard = React.lazy(() =>
+  import('./components/GenerateWizard').then((module) => ({ default: module.GenerateWizard })),
+);
+const LabelWizard = React.lazy(() =>
+  import('./components/LabelWizard').then((module) => ({ default: module.LabelWizard })),
+);
+import { CreateDatasetModal } from './components/CreateDatasetModal';
 import { DatasetDetail } from './components/DatasetDetail';
 import { Header, BreadcrumbItem } from './components/Header';
 import { LandingPage } from './components/LandingPage';
@@ -8,6 +17,7 @@ import { ProjectDetail } from './components/ProjectDetail';
 import { ProjectList } from './components/ProjectList';
 import { Sidebar } from './components/Sidebar';
 import { DirectionalPageTransition } from './components/ui/DirectionalPageTransition';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { FloatingScrollbar } from './components/ui/FloatingScrollbar';
 import { Project } from './types';
@@ -22,10 +32,10 @@ const ProvidersView = React.lazy(() =>
   import('./components/ProvidersView').then((m) => ({ default: m.ProvidersView }))
 );
 
-type ViewMode = 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance' | 'providers';
+type ViewMode = 'home' | 'landing' | 'projects' | 'project_detail' | 'dataset_detail' | 'health' | 'governance' | 'providers';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewMode>('landing');
+  const [currentView, setCurrentView] = useState<ViewMode>('home');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
   const [currentDatasetName, setCurrentDatasetName] = useState<string | null>(null);
@@ -37,6 +47,12 @@ export const App: React.FC = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createDatasetProjectId, setCreateDatasetProjectId] = useState<string | null>(null);
+  const [isGenerateWizardOpen, setIsGenerateWizardOpen] = useState(false);
+  const [isNewDatasetModalOpen, setIsNewDatasetModalOpen] = useState(false);
+  const [wizardDatasetType, setWizardDatasetType] = useState<string | undefined>(undefined);
+  const [isLabelWizardOpen, setIsLabelWizardOpen] = useState(false);
+  const [labelWizardDatasetId, setLabelWizardDatasetId] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState<any>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -105,8 +121,8 @@ export const App: React.FC = () => {
   // Sync with Browser Hash
   const syncFromHash = useCallback(() => {
     const raw = window.location.hash.replace(/^#\/?/, '');
-    if (!raw || raw === 'landing') {
-      setCurrentView('landing');
+    if (!raw || raw === 'home') {
+      setCurrentView('home');
     } else if (raw === 'projects') {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
@@ -179,8 +195,8 @@ export const App: React.FC = () => {
 
   const handleNavigate = (view: string) => {
     setDirection(-1);
-    if (view === 'landing') {
-      window.location.hash = 'landing';
+    if (view === 'home') {
+      window.location.hash = 'home';
     } else if (view === 'projects') {
       setSelectedProjectId(null);
       setSelectedDatasetId(null);
@@ -266,10 +282,16 @@ export const App: React.FC = () => {
 
         <div className="content-scroll-container" ref={scrollContainerRef}>
           <main className="content-body">
-            <DirectionalPageTransition
-              activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
-              direction={direction}
+            {/* Per-view containment: a failing view shows a recovery panel while the shell
+                (navigation, header) stays usable. Keyed by view so navigation resets it. */}
+            <ErrorBoundary
+              key={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
+              scope="current view"
             >
+              <DirectionalPageTransition
+                activeKey={`${currentView}_${selectedProjectId || ''}_${selectedDatasetId || ''}`}
+                direction={direction}
+              >
               {currentView === 'landing' && (
                 <LandingPage
                   onOpenProjects={() => handleNavigate('projects')}
@@ -280,12 +302,26 @@ export const App: React.FC = () => {
                 />
               )}
 
+              {currentView === 'home' && (
+                <HomeDashboard
+                  projects={projects}
+                  onOpenProjects={() => handleNavigate('projects')}
+                  onSelectProject={handleSelectProject}
+                  onOpenDataset={handleSelectDataset}
+                  onStartGenerate={() => { setWizardDatasetType(undefined); setIsGenerateWizardOpen(true); }}
+                  onStartLabel={() => { setLabelWizardDatasetId(null); setIsLabelWizardOpen(true); }}
+                  onNewProject={() => setIsCreateModalOpen(true)}
+                  onNewDataset={() => setIsNewDatasetModalOpen(true)}
+                />
+              )}
+
               {currentView === 'projects' && (
                 <ProjectList
                   projects={projects}
                   loading={loading}
                   onSelectProject={handleSelectProject}
                   onOpenCreateModal={() => setIsCreateModalOpen(true)}
+                  onCreateDataset={(projectId) => setCreateDatasetProjectId(projectId)}
                   includeArchived={includeArchived}
                   onToggleArchived={setIncludeArchived}
                   searchQuery={searchQuery}
@@ -331,6 +367,7 @@ export const App: React.FC = () => {
                 </React.Suspense>
               )}
             </DirectionalPageTransition>
+            </ErrorBoundary>
           </main>
 
           {/* Sleek, auto-hiding scrollbar strictly inside scrollable content area */}
@@ -348,6 +385,49 @@ export const App: React.FC = () => {
         onOpenCreateProject={() => setIsCreateModalOpen(true)}
       />
 
+
+
+      {/* Simple-mode labeling wizard */}
+      <React.Suspense fallback={null}>
+      <LabelWizard
+        isOpen={isLabelWizardOpen}
+        onClose={() => setIsLabelWizardOpen(false)}
+        onOpenDataset={(datasetId) => { setIsLabelWizardOpen(false); handleSelectDataset(datasetId); }}
+        initialDatasetId={labelWizardDatasetId}
+      />
+      </React.Suspense>
+
+
+      {/* New dataset type chooser */}
+      <NewDatasetModal
+        isOpen={isNewDatasetModalOpen}
+        onClose={() => setIsNewDatasetModalOpen(false)}
+        onUseWizard={(datasetTypeId) => {
+          setIsNewDatasetModalOpen(false);
+          setWizardDatasetType(datasetTypeId);
+          setIsGenerateWizardOpen(true);
+        }}
+        onOpenDataset={(datasetId) => {
+          setIsNewDatasetModalOpen(false);
+          handleSelectDataset(datasetId);
+        }}
+      />
+
+      {/* Simple-mode generation wizard (lazy: keeps the Home route small) */}
+      <React.Suspense fallback={null}>
+      <GenerateWizard
+        isOpen={isGenerateWizardOpen}
+        onClose={() => { setIsGenerateWizardOpen(false); setWizardDatasetType(undefined); }}
+        initialDatasetType={wizardDatasetType}
+        onOpenDataset={handleSelectDataset}
+        onStartLabeling={(datasetId) => {
+          setIsGenerateWizardOpen(false);
+          setLabelWizardDatasetId(datasetId);
+          setIsLabelWizardOpen(true);
+        }}
+      />
+      </React.Suspense>
+
       {/* Create Project Dialog */}
       <CreateProjectModal
         isOpen={isCreateModalOpen}
@@ -358,6 +438,20 @@ export const App: React.FC = () => {
           handleSelectProject(newProj.id);
         }}
       />
+
+      {/* Create Dataset dialog, reachable directly from a project card */}
+      {createDatasetProjectId && (
+        <CreateDatasetModal
+          projectId={createDatasetProjectId}
+          isOpen={Boolean(createDatasetProjectId)}
+          onClose={() => setCreateDatasetProjectId(null)}
+          onCreated={() => {
+            const projectId = createDatasetProjectId;
+            setCreateDatasetProjectId(null);
+            if (projectId) handleSelectProject(projectId);
+          }}
+        />
+      )}
     </div>
   );
 };
