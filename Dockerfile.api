@@ -10,13 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies first for efficient layer caching
-COPY pyproject.toml /app/
+COPY pyproject.toml README.md LICENSE /app/
+COPY packages /app/packages
+COPY services /app/services
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir .
 
-# Copy application packages, services, examples, and scripts
-COPY packages /app/packages
-COPY services /app/services
 COPY examples /app/examples
 COPY scripts /app/scripts
 

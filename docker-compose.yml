@@ -1,94 +1,43 @@
 version: '3.8'
 
+# This Compose file reproduces the SUPPORTED local configuration:
+# single API process (in-process jobs), React web build served by Nginx,
+# SQLite metadata and local filesystem storage on a named volume.
+# PostgreSQL, Redis, S3 and a separate worker are NOT wired; see docs/ROADMAP.md.
+
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: dataset-platform-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-dataset_platform}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: dataset-platform-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
-    container_name: dataset-platform-api
+    container_name: curlset-api
     restart: unless-stopped
     environment:
-      ENVIRONMENT: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-dataset_platform}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: sqlite:////app/data/curlset.db
       STORAGE_BACKEND: local
       LOCAL_STORAGE_DIR: /app/data/storage
-      WORKER_MODE: background
+      WORKER_MODE: inline
       PRIVACY_MODE: ${PRIVACY_MODE:-local_only}
       SECRET_KEY: ${SECRET_KEY:-insecure-default-change-me-in-production}
+      ALLOW_SIMULATED_PROVIDERS: ${ALLOW_SIMULATED_PROVIDERS:-false}
+      ENABLE_LIVE_IMAGE_PROVIDERS: ${ENABLE_LIVE_IMAGE_PROVIDERS:-false}
     volumes:
-      - platform_storage:/app/data/storage
+      - platform_data:/app/data
     ports:
       - "${API_PORT:-8000}:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
-
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    container_name: dataset-platform-worker
-    restart: unless-stopped
-    command: ["python", "-m", "services.api.worker"]
-    environment:
-      ENVIRONMENT: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-dataset_platform}
-      STORAGE_BACKEND: local
-      LOCAL_STORAGE_DIR: /app/data/storage
-      WORKER_MODE: background
-      PRIVACY_MODE: ${PRIVACY_MODE:-local_only}
-      SECRET_KEY: ${SECRET_KEY:-insecure-default-change-me-in-production}
-    volumes:
-      - platform_storage:/app/data/storage
-    depends_on:
-      api:
-        condition: service_healthy
+      start_period: 15s
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
-    container_name: dataset-platform-web
+    container_name: curlset-web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-5173}:80"
@@ -97,9 +46,5 @@ services:
         condition: service_healthy
 
 volumes:
-  postgres_data:
-    name: dataset_platform_postgres_data
-  redis_data:
-    name: dataset_platform_redis_data
-  platform_storage:
-    name: dataset_platform_storage
+  platform_data:
+    name: curlset_platform_data

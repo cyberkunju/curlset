@@ -121,7 +121,7 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
         session.add(ds_text)
         session.flush()
 
-        # Canonical text dataset shape (see docs/TEXT_MVP.md):
+        # Canonical text dataset shape (see docs/STATUS.md):
         #   input text lives in record.extra_metadata["text"],
         #   the decided label lives in annotation.payload["label"].
         sample_texts = [

@@ -12,7 +12,13 @@
     "test:integrity": "node --experimental-strip-types tests/ui_integrity.test.ts",
     "e2e:ui": "node e2e/ui-smoke.mjs",
     "e2e:ui:large": "node e2e/ui-large-run.mjs",
-    "e2e:ui:image": "node e2e/ui-image-label.mjs"
+    "e2e:ui:image": "node e2e/ui-image-label.mjs",
+    "e2e:logo": "node e2e/logo-check.mjs",
+    "e2e:proposals": "node e2e/ui-proposals.mjs",
+    "e2e:export": "node e2e/ui-export-bundle.mjs",
+    "e2e:gen": "node e2e/ui-image-gen.mjs",
+    "e2e:boxing": "node e2e/ui-detection-boxing.mjs",
+    "e2e:types": "node e2e/ui-dataset-types.mjs"
   },
   "dependencies": {
     "boneyard-js": "^1.10.0",

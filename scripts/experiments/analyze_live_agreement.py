@@ -11,7 +11,7 @@ paid for (no model calls):
   * pairwise agreement and the conditional probability that the odd-one-out is right.
 
 Usage:
-    python scripts/analyze_live_agreement.py --db ./data/hard.db
+    python scripts/experiments/analyze_live_agreement.py --db ./data/hard.db
 """
 from __future__ import annotations
 

@@ -14,9 +14,9 @@ No provider keys required: by default it registers three *simulated* models with
 profiles. It writes JSON + a markdown report under experiments/.
 
 Usage:
-    python scripts/ensemble_experiment.py --scenario diverse
-    python scripts/ensemble_experiment.py --scenario correlated --hard-rate 0.6
-    python scripts/ensemble_experiment.py --help
+    python scripts/experiments/ensemble_experiment.py --scenario diverse
+    python scripts/experiments/ensemble_experiment.py --scenario correlated --hard-rate 0.6
+    python scripts/experiments/ensemble_experiment.py --help
 """
 from __future__ import annotations
 

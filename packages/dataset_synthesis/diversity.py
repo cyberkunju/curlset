@@ -10,10 +10,10 @@ The failure modes are well known and all of them are cheap to detect:
   * **class flooding** — generated data swamps the natural class distribution.
 
 This module implements the deterministic, provider-independent part. Label-preservation is checked
-by the caller (`scripts/generation_experiment.py` uses the ensemble; production can use any
+by the caller (`scripts/experiments/generation_experiment.py` uses the ensemble; production can use any
 verifier), because it needs model calls.
 
-Everything here is pure: text in, verdicts out. Design: docs/ENSEMBLE_PSEUDO_LABELING.md §6.
+Everything here is pure: text in, verdicts out. Design: docs/LABELING.md §6.
 """
 from __future__ import annotations
 

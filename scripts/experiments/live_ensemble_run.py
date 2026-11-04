@@ -6,8 +6,8 @@ and drives the production pipeline: import gold fixture -> fan-out to 3 real mod
 weight -> aggregate -> threshold -> route -> correlated-error audit.
 
 Usage:
-    python scripts/live_ensemble_run.py --limit 20            # pilot
-    python scripts/live_ensemble_run.py --limit 200 --concurrency 6
+    python scripts/experiments/live_ensemble_run.py --limit 20            # pilot
+    python scripts/experiments/live_ensemble_run.py --limit 200 --concurrency 6
 """
 from __future__ import annotations
 

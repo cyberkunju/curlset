@@ -19,7 +19,7 @@ Gold labels are authored per template (one intent each), which keeps ground trut
 though the surface is noisy. Target model accuracy: roughly 70-85%.
 
 Usage:
-    python scripts/generate_hard_fixture.py [--per-class 75] [--seed 11]
+    python scripts/fixtures/generate_hard_fixture.py [--per-class 75] [--seed 11]
 """
 from __future__ import annotations
 

@@ -9,7 +9,7 @@ phrasing + slot fillers, which makes ground truth unambiguous for measurement wh
 requiring the model to read the sentence (not just match one keyword).
 
 Usage:
-    python scripts/generate_text_fixture.py [--per-class 50] [--seed 42]
+    python scripts/fixtures/generate_text_fixture.py [--per-class 50] [--seed 42]
 """
 from __future__ import annotations
 
