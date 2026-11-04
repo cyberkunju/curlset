@@ -63,10 +63,10 @@ def test_grouped_cross_fitting_refuses_to_score_leaked_duplicates() -> None:
 
     from sklearn.linear_model import LogisticRegression
 
-    rng = np.random.default_rng(0)
-    order = rng.permutation(len(y))
-    cut = len(y) // 2
-    tr, te = order[:cut], order[cut:]
+    # Deterministic leak: every test row has an exact duplicate in train (same group, same vector),
+    # so a row-level split cannot fail to memorise it.
+    tr = [i for i in range(len(y)) if i % 2 == 0]
+    te = [i for i in range(len(y)) if i % 2 == 1]
     leaky = LogisticRegression(max_iter=4000).fit(X[tr], y[tr]).predict(X[te])
     leaky_acc = float(np.mean(leaky == y[te]))
 
@@ -81,10 +81,12 @@ def test_fold_count_larger_than_group_count_is_rejected() -> None:
 
 def test_risk_coverage_curve_uses_the_fitted_confidence() -> None:
     labels = ["a", "a", "a", "b", "b", "b"]
-    preds = ["a", "a", "x", "b", "b", "x"]
+    # Two wrong predictions that still carry the predicted class's probability (the realistic case):
+    # idx 2 (pred b, truth a) and idx 5 (pred a, truth b).
+    preds = ["a", "a", "b", "b", "b", "a"]
     proba = [
-        {"a": 0.99}, {"a": 0.95}, {"a": 0.60},
-        {"b": 0.90}, {"b": 0.70}, {"b": 0.55},
+        {"a": 0.99}, {"a": 0.95}, {"b": 0.60},
+        {"b": 0.90}, {"b": 0.70}, {"a": 0.55},
     ]
     curve = risk_coverage_curve(labels, preds, proba, steps=6)
     assert curve, "curve should not be empty"
