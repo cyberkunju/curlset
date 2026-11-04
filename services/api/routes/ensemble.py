@@ -1,7 +1,7 @@
 """
 Ensemble pseudo-labeling API.
 
-Exposes the confidence-weighted multi-model ensemble (docs/ENSEMBLE_PSEUDO_LABELING.md):
+Exposes the confidence-weighted multi-model ensemble (docs/LABELING.md):
 
   * ``POST /datasets/{id}/ensemble/label``  — run fan-out + aggregation + routing, optionally
     materialising auto-accepted labels as ``origin=ensemble`` candidates;

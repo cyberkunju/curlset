@@ -3,7 +3,7 @@ Canonical catalogue of dataset types the platform knows about.
 
 One source of truth for the API and the UI: which types exist, which are **available now**, which are
 **beta** (engine + workbench exist, guided flow not finished), and which are **planned**. The UI must
-never offer a type as working unless its status says so (see docs/DATASET_TYPES_PLAN.md).
+never offer a type as working unless its status says so (see docs/MODALITIES.md).
 
 Statuses
 --------

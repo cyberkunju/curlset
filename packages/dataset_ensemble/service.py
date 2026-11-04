@@ -13,7 +13,7 @@ It deliberately keeps the *measurement* honest:
   * the correlated-error diagnostic is computed and surfaced, because high error correlation
     inflates ensemble confidence and is the main way an ensemble quietly lies.
 
-Design: docs/ENSEMBLE_PSEUDO_LABELING.md
+Design: docs/LABELING.md
 """
 from __future__ import annotations
 

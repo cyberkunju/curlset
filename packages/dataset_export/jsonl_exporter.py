@@ -1,7 +1,7 @@
 """
 JSONL Exporter for converting versioned dataset records into structured JSON Lines format.
 
-Text MVP contract (docs/TEXT_MVP.md §0): the canonical input text for text tasks lives in
+Text MVP contract (docs/STATUS.md §0): the canonical input text for text tasks lives in
 ``record.metadata["text"]`` (Record.extra_metadata, frozen into the version manifest).
 ``Annotation.payload["text"]`` is *not* a text field for ``text_classification``; it is
 only accepted as a fallback for audio/OCR tasks where the transcription payload is the

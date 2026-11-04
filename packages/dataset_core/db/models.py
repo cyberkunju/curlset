@@ -350,7 +350,7 @@ class EvaluationRunModel(Base):
 class EnsembleVoteModel(Base):
     """One model's raw judgment about one record — the evidence base for ensemble labeling.
 
-    Design: docs/ENSEMBLE_PSEUDO_LABELING.md. Votes are stored *before* aggregation so that
+    Design: docs/LABELING.md. Votes are stored *before* aggregation so that
     calibration, weighting and thresholds can be recomputed without re-paying for inference.
     The unique key makes fan-out idempotent: re-running never double-bills the same call.
     """

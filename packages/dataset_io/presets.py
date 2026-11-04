@@ -6,7 +6,7 @@ Generates tailored directory structures, configurations, and conversation format
 3. LLaMA-Factory (Dataset bundle + dataset_info.json registry with SHA-256)
 4. Ultralytics YOLO v8/v11 (images/, labels/, classes.txt, data.yaml)
 
-Text MVP contract (docs/TEXT_MVP.md §0): every text preset reads the real input text from
+Text MVP contract (docs/STATUS.md §0): every text preset reads the real input text from
 ``record.metadata["text"]``. ``annotation.payload["text"]`` is only a fallback for
 audio_transcription / document_ocr records. Fabricated instruction/response placeholders
 are never emitted, and an empty split produces an empty file instead of aliasing train.

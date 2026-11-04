@@ -6,7 +6,7 @@ the annotation POST used to accept ``{"origin": "human", "status": "approved",
 "actor_id": "..."}`` and persist an already-approved "human" label without any
 review decision, and the API trusted client-supplied actors.
 
-Contract under test (docs/TEXT_MVP.md B1-B5):
+Contract under test (docs/STATUS.md B1-B5):
 - B1 manual labeling always creates origin=human / status=pending_review; review
   decisions only via POST /annotations/{id}/transition (FSM + ReviewEvent).
 - B2 body-supplied origin/status/actor_id can never produce an approved label or

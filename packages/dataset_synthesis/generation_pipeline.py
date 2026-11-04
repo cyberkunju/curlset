@@ -13,7 +13,7 @@ Non-negotiable rules encoded here:
     so a reviewer can audit or delete it later;
   * the class-share cap prevents synthetic data from flooding a class's distribution.
 
-Design: docs/ENSEMBLE_PSEUDO_LABELING.md §6.
+Design: docs/LABELING.md §6.
 """
 from __future__ import annotations
 

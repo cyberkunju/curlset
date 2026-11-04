@@ -727,7 +727,7 @@ console.log('--- Running UI Integrity & Regression Unit Tests (Phase R8) ---');
   assert.ok(apiIngestion, 'API Ingestion policy must exist');
   assert.equal(apiIngestion?.isEnforced, false);
   assert.equal(apiIngestion?.tier, 'Documented Operational Tier');
-  assert.ok(apiIngestion?.source.includes('DESIGN.md'));
+  assert.ok(apiIngestion?.source.includes('ARCHITECTURE.md'));
 
   console.log('✓ Rate limiting truthfulness verified (active routes vs documented operational tiers)');
 }

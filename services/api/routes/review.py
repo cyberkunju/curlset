@@ -1,7 +1,7 @@
 """
 Bulk review endpoint: apply one auditable review decision to many records at once.
 
-Contract (docs/TEXT_MVP.md B4):
+Contract (docs/STATUS.md B4):
     POST /api/v1/datasets/{dataset_id}/review/bulk
     body {"record_ids": [...], "action": "approve"|"reject"|"needs_correction", "reason": str|None}
     -> {"updated": n, "skipped": m, "errors": [{record_id, reason}, ...]}

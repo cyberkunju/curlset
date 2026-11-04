@@ -164,7 +164,7 @@ export async function fetchRecordDetail(recordId: string): Promise<any> {
  *
  * `origin` and `status` are deliberately NOT sent: the API derives them from the
  * authenticated actor and the action performed (human/manual -> origin=human,
- * status=pending_review). See docs/TEXT_MVP.md §0 rule 3.
+ * status=pending_review). See docs/STATUS.md §0 rule 3.
  */
 export async function createAnnotation(
   recordId: string,

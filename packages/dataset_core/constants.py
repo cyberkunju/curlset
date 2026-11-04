@@ -20,7 +20,7 @@ class AnnotationOrigin(str, Enum):
     RULE_GENERATED = "rule_generated"
     SYNTHETIC = "synthetic"
     AUGMENTED = "augmented"
-    #: Aggregated multi-model pseudo-label (docs/ENSEMBLE_PSEUDO_LABELING.md). Always paired with
+    #: Aggregated multi-model pseudo-label (docs/LABELING.md). Always paired with
     #: status="pending_review": an ensemble candidate is not a human approval.
     ENSEMBLE = "ensemble"
 
@@ -94,7 +94,7 @@ class ExportFormat(str, Enum):
 
 
 # Centralized Review State Machine
-# Enforces legal review transitions as specified in docs/DESIGN.md and docs/REQUIREMENTS.md
+# Enforces legal review transitions as specified in docs/ARCHITECTURE.md and docs/REQUIREMENTS.md
 VALID_REVIEW_TRANSITIONS: dict[ReviewStatus, set[ReviewStatus]] = {
     ReviewStatus.PROPOSED: {
         ReviewStatus.PENDING_REVIEW,

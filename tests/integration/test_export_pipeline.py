@@ -22,7 +22,7 @@ def setup_function():
 def _create_approved_annotation(record_id: str, payload: dict) -> None:
     """Create an annotation through the API, then approve it via the review FSM.
 
-    Trust boundary (docs/TEXT_MVP.md §0 rule 3): ``POST /records/{id}/annotations``
+    Trust boundary (docs/STATUS.md §0 rule 3): ``POST /records/{id}/annotations``
     always creates ``origin="human"`` + ``status="pending_review"``; the review decision
     must go through ``POST /annotations/{id}/transition``.
     """

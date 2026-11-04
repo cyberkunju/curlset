@@ -27,7 +27,7 @@ def get_auth_user(x_user_id: str | None = Header(None)) -> str:
     Resolve the acting principal for the current request.
 
     This is the *only* accepted source of actor identity: the ``X-User-Id``
-    request header. It is never read from a JSON body (see docs/TEXT_MVP.md §0
+    request header. It is never read from a JSON body (see docs/STATUS.md §0
     rule 3 — ``origin``/``status``/``actor_id`` are server-derived only).
 
     Local single-user mode: an absent/blank header resolves to ``"default_user"``
@@ -38,7 +38,7 @@ def get_auth_user(x_user_id: str | None = Header(None)) -> str:
 
     NOTE: the header itself is trivially forgeable by any client that can reach
     the API. Real authentication is explicitly out of scope for this MVP
-    (docs/TEXT_MVP.md §2); this function makes the *derivation* trustworthy and
+    (docs/STATUS.md §2); this function makes the *derivation* trustworthy and
     keeps every audit row/actor id server-derived rather than body-supplied.
     """
     if not x_user_id:

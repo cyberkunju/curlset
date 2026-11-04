@@ -113,7 +113,7 @@ def test_clean_approved_dataset_passes_quality_check():
         )
         ds_id = ds.id
 
-        # Canonical text contract (docs/TEXT_MVP.md §0): input text must live in
+        # Canonical text contract (docs/STATUS.md §0): input text must live in
         # record.metadata["text"]; the text asset below is lineage only.
         r = RecordService.create_record(
             session,

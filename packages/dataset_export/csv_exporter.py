@@ -1,7 +1,7 @@
 """
 CSV Exporter for converting versioned dataset records into standard CSV format.
 
-Text MVP contract (docs/TEXT_MVP.md §0): ``record.metadata["text"]`` is the canonical
+Text MVP contract (docs/STATUS.md §0): ``record.metadata["text"]`` is the canonical
 input text and ``annotation.payload["label"]`` is the decided label. Both are emitted as
 explicit columns and never fabricated. Unknown metadata keys are preserved as extra
 columns; nested values are JSON-encoded so the file stays machine-parseable.

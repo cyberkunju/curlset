@@ -1,7 +1,7 @@
 """
 Confidence-Weighted Multi-Model Ensemble Pseudo-Labeling (CW-MME-PL).
 
-Design: docs/ENSEMBLE_PSEUDO_LABELING.md
+Design: docs/LABELING.md
 
 This package is deliberately divided into pure math (no I/O, no DB, no network) and
 orchestration that uses it. The pure part — calibration, aggregation, weights, selection —

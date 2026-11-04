@@ -3,7 +3,7 @@ Token pricing and cost estimation for provider calls.
 
 Why this exists: the ensemble fan-out has a hard USD budget cap, but the OpenAI-compatible adapter
 reported ``estimated_cost_usd = 0`` for every call, so the cap could never trigger — a real spend
-hazard discovered during live runs (see docs/ENSEMBLE_PSEUDO_LABELING.md "Cost post-mortem").
+hazard discovered during live runs (see docs/LABELING.md "Cost post-mortem").
 
 Pricing is **configuration**, not code: public list prices change and self-hosted endpoints have
 their own economics. Set ``PROVIDER_PRICES`` as a JSON object mapping a provider/model prefix to

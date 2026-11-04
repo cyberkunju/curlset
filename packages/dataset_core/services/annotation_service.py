@@ -2,7 +2,7 @@
 Annotation service managing task-specific annotations, append-only revisions,
 and auditable review state transitions.
 
-Trust boundary (docs/TEXT_MVP.md §0 rule 3):
+Trust boundary (docs/STATUS.md §0 rule 3):
 - ``origin`` / ``status`` / ``actor_id`` are NEVER accepted from a request body.
   The HTTP layer (``services/api/routes/annotations.py``) passes server-derived
   values only: origin=human + status=pending_review for manual labels, and the

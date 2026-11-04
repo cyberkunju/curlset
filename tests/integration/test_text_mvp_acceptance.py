@@ -1,4 +1,4 @@
-"""Independent black-box acceptance suite for docs/TEXT_MVP.md.
+"""Independent black-box acceptance suite for docs/STATUS.md.
 
 Owner: verifier (task-15). This file is the executable acceptance contract for the
 text vertical slice. It drives the REAL HTTP API through
@@ -7,7 +7,7 @@ ORM access is used to make assertions. The only non-HTTP imports are the app
 object itself, ``init_database`` (to create tables for an isolated DB) and Pillow
 (to synthesise a tiny PNG fixture).
 
-Each test maps to a criterion of docs/TEXT_MVP.md §1:
+Each test maps to a criterion of docs/STATUS.md §1:
 
     A1..A9  TestAImport
     B1..B5  TestBLabeling

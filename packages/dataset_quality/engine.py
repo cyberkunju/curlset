@@ -75,7 +75,7 @@ class QualityEngine:
         total_records = len(records)
 
         # TEXT-MVP canonical contract: for text tasks the input text lives only in
-        # record.extra_metadata["text"] (docs/TEXT_MVP.md §0). Rule ids C1/C2.
+        # record.extra_metadata["text"] (docs/STATUS.md §0). Rule ids C1/C2.
         is_text_dataset = dataset.task_type in {
             TaskType.TEXT_CLASSIFICATION.value,
             TaskType.PAIRED_IMAGE_TEXT.value,

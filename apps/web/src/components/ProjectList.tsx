@@ -19,7 +19,7 @@ import { CustomSelect } from './ui/CustomSelect';
 import { ProjectCardsSkeleton } from './ui/ProjectListSkeleton';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
-// Prepared spring physics configurations from docs/UI_MOTION_AND_LOADING_SPEC.md
+// Prepared spring physics configurations from docs/UI.md
 const CARD_SPRING = {
   type: 'spring' as const,
   stiffness: 440,

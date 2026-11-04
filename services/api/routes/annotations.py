@@ -1,7 +1,7 @@
 """
 Annotation endpoints: creation, append-only revisions, and review state machine transitions.
 
-Trust boundary (docs/TEXT_MVP.md §0 rule 3): ``origin``, ``status`` and
+Trust boundary (docs/STATUS.md §0 rule 3): ``origin``, ``status`` and
 ``actor_id`` are NEVER read from the request body on this router.
 
 * ``POST /api/v1/records/{record_id}/annotations`` always creates

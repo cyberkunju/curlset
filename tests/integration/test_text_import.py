@@ -1,4 +1,4 @@
-"""Integration tests for the TEXT-MVP import pipeline (docs/TEXT_MVP.md A1-A9).
+"""Integration tests for the TEXT-MVP import pipeline (docs/STATUS.md A1-A9).
 
 These tests drive ``IngestionService.ingest_bytes`` directly against an in-memory
 SQLite database and throw-away local storage, so they are independent of the API

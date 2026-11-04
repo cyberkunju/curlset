@@ -678,7 +678,7 @@ export const RATE_LIMIT_POLICIES: RateLimitPolicy[] = [
     name: 'API Ingestion',
     limit: '300 requests / 60s per token (Baseline Capacity)',
     tier: 'Documented Operational Tier',
-    source: 'docs/DESIGN.md & Hardening Specification',
+    source: 'docs/ARCHITECTURE.md & Hardening Specification',
     isEnforced: false,
   },
 ];

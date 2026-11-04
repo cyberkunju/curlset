@@ -1,5 +1,5 @@
 """
-Integration tests for TEXT_MVP §E — export criteria (docs/TEXT_MVP.md).
+Integration tests for TEXT_MVP §E — export criteria (docs/STATUS.md).
 
 E1: jsonl + csv contain the real input text (record.metadata["text"]) and the decided
     label (annotation.payload["label"]); no fabricated placeholders.

@@ -9,7 +9,7 @@ single row pipeline (:meth:`IngestionService._import_rows`) that:
   (``metadata["text"]`` / ``metadata["label"]`` / ``metadata["split"]``) with
   :mod:`packages.dataset_io.text_normalize`, preserving all original columns;
 * rejects malformed rows individually, with a row number and reason, so the good
-  rows of a file still import (docs/TEXT_MVP.md A4/A8);
+  rows of a file still import (docs/STATUS.md A4/A8);
 * runs every row inside a SQLAlchemy savepoint, so a failing row can never leave
   a flushed record behind without its processing-run item (A5);
 * deduplicates text content by ``(split, normalized-content hash)`` (A9): a repeat
@@ -79,7 +79,7 @@ from packages.dataset_io.text_normalize import (
 
 # Task types whose primary sample content is the record's text. A tabular row
 # without text cannot become a usable sample for these tasks, so it is rejected
-# (docs/TEXT_MVP.md A4/A8).
+# (docs/STATUS.md A4/A8).
 _TEXT_PRIMARY_TASK_TYPES: frozenset[str] = frozenset(
     {TaskType.TEXT_CLASSIFICATION.value, TaskType.PAIRED_IMAGE_TEXT.value}
 )
@@ -452,7 +452,7 @@ class IngestionService:
         img_bytes = zf.read(img_info)
         txt_bytes = zf.read(txt_info)
 
-        # The canonical contract (docs/TEXT_MVP.md §0) says metadata["text"] is the
+        # The canonical contract (docs/STATUS.md §0) says metadata["text"] is the
         # sample's text CONTENT. For a bundle that is the decoded .txt body, never
         # the paired filename (which would break workspace/AI labeling/exports and
         # make content-hash dedupe miss re-imports).
@@ -908,7 +908,7 @@ class IngestionService:
 
             if label is not None and dataset.task_type in _LABEL_ANNOTATION_TASK_TYPES:
                 # Imported pre-labeled data becomes a reviewable proposal; it is
-                # never auto-approved (docs/TEXT_MVP.md §0 rule 2 / A7).
+                # never auto-approved (docs/STATUS.md §0 rule 2 / A7).
                 AnnotationService.create_annotation(
                     session=session,
                     record_id=record.id,

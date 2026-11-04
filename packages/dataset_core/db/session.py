@@ -72,7 +72,7 @@ def _add_missing_sqlite_columns(engine: Engine) -> None:
     existing one. Without this, a new column (e.g. the generation-job heartbeat) breaks every query on
     an existing dev database with "no such column". The operation is additive and idempotent, which is
     the safe subset for local-first SQLite; a real migration tool is still the follow-up for hosted
-    deployments (see docs/EXECUTION_PLAN.md known limitations).
+    deployments (see docs/STATUS.md known limitations).
     """
     if engine.dialect.name != "sqlite":
         return
