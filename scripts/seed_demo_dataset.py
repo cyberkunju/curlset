@@ -40,7 +40,7 @@ def _load_or_generate_image(filename: str, fallback_shape: str = "circle", index
     if fixture_path.exists():
         try:
             return fixture_path.read_bytes()
-        except Exception as e:
+        except OSError as e:
             logger.warning("Could not read fixture %s: %s. Using synthetic fallback.", fixture_path, e)
 
     return _generate_synthetic_image(draw_shape=fallback_shape, index=index)
@@ -99,7 +99,9 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
             id="proj_demo_benchmark",
             name="Multimodal AI Engineering Benchmark",
             description="Comprehensive benchmark project showcasing text classification, visual object labeling, and workspace object detection.",
-            owner_id="usr_demo_lead",
+            # Must match the identity the web UI resolves to (no auth header => "default_user"),
+            # otherwise the seeded demo is invisible to GET /api/v1/projects.
+            owner_id="default_user",
         )
         session.add(proj)
         session.flush()
@@ -119,9 +121,18 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
         session.add(ds_text)
         session.flush()
 
+        # Canonical text dataset shape (see docs/TEXT_MVP.md):
+        #   input text lives in record.extra_metadata["text"],
+        #   the decided label lives in annotation.payload["label"].
         sample_texts = [
             ("I was charged twice for my subscription this month. Please issue a refund.", "billing", "train"),
-            ("Can you add dark mode and keyboard shortcuts to the annotation editor?", "feature_request", "val"),
+            ("Can you add dark mode and keyboard shortcuts to the annotation editor?", "feature_request", "train"),
+            ("The app crashes every time I upload a CSV file.", "technical_support", "train"),
+            ("How do I invite a teammate to review my dataset?", "general_inquiry", "train"),
+            ("My invoice shows a different amount than the plan I signed up for.", "billing", "val"),
+            ("Export to JSONL finishes but the downloaded archive is empty.", "technical_support", "val"),
+            ("Please add bulk actions so I can approve many records at once.", "feature_request", "test"),
+            ("Is there a way to see who approved a specific label?", "general_inquiry", "test"),
         ]
 
         for i, (text, label, split) in enumerate(sample_texts, start=1):
@@ -130,7 +141,12 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
                 dataset_id=ds_text.id,
                 split=split,
                 schema_version=1,
-                extra_metadata={"source": "customer_portal", "char_count": len(text)},
+                extra_metadata={
+                    "text": text,
+                    "label": label,
+                    "source": "customer_portal",
+                    "char_count": len(text),
+                },
             )
             session.add(rec)
             session.flush()
@@ -138,7 +154,7 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
             AnnotationService.create_annotation(
                 session=session,
                 record_id=rec.id,
-                payload={"text": text, "label": label},
+                payload={"label": label},
                 origin=AnnotationOrigin.HUMAN,
                 confidence=1.0,
                 status=ReviewStatus.APPROVED,
@@ -152,7 +168,7 @@ def seed_demo_data(engine=None, storage_dir=None, reset: bool = False) -> dict[s
             project_id=proj.id,
             name="Visual Species & Object Classifier",
             task_type=TaskType.IMAGE_CLASSIFICATION.value,
-            description="Realistic visual recognition dataset with high-resolution photographic samples.",
+            description="Image classification demo using AI-generated 1024x1024 sample images (fixtures under tests/fixtures/demo_images; generator metadata not recorded).",
             annotation_instructions="Identify the primary foreground subject: dog or cat.",
             label_schema={"labels": ["dog", "cat"]},
             schema_version=1,
