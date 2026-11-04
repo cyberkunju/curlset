@@ -26,11 +26,28 @@ class FakeProvider(BaseProvider):
         ProviderCapability.OBJECT_DETECTION,
         ProviderCapability.STRUCTURED_OUTPUT,
         ProviderCapability.TEXT_GENERATION,
-        ProviderCapability.IMAGE_GENERATION,
+        # NOTE: no IMAGE_GENERATION — this provider returns text samples, not image bytes.
     }
 
     def __init__(self, simulation_mode: str = "normal"):
         self.simulation_mode = simulation_mode
+
+    def detect(self, request: ProviderRequest) -> ProviderResponse:
+        """Deterministic offline boxes (truthful OBJECT_DETECTION capability)."""
+        concept = str((request.parameters or {}).get("concept") or "object")
+        return ProviderResponse(
+            payload={
+                "concept": concept,
+                "boxes": [{
+                    "x": 4, "y": 6, "width": 20, "height": 16, "confidence": 0.5,
+                    "object_id": 1, "frame_index": 0, "frame": {"width": 64, "height": 64},
+                    "label": concept,
+                }],
+                "model": (self._models[0] if getattr(self, "_models", None) else "fake"),
+            },
+            confidence=0.5,
+            model=(self._models[0] if getattr(self, "_models", None) else "fake"),
+        )
 
     def list_available_models(self) -> list[str]:
         return [

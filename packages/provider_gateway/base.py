@@ -29,6 +29,12 @@ class BaseProvider(ABC):
     def list_available_models(self) -> list[str]:
         """Return list of supported/configured model identifiers."""
 
+    def detect(self, request: ProviderRequest) -> ProviderResponse:
+        """Return object-detection boxes. Providers declaring OBJECT_DETECTION override this."""
+        raise NotImplementedError(
+            f"Provider '{self.name}' does not implement detect()."
+        )
+
     def generate(self, request: ProviderRequest) -> ProviderResponse:
         """
         Execute synthetic sample generation. Subclasses implementing TEXT_GENERATION
