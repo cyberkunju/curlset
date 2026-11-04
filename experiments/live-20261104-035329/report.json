@@ -1,0 +1,179 @@
+{
+  "run_id": "live-20261104-035329",
+  "live": true,
+  "limit": 20,
+  "elapsed_s": 33.8,
+  "gold_pairs": 20,
+  "optimistic": false,
+  "aggregator_scores": {
+    "log_odds": {
+      "accuracy": 0.95,
+      "macro_f1": 0.952991,
+      "n": 20
+    },
+    "majority": {
+      "accuracy": 0.95,
+      "macro_f1": 0.952991,
+      "n": 20
+    },
+    "weighted_vote": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "n": 20
+    },
+    "mean_probs": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "n": 20
+    }
+  },
+  "single_model_scores": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "n": 20
+    },
+    "gpt-6-luna": {
+      "accuracy": 0.0,
+      "macro_f1": 0.0,
+      "n": 0
+    },
+    "meta-models/muse-spark-open-1026": {
+      "accuracy": 0.95,
+      "macro_f1": 0.952991,
+      "n": 20
+    }
+  },
+  "best_single_model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "lift_over_best_single": -0.047009,
+  "calibration": [
+    {
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "temperature": 0.730295,
+      "ece_raw": 0.0,
+      "ece_calibrated": 0.0,
+      "ece_improvement": 0.0,
+      "brier_raw": 0.0,
+      "brier_calibrated": 0.0,
+      "accuracy": 1.0,
+      "n_samples": 6
+    },
+    {
+      "model": "meta-models/muse-spark-open-1026",
+      "temperature": 10.20329,
+      "ece_raw": 0.166667,
+      "ece_calibrated": 0.0,
+      "ece_improvement": 1.0,
+      "brier_raw": 0.333333,
+      "brier_calibrated": 0.296296,
+      "accuracy": 0.833333,
+      "n_samples": 6
+    }
+  ],
+  "model_weights": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017": 0.548077,
+    "meta-models/muse-spark-open-1026": 0.451923
+  },
+  "thresholds": {
+    "billing": {
+      "tau_hi": 0.969636,
+      "accepted": 3,
+      "support": 3,
+      "precision": 1.0,
+      "wilson_low": 0.438503,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 1.0
+    },
+    "general_inquiry": {
+      "tau_hi": 0.935188,
+      "accepted": 4,
+      "support": 4,
+      "precision": 1.0,
+      "wilson_low": 0.510109,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 1.0
+    },
+    "feature_request": {
+      "tau_hi": 0.95,
+      "accepted": 5,
+      "support": 5,
+      "precision": 1.0,
+      "wilson_low": 0.565518,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 1.0
+    },
+    "technical_support": {
+      "tau_hi": 0.962161,
+      "accepted": 2,
+      "support": 2,
+      "precision": 1.0,
+      "wilson_low": 0.34238,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 1.0
+    },
+    "__all__": {
+      "tau_hi": 0.935188,
+      "accepted": 14,
+      "support": 14,
+      "precision": 1.0,
+      "wilson_low": 0.784689,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 1.0
+    }
+  },
+  "band_counts": {
+    "auto_accept": 18,
+    "human_review": 2,
+    "reject": 0
+  },
+  "correlated_error": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.0
+  },
+  "safety_valve_fired": false,
+  "fanout": {
+    "records": 20,
+    "calls_made": 60,
+    "calls_reused": 0,
+    "failures": 20,
+    "cost_usd": 0.0,
+    "elapsed_s": 33.777,
+    "aborted_reason": null
+  },
+  "telemetry": [
+    {
+      "provider": "live-deepseek",
+      "calls": 20,
+      "tokens_in": 2029,
+      "tokens_out": 1366,
+      "avg_latency_ms": 1808.0,
+      "failures": 0
+    },
+    {
+      "provider": "live-muse",
+      "calls": 20,
+      "tokens_in": 4269,
+      "tokens_out": 11598,
+      "avg_latency_ms": 3241.9,
+      "failures": 0
+    },
+    {
+      "provider": "live-openai",
+      "calls": 20,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "avg_latency_ms": 0.0,
+      "failures": 20
+    }
+  ],
+  "materialized": 0,
+  "band_enum": [
+    "auto_accept",
+    "human_review",
+    "reject"
+  ]
+}

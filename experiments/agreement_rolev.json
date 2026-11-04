@@ -1,0 +1,45 @@
+{
+  "dataset_id": "ds_1a1a39bb004vzczdb",
+  "n": 300,
+  "models": [
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "meta-models/muse-spark-open-1026",
+    "gpt-6-luna"
+  ],
+  "agreement_buckets": {
+    "unanimous": {
+      "n": 276,
+      "precision": 0.8768115942028986
+    },
+    "2-of-1": {
+      "n": 24,
+      "precision": 0.8333333333333334
+    },
+    "all-different": {
+      "n": 0,
+      "precision": 0.0
+    }
+  },
+  "head_to_head": {
+    "coverage": 105,
+    "ensemble_precision": 0.942857,
+    "ensemble_wilson_low": 0.880903,
+    "singles": {
+      "deepseek-ai/DeepSeek-V4.1-Flash-1017": {
+        "precision": 0.961905,
+        "wilson_low": 0.906117,
+        "n": 105
+      },
+      "meta-models/muse-spark-open-1026": {
+        "precision": 0.942857,
+        "wilson_low": 0.880903,
+        "n": 105
+      },
+      "gpt-6-luna": {
+        "precision": 0.961905,
+        "wilson_low": 0.906117,
+        "n": 105
+      }
+    }
+  }
+}

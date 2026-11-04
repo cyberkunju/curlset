@@ -1,0 +1,193 @@
+{
+  "run_id": "live-20261104-042734",
+  "live": true,
+  "limit": 300,
+  "elapsed_s": 569.8,
+  "gold_pairs": 300,
+  "optimistic": false,
+  "aggregator_scores": {
+    "log_odds": {
+      "accuracy": 0.873333,
+      "macro_f1": 0.874073,
+      "n": 300
+    },
+    "majority": {
+      "accuracy": 0.873333,
+      "macro_f1": 0.874073,
+      "n": 300
+    },
+    "weighted_vote": {
+      "accuracy": 0.873333,
+      "macro_f1": 0.874073,
+      "n": 300
+    },
+    "mean_probs": {
+      "accuracy": 0.873333,
+      "macro_f1": 0.874073,
+      "n": 300
+    }
+  },
+  "single_model_scores": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017": {
+      "accuracy": 0.886667,
+      "macro_f1": 0.886498,
+      "n": 300
+    },
+    "gpt-6-luna": {
+      "accuracy": 0.876667,
+      "macro_f1": 0.877064,
+      "n": 300
+    },
+    "meta-models/muse-spark-open-1026": {
+      "accuracy": 0.840136,
+      "macro_f1": 0.840163,
+      "n": 294
+    }
+  },
+  "best_single_model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "lift_over_best_single": -0.012425,
+  "calibration": [
+    {
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "temperature": 8.652112,
+      "ece_raw": 0.109589,
+      "ece_calibrated": 0.0,
+      "ece_improvement": 1.0,
+      "brier_raw": 0.219178,
+      "brier_calibrated": 0.203165,
+      "accuracy": 0.890411,
+      "n_samples": 146
+    },
+    {
+      "model": "gpt-6-luna",
+      "temperature": 8.841329,
+      "ece_raw": 0.116438,
+      "ece_calibrated": 0.0,
+      "ece_improvement": 1.0,
+      "brier_raw": 0.232877,
+      "brier_calibrated": 0.2148,
+      "accuracy": 0.883562,
+      "n_samples": 146
+    },
+    {
+      "model": "meta-models/muse-spark-open-1026",
+      "temperature": 10.392055,
+      "ece_raw": 0.173611,
+      "ece_calibrated": 0.0,
+      "ece_improvement": 1.0,
+      "brier_raw": 0.347222,
+      "brier_calibrated": 0.307034,
+      "accuracy": 0.826389,
+      "n_samples": 144
+    }
+  ],
+  "model_weights": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017": 0.347742,
+    "gpt-6-luna": 0.344584,
+    "meta-models/muse-spark-open-1026": 0.307673
+  },
+  "thresholds": {
+    "technical_support": {
+      "tau_hi": 0.938605,
+      "accepted": 38,
+      "support": 49,
+      "precision": 1.0,
+      "wilson_low": 0.90819,
+      "wilson_high": 1.0,
+      "met_target": true,
+      "yield_fraction": 0.77551
+    },
+    "general_inquiry": {
+      "tau_hi": 0.937434,
+      "accepted": 15,
+      "support": 39,
+      "precision": 1.0,
+      "wilson_low": 0.796117,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 0.384615
+    },
+    "feature_request": {
+      "tau_hi": 0.902952,
+      "accepted": 15,
+      "support": 28,
+      "precision": 1.0,
+      "wilson_low": 0.796117,
+      "wilson_high": 1.0,
+      "met_target": false,
+      "yield_fraction": 0.535714
+    },
+    "billing": {
+      "tau_hi": 0.958019,
+      "accepted": 15,
+      "support": 38,
+      "precision": 0.8,
+      "wilson_low": 0.548146,
+      "wilson_high": 0.929525,
+      "met_target": false,
+      "yield_fraction": 0.394737
+    },
+    "__all__": {
+      "tau_hi": 0.937434,
+      "accepted": 84,
+      "support": 154,
+      "precision": 0.964286,
+      "wilson_low": 0.900183,
+      "wilson_high": 0.98778,
+      "met_target": true,
+      "yield_fraction": 0.545455
+    }
+  },
+  "band_counts": {
+    "auto_accept": 0,
+    "human_review": 300,
+    "reject": 0
+  },
+  "correlated_error": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.793288,
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.726942,
+    "gpt-6-luna|meta-models/muse-spark-open-1026": 0.828016
+  },
+  "safety_valve_fired": true,
+  "fanout": {
+    "records": 300,
+    "calls_made": 900,
+    "calls_reused": 0,
+    "failures": 6,
+    "cost_usd": 0.0,
+    "elapsed_s": 569.575,
+    "aborted_reason": null
+  },
+  "telemetry": [
+    {
+      "provider": "live-deepseek",
+      "calls": 300,
+      "tokens_in": 30882,
+      "tokens_out": 29083,
+      "avg_latency_ms": 1725.3,
+      "failures": 0
+    },
+    {
+      "provider": "live-muse",
+      "calls": 300,
+      "tokens_in": 63146,
+      "tokens_out": 196399,
+      "avg_latency_ms": 3293.7,
+      "failures": 6
+    },
+    {
+      "provider": "live-openai",
+      "calls": 300,
+      "tokens_in": 23933,
+      "tokens_out": 17466,
+      "avg_latency_ms": 2365.2,
+      "failures": 0
+    }
+  ],
+  "materialized": 0,
+  "band_enum": [
+    "auto_accept",
+    "human_review",
+    "reject"
+  ]
+}

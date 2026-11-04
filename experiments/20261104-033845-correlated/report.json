@@ -1,0 +1,381 @@
+{
+  "run_id": "20261104-033845-correlated",
+  "scenario": "correlated",
+  "presets": {
+    "strong": 0.97,
+    "medium": 0.93,
+    "weak": 0.87,
+    "hard_rate": 0.45
+  },
+  "import": {
+    "accepted_count": 200,
+    "duplicate_count": 0,
+    "rejected_count": 0
+  },
+  "fixture": {
+    "source": "text_intents_200.csv",
+    "relabelled_to_proxy": true,
+    "rows": 200
+  },
+  "elapsed_s": 0.13,
+  "fanout": {
+    "calls": 600,
+    "failures": 0,
+    "cost_usd": 0.0
+  },
+  "E1_aggregators": {
+    "log_odds": {
+      "accuracy": 0.54,
+      "macro_f1": 0.533034,
+      "n": 200
+    },
+    "majority": {
+      "accuracy": 0.545,
+      "macro_f1": 0.53703,
+      "n": 200
+    },
+    "weighted_vote": {
+      "accuracy": 0.54,
+      "macro_f1": 0.533034,
+      "n": 200
+    },
+    "mean_probs": {
+      "accuracy": 0.54,
+      "macro_f1": 0.533034,
+      "n": 200
+    }
+  },
+  "E1_single_models": {
+    "sim-apex-classifier-v1": {
+      "accuracy": 0.55,
+      "macro_f1": 0.542206,
+      "n": 200
+    },
+    "sim-nova-classifier-v1": {
+      "accuracy": 0.5,
+      "macro_f1": 0.495261,
+      "n": 200
+    },
+    "sim-quill-classifier-v1": {
+      "accuracy": 0.44,
+      "macro_f1": 0.433464,
+      "n": 200
+    }
+  },
+  "E1_best_single_model": "sim-apex-classifier-v1",
+  "E1_lift_over_best_single": -0.009172,
+  "E1b_alpha_sweep": {
+    "alpha=2 (baseline)": {
+      "precision": 0.54,
+      "wilson_low": 0.470823,
+      "wilson_high": 0.607669,
+      "n": 200
+    },
+    "alpha=0": {
+      "precision": 0.54,
+      "wilson_low": 0.470823,
+      "wilson_high": 0.607669,
+      "n": 200
+    },
+    "alpha=1": {
+      "precision": 0.55,
+      "wilson_low": 0.480756,
+      "wilson_high": 0.617359,
+      "n": 200
+    },
+    "alpha=6": {
+      "precision": 0.55,
+      "wilson_low": 0.480756,
+      "wilson_high": 0.617359,
+      "n": 200
+    },
+    "alpha=20": {
+      "precision": 0.55,
+      "wilson_low": 0.480756,
+      "wilson_high": 0.617359,
+      "n": 200
+    },
+    "_best_by_wilson_low": {
+      "precision": 0.0,
+      "wilson_low": 0.0,
+      "n": 0,
+      "label": "alpha=1"
+    }
+  },
+  "E2_calibration": [
+    {
+      "model": "sim-apex-classifier-v1",
+      "temperature": 2.33192,
+      "ece_raw": 0.2968,
+      "ece_calibrated": 0.001143,
+      "ece_improvement": 0.9961,
+      "brier_raw": 0.654459,
+      "brier_calibrated": 0.536802,
+      "accuracy": 0.648936,
+      "n_samples": 94
+    },
+    {
+      "model": "sim-nova-classifier-v1",
+      "temperature": 1.993574,
+      "ece_raw": 0.267549,
+      "ece_calibrated": 0.054928,
+      "ece_improvement": 0.7947,
+      "brier_raw": 0.68431,
+      "brier_calibrated": 0.58891,
+      "accuracy": 0.595745,
+      "n_samples": 94
+    },
+    {
+      "model": "sim-quill-classifier-v1",
+      "temperature": 5.22679,
+      "ece_raw": 0.508429,
+      "ece_calibrated": 0.018818,
+      "ece_improvement": 0.963,
+      "brier_raw": 1.024008,
+      "brier_calibrated": 0.675951,
+      "accuracy": 0.478723,
+      "n_samples": 94
+    }
+  ],
+  "E3_thresholds": {
+    "technical_support": {
+      "tau_hi": 0.404368,
+      "accepted": 24,
+      "support": 24,
+      "precision": 0.458333,
+      "wilson_low": 0.278913,
+      "wilson_high": 0.649251,
+      "met_target": false,
+      "yield_fraction": 1.0
+    },
+    "billing": {
+      "tau_hi": 0.813841,
+      "accepted": 25,
+      "support": 27,
+      "precision": 0.44,
+      "wilson_low": 0.266656,
+      "wilson_high": 0.629327,
+      "met_target": false,
+      "yield_fraction": 0.925926
+    },
+    "feature_request": {
+      "tau_hi": 0.717083,
+      "accepted": 25,
+      "support": 27,
+      "precision": 0.44,
+      "wilson_low": 0.266656,
+      "wilson_high": 0.629327,
+      "met_target": false,
+      "yield_fraction": 0.925926
+    },
+    "general_inquiry": {
+      "tau_hi": 0.942645,
+      "accepted": 25,
+      "support": 28,
+      "precision": 0.48,
+      "wilson_low": 0.300313,
+      "wilson_high": 0.665015,
+      "met_target": false,
+      "yield_fraction": 0.892857
+    },
+    "__all__": {
+      "tau_hi": 0.950071,
+      "accepted": 25,
+      "support": 106,
+      "precision": 0.4,
+      "wilson_low": 0.234033,
+      "wilson_high": 0.592605,
+      "met_target": false,
+      "yield_fraction": 0.235849
+    }
+  },
+  "E3_head_to_head": {
+    "accepted": 0
+  },
+  "E3_band_counts": {
+    "auto_accept": 0,
+    "human_review": 200,
+    "reject": 0
+  },
+  "E4_correlated_error": {
+    "sim-apex-classifier-v1|sim-nova-classifier-v1": 0.864333,
+    "sim-apex-classifier-v1|sim-quill-classifier-v1": 0.76129,
+    "sim-nova-classifier-v1|sim-quill-classifier-v1": 0.68495
+  },
+  "E4_gold_kappa": 0.826212,
+  "E4_correlated_flagged": true,
+  "optimistic": false,
+  "gold_pairs": 200,
+  "model_weights": {
+    "sim-apex-classifier-v1": 0.423052,
+    "sim-nova-classifier-v1": 0.348407,
+    "sim-quill-classifier-v1": 0.228541
+  },
+  "outcome": {
+    "dataset_id": "ds_1a1a3752464s4fbkp",
+    "models": [
+      "sim-apex-classifier-v1",
+      "sim-nova-classifier-v1",
+      "sim-quill-classifier-v1"
+    ],
+    "records_aggregated": 200,
+    "gold_pairs": 200,
+    "optimistic": false,
+    "target_precision": 0.9,
+    "fanout": {
+      "records": 200,
+      "calls_made": 600,
+      "calls_reused": 0,
+      "failures": 0,
+      "cost_usd": 0.0,
+      "elapsed_s": 0.063,
+      "aborted_reason": null
+    },
+    "aggregator_scores": {
+      "log_odds": {
+        "accuracy": 0.54,
+        "macro_f1": 0.533034,
+        "n": 200
+      },
+      "majority": {
+        "accuracy": 0.545,
+        "macro_f1": 0.53703,
+        "n": 200
+      },
+      "weighted_vote": {
+        "accuracy": 0.54,
+        "macro_f1": 0.533034,
+        "n": 200
+      },
+      "mean_probs": {
+        "accuracy": 0.54,
+        "macro_f1": 0.533034,
+        "n": 200
+      }
+    },
+    "single_model_scores": {
+      "sim-apex-classifier-v1": {
+        "accuracy": 0.55,
+        "macro_f1": 0.542206,
+        "n": 200
+      },
+      "sim-nova-classifier-v1": {
+        "accuracy": 0.5,
+        "macro_f1": 0.495261,
+        "n": 200
+      },
+      "sim-quill-classifier-v1": {
+        "accuracy": 0.44,
+        "macro_f1": 0.433464,
+        "n": 200
+      }
+    },
+    "best_single_model": "sim-apex-classifier-v1",
+    "ensemble_macro_f1": 0.533034,
+    "lift_over_best_single": -0.009172,
+    "calibration": [
+      {
+        "model": "sim-apex-classifier-v1",
+        "temperature": 2.33192,
+        "ece_raw": 0.2968,
+        "ece_calibrated": 0.001143,
+        "ece_improvement": 0.9961,
+        "brier_raw": 0.654459,
+        "brier_calibrated": 0.536802,
+        "accuracy": 0.648936,
+        "n_samples": 94
+      },
+      {
+        "model": "sim-nova-classifier-v1",
+        "temperature": 1.993574,
+        "ece_raw": 0.267549,
+        "ece_calibrated": 0.054928,
+        "ece_improvement": 0.7947,
+        "brier_raw": 0.68431,
+        "brier_calibrated": 0.58891,
+        "accuracy": 0.595745,
+        "n_samples": 94
+      },
+      {
+        "model": "sim-quill-classifier-v1",
+        "temperature": 5.22679,
+        "ece_raw": 0.508429,
+        "ece_calibrated": 0.018818,
+        "ece_improvement": 0.963,
+        "brier_raw": 1.024008,
+        "brier_calibrated": 0.675951,
+        "accuracy": 0.478723,
+        "n_samples": 94
+      }
+    ],
+    "model_weights": {
+      "sim-apex-classifier-v1": 0.423052,
+      "sim-nova-classifier-v1": 0.348407,
+      "sim-quill-classifier-v1": 0.228541
+    },
+    "weight_alpha": 2.0,
+    "weight_beta": 1.0,
+    "thresholds": {
+      "technical_support": {
+        "tau_hi": 0.404368,
+        "accepted": 24,
+        "support": 24,
+        "precision": 0.458333,
+        "wilson_low": 0.278913,
+        "wilson_high": 0.649251,
+        "met_target": false,
+        "yield_fraction": 1.0
+      },
+      "billing": {
+        "tau_hi": 0.813841,
+        "accepted": 25,
+        "support": 27,
+        "precision": 0.44,
+        "wilson_low": 0.266656,
+        "wilson_high": 0.629327,
+        "met_target": false,
+        "yield_fraction": 0.925926
+      },
+      "feature_request": {
+        "tau_hi": 0.717083,
+        "accepted": 25,
+        "support": 27,
+        "precision": 0.44,
+        "wilson_low": 0.266656,
+        "wilson_high": 0.629327,
+        "met_target": false,
+        "yield_fraction": 0.925926
+      },
+      "general_inquiry": {
+        "tau_hi": 0.942645,
+        "accepted": 25,
+        "support": 28,
+        "precision": 0.48,
+        "wilson_low": 0.300313,
+        "wilson_high": 0.665015,
+        "met_target": false,
+        "yield_fraction": 0.892857
+      },
+      "__all__": {
+        "tau_hi": 0.950071,
+        "accepted": 25,
+        "support": 106,
+        "precision": 0.4,
+        "wilson_low": 0.234033,
+        "wilson_high": 0.592605,
+        "met_target": false,
+        "yield_fraction": 0.235849
+      }
+    },
+    "band_counts": {
+      "auto_accept": 0,
+      "human_review": 200,
+      "reject": 0
+    },
+    "correlated_error": {
+      "sim-apex-classifier-v1|sim-nova-classifier-v1": 0.864333,
+      "sim-apex-classifier-v1|sim-quill-classifier-v1": 0.76129,
+      "sim-nova-classifier-v1|sim-quill-classifier-v1": 0.68495
+    }
+  }
+}

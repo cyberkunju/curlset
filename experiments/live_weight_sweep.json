@@ -1,0 +1,146 @@
+{
+  "coverage": 50,
+  "single": {
+    "deepseek-ai/DeepSeek-V4.1-Flash-1017": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50
+    },
+    "meta-models/muse-spark-open-1026": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50
+    },
+    "gpt-6-luna": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50
+    }
+  },
+  "sweep": {
+    "alpha=0": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    },
+    "alpha=1": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    },
+    "alpha=2": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    },
+    "alpha=4": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    },
+    "alpha=8": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    },
+    "alpha=20": {
+      "precision": 1.0,
+      "wilson_low": 0.928652,
+      "wilson_high": 1.0,
+      "n": 50,
+      "macro_f1_all": 0.969663,
+      "lift_vs_best_single": -0.004947,
+      "best_single_model": "gpt-6-luna",
+      "correlated_error": {
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|gpt-6-luna": 0.274213,
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017|meta-models/muse-spark-open-1026": 0.614286,
+        "gpt-6-luna|meta-models/muse-spark-open-1026": 0.14282
+      },
+      "safety_valve_fired": true,
+      "bands": {
+        "auto_accept": 0,
+        "human_review": 200,
+        "reject": 0
+      }
+    }
+  },
+  "best_single": "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+}

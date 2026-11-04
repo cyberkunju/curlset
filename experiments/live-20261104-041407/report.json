@@ -1,0 +1,59 @@
+{
+  "run_id": "live-20261104-041407",
+  "live": true,
+  "limit": 300,
+  "elapsed_s": 389.5,
+  "gold_pairs": 0,
+  "optimistic": true,
+  "aggregator_scores": {},
+  "single_model_scores": {},
+  "best_single_model": null,
+  "lift_over_best_single": 0.0,
+  "calibration": [],
+  "model_weights": {},
+  "thresholds": {},
+  "band_counts": {},
+  "correlated_error": {},
+  "safety_valve_fired": false,
+  "fanout": {
+    "records": 300,
+    "calls_made": 900,
+    "calls_reused": 0,
+    "failures": 2,
+    "cost_usd": 0.0,
+    "elapsed_s": 389.489,
+    "aborted_reason": null
+  },
+  "telemetry": [
+    {
+      "provider": "live-deepseek",
+      "calls": 300,
+      "tokens_in": 30882,
+      "tokens_out": 30548,
+      "avg_latency_ms": 2060.7,
+      "failures": 0
+    },
+    {
+      "provider": "live-muse",
+      "calls": 300,
+      "tokens_in": 64224,
+      "tokens_out": 192604,
+      "avg_latency_ms": 3384.6,
+      "failures": 1
+    },
+    {
+      "provider": "live-openai",
+      "calls": 300,
+      "tokens_in": 23848,
+      "tokens_out": 16882,
+      "avg_latency_ms": 2269.2,
+      "failures": 1
+    }
+  ],
+  "materialized": 0,
+  "band_enum": [
+    "auto_accept",
+    "human_review",
+    "reject"
+  ]
+}

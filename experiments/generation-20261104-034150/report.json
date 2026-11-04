@@ -1,0 +1,78 @@
+{
+  "run_id": "generation-20261104-034150",
+  "generated": 48,
+  "accepted": 48,
+  "rejected": 0,
+  "acceptance_rate": 1.0,
+  "rejection_reasons": {},
+  "batch_unique_trigram_ratio": 0.196429,
+  "collapsed_flag": true,
+  "collapse_warning": "batch flagged as template collapse: unique trigram ratio 0.196 < 0.35",
+  "label_preservation_rate": 0.520833,
+  "label_preservation_failures": [
+    {
+      "text": "Telemetry shows typical baseline resource utilization during the evaluation cycle. [Synth-BILLING #3]",
+      "intended": "billing",
+      "verdict": "technical_support"
+    },
+    {
+      "text": "The model processed the incoming batch and returned standard status code 200. [Synth-TECHNICAL_SUPPORT #0]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "Standard data formatting was applied according to configuration schema version 1. [Synth-TECHNICAL_SUPPORT #1]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "The sensor reported nominal ambient temperature and pressure readings without anomaly. [Synth-TECHNICAL_SUPPORT #2]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "Telemetry shows typical baseline resource utilization during the evaluation cycle. [Synth-TECHNICAL_SUPPORT #3]",
+      "intended": "technical_support",
+      "verdict": "general_inquiry"
+    },
+    {
+      "text": "The scheduled backup script executed at standard midnight interval as configured. [Synth-TECHNICAL_SUPPORT #4]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "The model processed the incoming batch and returned standard status code 200. [Synth-TECHNICAL_SUPPORT #5]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "Standard data formatting was applied according to configuration schema version 1. [Synth-TECHNICAL_SUPPORT #6]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "The sensor reported nominal ambient temperature and pressure readings without anomaly. [Synth-TECHNICAL_SUPPORT #7]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    },
+    {
+      "text": "Telemetry shows typical baseline resource utilization during the evaluation cycle. [Synth-TECHNICAL_SUPPORT #8]",
+      "intended": "technical_support",
+      "verdict": "feature_request"
+    }
+  ],
+  "class_counts_after": {
+    "billing": 62,
+    "feature_request": 62,
+    "general_inquiry": 62,
+    "technical_support": 62
+  },
+  "policy": {
+    "min_chars": 20,
+    "max_chars": 2000,
+    "max_similarity": 0.75,
+    "max_batch_similarity": 0.9,
+    "max_class_share": 0.5,
+    "min_batch_unique_trigram_ratio": 0.35
+  }
+}
